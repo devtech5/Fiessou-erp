@@ -149,12 +149,31 @@ Pour lancer les deux à la main : `pnpm verify`.
 ## Commandes
 
 ```bash
-docker compose up -d          # PostgreSQL local
 pnpm dev                      # serveur de développement
 pnpm verify                   # analyse statique + types
 pnpm db:generate              # génère la migration depuis le schéma
 pnpm db:migrate               # applique les migrations
+pnpm db:check                 # connexion, tables, RLS
 pnpm db:studio                # inspecteur de base
 ```
 
 Copier `.env.example` vers `.env.local` avant le premier démarrage.
+
+## La base est sur Supabase
+
+Le projet travaille directement sur Supabase, pas sur un PostgreSQL local. Le
+`docker-compose.yml` reste fourni mais n'est pas la voie normale.
+
+Deux conséquences à ne pas perdre de vue :
+
+**Deux chaînes de connexion**, qui ne diffèrent que par le port. `DATABASE_URL`
+sur **6543** pour l'application — pooler en mode transaction, d'où requêtes
+préparées désactivées et pool ramené à 1. `DATABASE_URL_MIGRATION` sur **5432**
+pour drizzle-kit, qui exige une session stable.
+
+**RLS est actif sur les quinze tables** (migration 0001) et doit le rester.
+Supabase expose une API REST sur le schéma `public`, lisible avec la clé
+publiable — laquelle est publique par conception. Une table sans RLS y est
+lisible par n'importe qui. Aucune policy n'est définie : Fiessou se connecte
+directement avec un rôle propriétaire, qui contourne RLS, et l'isolation entre
+entreprises reste assurée par le filtre `organization_id`.

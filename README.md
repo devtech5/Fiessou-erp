@@ -9,25 +9,39 @@ pays voisin.
 
 ## Démarrer
 
-Prérequis : Node 22+, pnpm, Docker.
+Prérequis : Node 22+ et pnpm. La base est hébergée sur Supabase — il n'y a rien
+à installer localement.
 
 ```bash
-cp .env.example .env.local
+pnpm install
 ```
 
-Renseigner `AUTH_SECRET` dans `.env.local` :
+Copier `.env.example` vers `.env.local`, puis y renseigner les deux chaînes de
+connexion Supabase (`Settings → Database → Connection string`) et une clé de
+signature :
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Lancer la base, appliquer le schéma, démarrer :
+Les deux chaînes ne diffèrent que par le port : **6543** pour l'application,
+**5432** pour les migrations. Elles ne sont pas interchangeables — un pooler en
+mode transaction rend la connexion après chaque requête, alors qu'une migration
+exige une session stable.
+
+Appliquer le schéma, contrôler, démarrer :
 
 ```bash
-docker compose up -d
 pnpm db:migrate
+pnpm db:check
 pnpm dev
 ```
+
+`db:check` vérifie la connexion, la présence des quinze tables du socle et
+l'activation de la sécurité au niveau ligne sur chacune.
+
+Un `docker-compose.yml` reste fourni pour un PostgreSQL local, mais ce n'est pas
+la voie normale du projet.
 
 ## Architecture
 
