@@ -1,10 +1,10 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { auditLogs, documentSequences, ecritures, lignesEcriture } from "@/db/schema";
+import { auditLogs, ecritures, lignesEcriture } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import {
   ecritureAvoir,
@@ -14,74 +14,14 @@ import {
   type Ecriture,
 } from "@/lib/comptabilite/ecritures";
 import { DOCUMENTS, comptabilisable } from "@/lib/fixtures/gestion";
-import { buildDocumentNumber, newId } from "@/lib/ids";
+import { newId } from "@/lib/ids";
+import { prochainNumero } from "@/lib/sequences";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ResultatComptabilisation =
   | { ok: true; numero: string }
   | { ok: false; message: string };
-
-/**
- * Attribue le prochain numéro d'un journal, dans la transaction en cours.
- *
- * L'incrément et la lecture se font en une seule requête, avec RETURNING : un
- * SELECT suivi d'un UPDATE laisserait deux comptabilisations simultanées
- * repartir du même numéro, et une numérotation comptable ne tolère ni trou ni
- * doublon.
- *
- * La ligne de compteur est verrouillée le temps de l'opération, ce qui sérialise
- * naturellement les demandes concurrentes sur le même journal.
- */
-async function prochainNumero(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  organizationId: string,
-  journal: string,
-  exercice: string,
-): Promise<string> {
-  const cle = `ecriture:${journal}`;
-
-  const existants = await tx
-    .update(documentSequences)
-    .set({ nextValue: sql`${documentSequences.nextValue} + 1` })
-    .where(
-      and(
-        eq(documentSequences.organizationId, organizationId),
-        eq(documentSequences.key, cle),
-        eq(documentSequences.periodKey, exercice),
-      ),
-    )
-    .returning({ valeur: documentSequences.nextValue });
-
-  if (existants.length > 0) {
-    return buildDocumentNumber({
-      prefix: `${journal}-${exercice}-`,
-      // nextValue vaut déjà la valeur suivante : le numéro attribué est le
-      // précédent.
-      value: existants[0].valeur - 1,
-      padding: 5,
-    });
-  }
-
-  // Premier numéro de ce journal pour cet exercice.
-  await tx.insert(documentSequences).values({
-    id: newId(),
-    organizationId,
-    key: cle,
-    scope: "",
-    prefix: `${journal}-${exercice}-`,
-    padding: 5,
-    periodicity: "annuelle",
-    periodKey: exercice,
-    nextValue: 2,
-  });
-
-  return buildDocumentNumber({
-    prefix: `${journal}-${exercice}-`,
-    value: 1,
-    padding: 5,
-  });
-}
 
 /**
  * Enregistre une écriture calculée.
@@ -109,12 +49,12 @@ async function enregistrer(
   }
 
   return db.transaction(async (tx) => {
-    const numero = await prochainNumero(
-      tx,
-      contexte.organizationId,
-      ecriture.journal,
-      contexte.exercice,
-    );
+    const numero = await prochainNumero(tx, contexte.organizationId, {
+      cle: `ecriture:${ecriture.journal}`,
+      prefix: `${ecriture.journal}-${contexte.exercice}-`,
+      padding: 5,
+      periode: contexte.exercice,
+    });
 
     const ecritureId = newId();
 
