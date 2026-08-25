@@ -1,18 +1,29 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
-/** Indicateur de tête. Une valeur, son libellé, une précision facultative. */
+/**
+ * Indicateur de tête. Une valeur, son libellé, une précision facultative.
+ *
+ * Avec `href`, la carte devient cliquable et prend un survol, sans changer
+ * d'allure. C'est ce qui permet à une alerte du tableau de bord de mener vers
+ * son module tout en se rangeant dans la même grille qu'un indicateur : deux
+ * cartes côte à côte qui ne se ressemblent qu'à moitié se lisent comme deux
+ * écrans juxtaposés.
+ */
 export function CarteIndicateur({
   libelle,
   valeur,
   unite,
   precision,
   ton = "neutre",
+  href,
 }: {
   libelle: string;
   valeur: string;
   unite?: string;
-  precision?: string;
+  precision?: ReactNode;
   ton?: "neutre" | "marque" | "alerte" | "danger" | "valide";
+  href?: string;
 }) {
   const tons = {
     neutre: "text-[var(--encre)]",
@@ -22,8 +33,8 @@ export function CarteIndicateur({
     valide: "text-valide-600",
   } as const;
 
-  return (
-    <div className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
+  const contenu = (
+    <>
       <p className="text-xs font-medium text-[var(--encre-faible)]">{libelle}</p>
       <p className={`chiffres mt-1 text-2xl font-bold ${tons[ton]}`}>
         {valeur}
@@ -34,9 +45,21 @@ export function CarteIndicateur({
         )}
       </p>
       {precision && (
-        <p className="mt-0.5 text-xs text-[var(--encre-faible)]">{precision}</p>
+        <div className="mt-0.5 text-xs text-[var(--encre-faible)]">{precision}</div>
       )}
-    </div>
+    </>
+  );
+
+  const habillage = "rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4";
+
+  // `h-full` sur le lien : dans une grille, une carte au texte plus court
+  // laisserait sinon un vide sous elle et casserait l'alignement de la rangée.
+  return href ? (
+    <Link href={href} className={`${habillage} block h-full hover:border-marque-400`}>
+      {contenu}
+    </Link>
+  ) : (
+    <div className={habillage}>{contenu}</div>
   );
 }
 
