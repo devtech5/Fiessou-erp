@@ -3,12 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 
 import { monnaieARendre, resteAPayer, type LignePanier } from "@/lib/caisse/panier";
-import { MOYENS_PAIEMENT, type MoyenPaiementId } from "@/lib/fixtures/catalogue";
 import { fmt } from "@/lib/format";
+import {
+  MOYENS_CAISSE,
+  type MoyenPaiementId,
+  type ReglementSaisi,
+} from "./types";
 
 interface Reglement {
-  moyen: MoyenPaiementId;
+  id: MoyenPaiementId;
   nom: string;
+  moyen: ReglementSaisi["moyen"];
   montant: number;
   reference?: string;
 }
@@ -17,7 +22,8 @@ interface Props {
   net: number;
   lignes: LignePanier[];
   onAnnuler: () => void;
-  onValider: () => void;
+  /** Rend les règlements saisis : c'est l'écran qui encaisse, pas la modale. */
+  onValider: (reglements: ReglementSaisi[]) => void;
 }
 
 export function ModalePaiement({ net, lignes, onAnnuler, onValider }: Props) {
@@ -34,7 +40,7 @@ export function ModalePaiement({ net, lignes, onAnnuler, onValider }: Props) {
   // En espèces, le caissier annonce la monnaie. Ce champ n'existe pas chez le
   // concurrent, et c'est la première source d'écart à la clôture de caisse.
   const rendu = monnaieARendre(reste, montantSaisi);
-  const moyenActif = MOYENS_PAIEMENT.find((m) => m.id === moyen)!;
+  const moyenActif = MOYENS_CAISSE.find((m) => m.id === moyen) ?? MOYENS_CAISSE[0];
   const soldé = reste === 0 && reglements.length > 0;
 
   useEffect(() => {
@@ -59,10 +65,16 @@ export function ModalePaiement({ net, lignes, onAnnuler, onValider }: Props) {
     setReglements((liste) => [
       ...liste,
       {
-        moyen,
+        id: moyen,
         nom: moyenActif.nom,
+        moyen: moyenActif.moyen,
         montant,
-        reference: reference.trim() || undefined,
+        // L'opérateur est repris dans la référence : la comptabilité regroupe
+        // tout le mobile money sur un compte unique, et le rapprochement du
+        // relevé exige de savoir chez qui chercher.
+        reference: reference.trim()
+          ? `${moyenActif.nom} ${reference.trim()}`
+          : undefined,
       },
     ]);
     setSaisie("");
@@ -114,7 +126,7 @@ export function ModalePaiement({ net, lignes, onAnnuler, onValider }: Props) {
             </div>
 
             <div className="grid grid-cols-3 gap-1.5">
-              {MOYENS_PAIEMENT.map((m) => (
+              {MOYENS_CAISSE.map((m) => (
                 <button
                   key={m.id}
                   type="button"
@@ -200,7 +212,15 @@ export function ModalePaiement({ net, lignes, onAnnuler, onValider }: Props) {
           {soldé ? (
             <button
               type="button"
-              onClick={onValider}
+              onClick={() =>
+                onValider(
+                  reglements.map(({ moyen: m, montant, reference: ref }) => ({
+                    moyen: m,
+                    montant,
+                    reference: ref,
+                  })),
+                )
+              }
               className="sans-selection h-touche w-full rounded-xl bg-valide-500 text-base font-bold text-white hover:bg-valide-600"
             >
               Valider et imprimer le ticket

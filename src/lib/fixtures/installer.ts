@@ -9,13 +9,16 @@ import { rateOf } from "@/lib/money";
 import { versQuantite } from "@/lib/quantite";
 import { creerArticleDans, creerFamilleDans } from "@/modules/catalogue/creation";
 import { articles } from "@/modules/catalogue/schema";
-import { aUnDepot } from "@/modules/stock/requetes";
+import { aUnDepot, listerDepots } from "@/modules/stock/requetes";
 import { depots } from "@/modules/stock/schema";
 import { creerTiersDans } from "@/modules/tiers/creation";
 import { tiers } from "@/modules/tiers/schema";
 
 import { CATALOGUE, CATEGORIES, SEUIL_STOCK_BAS } from "./catalogue";
 import { ALERTES, CLIENTS, FOURNISSEURS } from "./gestion";
+import { creerPosteCaisseDans } from "@/modules/ventes/creation";
+import { postesCaisse } from "@/modules/ventes/schema";
+
 import { amorcerStock, type ArticleAAmorcer } from "./stock";
 
 /**
@@ -68,6 +71,7 @@ export interface ResultatInstallation {
   codes: number;
   depots: number;
   mouvements: number;
+  postes: number;
 }
 
 /** Code de famille sur trois lettres, désambiguïsé si deux catégories collent. */
@@ -272,7 +276,53 @@ export async function installerJeuDemonstration(
       codes,
       depots: stock.depots,
       mouvements: stock.mouvements,
+      postes: stock.postes,
     };
+  });
+}
+
+/**
+ * Ouvre un poste de caisse sur chaque magasin qui n'en a pas.
+ *
+ * Sert aux entreprises amorcées avant l'arrivée du module Ventes : elles ont
+ * leurs dépôts et leur stock, mais la caisse n'a nulle part où numéroter ses
+ * tickets. Le poste manquant est le seul obstacle entre elles et un
+ * encaissement réel.
+ */
+async function completerPostes(
+  organizationId: string,
+  userId?: string,
+): Promise<number> {
+  const [dejaLa] = await db
+    .select({ id: postesCaisse.id })
+    .from(postesCaisse)
+    .where(eq(postesCaisse.organizationId, organizationId))
+    .limit(1);
+
+  if (dejaLa) return 0;
+
+  const lieux = await listerDepots(organizationId);
+  // Un magasin encaisse, un entrepôt non. Sans magasin, le dépôt par défaut
+  // fait l'affaire : mieux vaut une caisse ouverte qu'un écran qui refuse.
+  const encaissants = lieux.filter((lieu) => lieu.type === "magasin");
+  const cibles = encaissants.length > 0 ? encaissants : lieux.slice(0, 1);
+
+  if (cibles.length === 0) return 0;
+
+  return db.transaction(async (tx) => {
+    for (const [index, lieu] of cibles.entries()) {
+      await creerPosteCaisseDans(
+        tx,
+        organizationId,
+        {
+          code: `C${String(index + 1).padStart(2, "0")}`,
+          nom: `Caisse ${lieu.nom}`,
+          depotId: lieu.id,
+        },
+        userId,
+      );
+    }
+    return cibles.length;
   });
 }
 
@@ -286,8 +336,13 @@ export async function installerJeuDemonstration(
 async function completerStock(
   organizationId: string,
   userId?: string,
-): Promise<{ depots: number; mouvements: number }> {
-  if (await aUnDepot(organizationId)) return { depots: 0, mouvements: 0 };
+): Promise<{ depots: number; mouvements: number; postes: number }> {
+  if (await aUnDepot(organizationId)) {
+    // Les dépôts sont là mais le module Ventes est arrivé après : sans poste,
+    // l'écran de caisse n'a nulle part où numéroter ses tickets et refuse de
+    // s'ouvrir. On complète ce seul manque.
+    return { depots: 0, mouvements: 0, postes: await completerPostes(organizationId, userId) };
+  }
 
   const stocksDemo = new Map(
     CATALOGUE.map((article) => [article.sku, article.stock]),
@@ -314,7 +369,7 @@ async function completerStock(
       ),
     );
 
-  if (enBase.length === 0) return { depots: 0, mouvements: 0 };
+  if (enBase.length === 0) return { depots: 0, mouvements: 0, postes: 0 };
 
   const aAmorcer: ArticleAAmorcer[] = enBase.map((article) => ({
     id: article.id,

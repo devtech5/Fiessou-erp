@@ -4,106 +4,17 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { auditLogs, ecritures, lignesEcriture } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
-import {
-  ecritureAvoir,
-  ecritureFacture,
-  estEquilibree,
-  totalDebit,
-  type Ecriture,
-} from "@/lib/comptabilite/ecritures";
+import { ecritureAvoir, ecritureFacture } from "@/lib/comptabilite/ecritures";
 import { DOCUMENTS, comptabilisable } from "@/lib/fixtures/gestion";
-import { newId } from "@/lib/ids";
-import { prochainNumero } from "@/lib/sequences";
+import { enregistrerEcritureDans, type ContexteEcriture } from "./enregistrement";
+import { ecritures } from "./schema";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ResultatComptabilisation =
   | { ok: true; numero: string }
   | { ok: false; message: string };
-
-/**
- * Enregistre une écriture calculée.
- *
- * Le contrôle d'équilibre est refait ICI, alors que le moteur l'a déjà fait.
- * Ce n'est pas de la redondance inutile : entre le calcul et l'enregistrement,
- * l'écriture a traversé une frontière réseau. Une balance fausse ne se répare
- * pas, elle se traîne.
- */
-async function enregistrer(
-  ecriture: Ecriture,
-  contexte: {
-    organizationId: string;
-    userId: string;
-    origine: "facture" | "avoir" | "reglement" | "achat" | "bon_caisse" | "vente_pos";
-    /** Identifiant technique de la pièce. Nul tant que la pièce vient des
-     *  fixtures : l'unicité repose de toute façon sur son numéro. */
-    pieceId: string | null;
-    exercice: string;
-    dateIso: string;
-  },
-): Promise<string> {
-  if (!estEquilibree(ecriture)) {
-    throw new Error("Écriture déséquilibrée : enregistrement refusé.");
-  }
-
-  return db.transaction(async (tx) => {
-    const numero = await prochainNumero(tx, contexte.organizationId, {
-      cle: `ecriture:${ecriture.journal}`,
-      prefix: `${ecriture.journal}-${contexte.exercice}-`,
-      padding: 5,
-      periode: contexte.exercice,
-    });
-
-    const ecritureId = newId();
-
-    await tx.insert(ecritures).values({
-      id: ecritureId,
-      organizationId: contexte.organizationId,
-      journal: ecriture.journal,
-      numero,
-      exercice: contexte.exercice,
-      dateEcriture: contexte.dateIso,
-      libelle: ecriture.libelle,
-      origine: contexte.origine,
-      pieceId: contexte.pieceId,
-      pieceNumero: ecriture.piece,
-      passeeParUserId: contexte.userId,
-    });
-
-    await tx.insert(lignesEcriture).values(
-      ecriture.lignes.map((ligne, index) => ({
-        id: newId(),
-        ecritureId,
-        organizationId: contexte.organizationId,
-        compte: ligne.compte,
-        libelleCompte: ligne.libelleCompte,
-        auxiliaire: ligne.auxiliaire ?? null,
-        debit: ligne.debit,
-        credit: ligne.credit,
-        ordre: index,
-      })),
-    );
-
-    await tx.insert(auditLogs).values({
-      id: newId(),
-      organizationId: contexte.organizationId,
-      userId: contexte.userId,
-      action: "ecriture.passer",
-      entityType: "ecriture",
-      entityId: ecritureId,
-      after: {
-        numero,
-        journal: ecriture.journal,
-        piece: ecriture.piece,
-        montant: totalDebit(ecriture),
-      },
-    });
-
-    return numero;
-  });
-}
 
 /** Convertit « 23/08/2026 » en date ISO. */
 function versIso(date: string): string {
@@ -148,7 +59,7 @@ export async function comptabiliserPiece(
     const ecriture =
       document.nature === "avoir" ? ecritureAvoir(piece) : ecritureFacture(piece);
 
-    const numero = await enregistrer(ecriture, {
+    const contexte: ContexteEcriture = {
       organizationId: session.organizationId,
       userId: session.userId,
       origine: document.nature === "avoir" ? "avoir" : "facture",
@@ -158,7 +69,11 @@ export async function comptabiliserPiece(
       pieceId: UUID.test(documentId) ? documentId : null,
       exercice: document.date.slice(-4),
       dateIso: versIso(document.date),
-    });
+    };
+
+    const numero = await db.transaction((tx) =>
+      enregistrerEcritureDans(tx, ecriture, contexte),
+    );
 
     revalidatePath("/commercial/ventes");
     revalidatePath("/comptabilite");

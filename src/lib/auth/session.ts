@@ -37,6 +37,14 @@ export interface SessionActive {
   organizationId: string | null;
   organizationNom: string | null;
   roleId: string | null;
+  /**
+   * Appareil de cette session, tel qu'il s'est annoncé à l'ouverture.
+   *
+   * Exposé parce que la caisse en a besoin : c'est lui qui rattache un poste
+   * d'encaissement à un terminal, donc qui rend son compteur de tickets sûr
+   * quand le réseau manque.
+   */
+  deviceId: string | null;
 }
 
 /**
@@ -93,6 +101,7 @@ export async function lireSession(): Promise<SessionActive | null> {
       telephone: users.phone,
       statut: users.status,
       organizationId: sessions.organizationId,
+      deviceId: sessions.deviceId,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -152,6 +161,7 @@ export async function lireSession(): Promise<SessionActive | null> {
     organizationId: actif?.organizationId ?? null,
     organizationNom: actif?.nom ?? null,
     roleId: actif?.roleId ?? null,
+    deviceId: ligne.deviceId,
   };
 }
 

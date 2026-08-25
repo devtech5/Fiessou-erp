@@ -34,11 +34,14 @@ const TABLES_ATTENDUES = [
   "entity_codes",
   "familles_article",
   "lignes_ecriture",
+  "lignes_vente",
   "memberships",
   "mouvements_stock",
   "organization_modules",
   "organizations",
   "permissions",
+  "postes_caisse",
+  "reglements_vente",
   "role_permissions",
   "roles",
   "sessions",
@@ -46,6 +49,7 @@ const TABLES_ATTENDUES = [
   "sync_mutations",
   "tiers",
   "users",
+  "ventes",
   "verification_codes",
 ];
 

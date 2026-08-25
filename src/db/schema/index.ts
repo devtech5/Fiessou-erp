@@ -20,4 +20,5 @@ export * from "./sync";
 export * from "@/modules/tiers/schema";
 export * from "@/modules/catalogue/schema";
 export * from "@/modules/stock/schema";
+export * from "@/modules/ventes/schema";
 export * from "@/modules/comptabilite/schema";

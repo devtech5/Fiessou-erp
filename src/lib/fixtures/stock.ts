@@ -5,6 +5,7 @@ import { allocate, allocateByWeights } from "@/lib/money";
 import { UNITES, type CodeUnite } from "@/lib/quantite";
 import { prochainNumero, type Transaction } from "@/lib/sequences";
 import { creerDepotDans } from "@/modules/stock/creation";
+import { creerPosteCaisseDans } from "@/modules/ventes/creation";
 import { mouvementsStock, type TypeDepot } from "@/modules/stock/schema";
 
 /**
@@ -64,6 +65,7 @@ export interface ArticleAAmorcer {
 export interface ResultatStock {
   depots: number;
   mouvements: number;
+  postes: number;
 }
 
 type LigneMouvement = typeof mouvementsStock.$inferInsert;
@@ -129,6 +131,26 @@ export async function amorcerStock(
 
   const principal = depotsCrees[0];
   const poids = depotsCrees.map((d) => d.part);
+
+  // Un poste par magasin, aucun sur les dépôts : on n'encaisse pas un client
+  // dans un entrepôt. Sans poste, l'écran de caisse n'a nulle part où numéroter
+  // ses tickets et refuse de s'ouvrir.
+  let postes = 0;
+  for (const [index, depot] of depotsCrees.entries()) {
+    if (DEPOTS_DEMO[index].type !== "magasin") continue;
+
+    postes++;
+    await creerPosteCaisseDans(
+      tx,
+      organizationId,
+      {
+        code: `C${String(postes).padStart(2, "0")}`,
+        nom: `Caisse ${depot.nom}`,
+        depotId: depot.id,
+      },
+      userId,
+    );
+  }
 
   // Un bon de réception par dépôt : c'est un camion, pas trois cents camions.
   const bons = new Map<string, string>();
@@ -225,7 +247,7 @@ export async function amorcerStock(
     await tx.insert(mouvementsStock).values(lignes);
   }
 
-  return { depots: depotsCrees.length, mouvements: lignes.length };
+  return { depots: depotsCrees.length, mouvements: lignes.length, postes };
 }
 
 async function ajouterMouvementsDeVie(

@@ -6,10 +6,18 @@ import {
   CarteIndicateur,
   EnTetePage,
 } from "@/components/ui/primitives";
+import { exigerEntreprise } from "@/lib/auth/dal";
 import { fmtCompact, fmtEntier } from "@/lib/format";
 import { DOCUMENTS, comptabilisable, totalTTC } from "@/lib/fixtures/gestion";
 import { piecesComptabilisees } from "@/modules/comptabilite/actions";
+import { listerDepots } from "@/modules/stock/requetes";
+import {
+  derniersTickets,
+  journeeCaisse,
+  listerPostes,
+} from "@/modules/ventes/requetes";
 import { EcriturePiece } from "./ecriture-piece";
+import { TicketsCaisse } from "./tickets-caisse";
 
 export const metadata: Metadata = { title: "Ventes" };
 
@@ -21,9 +29,22 @@ export const metadata: Metadata = { title: "Ventes" };
  * oblige à traverser l'application pour suivre une seule affaire.
  */
 export default async function PageVentes() {
+  const session = await exigerEntreprise();
+
+  // Le début de journée sert de borne à la clôture : c'est la période que le
+  // caissier compte le soir, tiroir ouvert.
+  const debutJournee = new Date();
+  debutJournee.setHours(0, 0, 0, 0);
+
   // L'état comptable vient de la base : c'est l'écriture enregistrée qui
   // fait foi, pas un drapeau posé à côté de la pièce.
-  const passees = await piecesComptabilisees();
+  const [passees, tickets, journee, postes, depots] = await Promise.all([
+    piecesComptabilisees(),
+    derniersTickets(session.organizationId, 25),
+    journeeCaisse(session.organizationId, debutJournee),
+    listerPostes(session.organizationId),
+    listerDepots(session.organizationId),
+  ]);
 
   const factures = DOCUMENTS.filter((d) => d.nature === "facture");
   const devis = DOCUMENTS.filter((d) => d.nature === "devis");
@@ -82,12 +103,28 @@ export default async function PageVentes() {
         />
       </section>
 
+      <TicketsCaisse
+        tickets={tickets}
+        journee={journee}
+        postes={postes.map((poste) => ({
+          code: poste.code,
+          nom: poste.nom,
+          depotNom: poste.depotNom,
+          dernierNumero: poste.dernierNumero,
+        }))}
+        depots={depots.map((depot) => ({ id: depot.id, nom: depot.nom }))}
+      />
+
+      <h2 className="mb-2.5 text-base font-semibold">Pièces commerciales</h2>
       <EcriturePiece passees={passees} />
 
       <p className="mt-5 max-w-[70ch] text-xs text-[var(--encre-faible)]">
-        L&apos;écriture est calculée à l&apos;affichage, jamais conservée à côté
-        de la pièce : figée, elle divergerait de la facture au premier
-        changement sans que rien ne le signale. Montants en francs CFA.
+        Les encaissements de caisse viennent de la base : chaque ticket a sorti
+        son stock et posé son écriture dans la même transaction. Les devis et
+        factures ci-dessus restent des pièces de démonstration, en attendant
+        leur module. L&apos;écriture y est calculée à l&apos;affichage, jamais
+        conservée à côté de la pièce : figée, elle divergerait de la facture au
+        premier changement sans que rien ne le signale.
       </p>
     </>
   );

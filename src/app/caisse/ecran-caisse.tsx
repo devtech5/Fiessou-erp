@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   ajouterArticle,
@@ -12,24 +13,42 @@ import {
   type LignePanier,
 } from "@/lib/caisse/panier";
 import {
-  CATEGORIES,
-  SEUIL_STOCK_BAS,
-  type ArticleDemo,
-  type CaissierDemo,
-} from "@/lib/fixtures/catalogue";
+  encaisserFile,
+  fileEnAttente,
+  poserTicket,
+  reserverRang,
+} from "@/lib/caisse/file-locale";
 import { fmt } from "@/lib/format";
-import { ECHELLE_QUANTITE, UNITES, formaterQuantite } from "@/lib/quantite";
+import { ECHELLE_QUANTITE, UNITES, formaterQuantite, versQuantite } from "@/lib/quantite";
+import { encaisserTicket, type TicketEntrant } from "@/modules/ventes/actions";
 import { ModalePaiement } from "./modale-paiement";
 import { SaisieQuantite } from "./saisie-quantite";
+import type { ArticleCaisse, PosteCaisseVue, ReglementSaisi } from "./types";
+
+/**
+ * Seuil d'alerte de rayon, en millièmes d'unité.
+ *
+ * Volontairement distinct du seuil de réapprovisionnement porté par l'article :
+ * celui-ci sert au gérant qui commande, celui-là au caissier qui voit fondre sa
+ * pile. Dix unités suffisent à colorer une vignette.
+ */
+const SEUIL_RAYON = versQuantite(10);
 
 interface Props {
-  articles: ArticleDemo[];
-  caissier: CaissierDemo;
-  nomCaisse: string;
+  articles: ArticleCaisse[];
+  caissier: string;
+  poste: PosteCaisseVue;
   nomBoutique: string;
+  deviceId: string | null;
 }
 
-export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Props) {
+export function EcranCaisse({
+  articles,
+  caissier,
+  poste,
+  nomBoutique,
+  deviceId,
+}: Props) {
   const [lignes, setLignes] = useState<LignePanier[]>([]);
   const [recherche, setRecherche] = useState("");
   const [categorie, setCategorie] = useState<string | null>(null);
@@ -39,8 +58,13 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
   const [heure, setHeure] = useState<string | null>(null);
   // Article en attente d'une pesée : la vente au poids ne s'ajoute pas
   // d'un clic, il faut lire la balance.
-  const [aPeser, setAPeser] = useState<ArticleDemo | null>(null);
+  const [aPeser, setAPeser] = useState<ArticleCaisse | null>(null);
+  // Tickets encaissés que le serveur n'a pas encore acceptés. Affiché en
+  // permanence : le caissier doit savoir ce qui n'est pas encore remonté.
+  const [enFile, setEnFile] = useState(0);
+  const [dernierTicket, setDernierTicket] = useState<string | null>(null);
   const champRecherche = useRef<HTMLInputElement>(null);
+  const routeur = useRouter();
 
   const totaux = totaliser(lignes);
 
@@ -86,8 +110,16 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
     });
   }, [articles, recherche, categorie]);
 
-  function encaisser(article: ArticleDemo) {
-    if (article.stock <= 0) return;
+  // Les familles réellement présentes, et elles seules : une pastille de
+  // catégorie qui ne ramène aucun article fait douter le caissier de sa recherche.
+  const categories = useMemo(
+    () => [...new Set(articles.map((article) => article.categorie))].sort(),
+    [articles],
+  );
+
+  function encaisser(article: ArticleCaisse) {
+    // Une prestation n'a pas de stock : la livraison se vend toujours.
+    if (!article.service && article.stock <= 0) return;
 
     // Un article au poids passe par la saisie ; un article à la pièce entre
     // directement, pour ne pas ralentir la file d'attente.
@@ -99,7 +131,7 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
     ajouterAuPanier(article, ECHELLE_QUANTITE);
   }
 
-  function ajouterAuPanier(article: ArticleDemo, quantite: number) {
+  function ajouterAuPanier(article: ArticleCaisse, quantite: number) {
     setLignes((actuel) => ajouterArticle(actuel, article, quantite));
     setRecherche("");
     setAPeser(null);
@@ -110,7 +142,9 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
     event.preventDefault();
     // Un caissier tape le début du nom ou scanne un code, puis Entrée.
     // Le premier résultat disponible part au panier sans quitter le clavier.
-    const premier = resultats.find((article) => article.stock > 0);
+    const premier = resultats.find(
+      (article) => article.service || article.stock > 0,
+    );
     if (premier) encaisser(premier);
   }
 
@@ -127,21 +161,102 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
     setLignes((actuel) => [...actuel, ...ticket]);
   }
 
-  function finaliser() {
+  /**
+   * Encaisse le ticket.
+   *
+   * L'ordre compte, et il est le même que celui du terrain : le ticket est
+   * numéroté et écrit EN LOCAL, puis seulement envoyé. Le caissier rend la
+   * monnaie sans attendre la réponse du serveur — il n'y a rien à attendre, la
+   * vente existe déjà.
+   */
+  async function finaliser(reglements: ReglementSaisi[]) {
+    if (lignes.length === 0) return;
+
+    const especes = reglements
+      .filter((reglement) => reglement.moyen === "especes")
+      .reduce((somme, reglement) => somme + reglement.montant, 0);
+
+    const numeroSeq = await reserverRang(poste.id, poste.dernierRang);
+    const numero = `${poste.prefixe}${String(numeroSeq).padStart(6, "0")}`;
+    const id = crypto.randomUUID();
+    const encaisseeLe = new Date().toISOString();
+
+    const payload = {
+      id,
+      caisseId: poste.id,
+      numeroSeq,
+      encaisseeLe,
+      especesRecues: especes,
+      deviceId,
+      lignes: lignes.map((ligne) => ({
+        id: crypto.randomUUID(),
+        articleId: ligne.articleId,
+        designation: ligne.designation,
+        quantite: ligne.quantite,
+        prixUnitaire: ligne.prixUnitaire,
+        remise: ligne.remise,
+      })),
+      reglements: reglements.map((reglement) => ({
+        moyen: reglement.moyen,
+        montant: reglement.montant,
+        reference: reglement.reference ?? null,
+      })),
+    };
+
+    await poserTicket({
+      id,
+      organizationId: "",
+      caisseId: poste.id,
+      numeroSeq,
+      numero,
+      encaisseeLe,
+      totalTtc: totaux.net,
+      payload,
+      etat: "en_attente",
+      tentatives: 0,
+    });
+
+    setDernierTicket(numero);
     setLignes([]);
     setPaiementOuvert(false);
     champRecherche.current?.focus();
+
+    // L'envoi part après avoir rendu la main : le caissier enchaîne, la file
+    // se vide toute seule.
+    void viderFile();
   }
+
+  const viderFile = useCallback(async () => {
+    const resultat = await encaisserFile(async (payload) => {
+      const reponse = await encaisserTicket(payload as TicketEntrant);
+      return reponse.ok
+        ? { ok: true }
+        : { ok: false, message: reponse.message };
+    });
+
+    setEnFile(resultat.restants + resultat.refuses);
+    if (resultat.envoyes > 0) routeur.refresh();
+  }, [routeur]);
+
+  // Au retour du réseau, la file part d'elle-même. Un caissier n'a pas à savoir
+  // qu'il existe un bouton « synchroniser » — et il ne le trouverait pas un
+  // samedi de marché.
+  useEffect(() => {
+    void fileEnAttente().then((file) => setEnFile(file.length));
+    if (enLigne) void viderFile();
+  }, [enLigne, viderFile]);
 
   return (
     <div className="flex h-dvh flex-col bg-[var(--fond)] text-[var(--encre)]">
       <EnTete
         nomBoutique={nomBoutique}
-        nomCaisse={nomCaisse}
+        nomCaisse={`${poste.nom} · ${poste.depotNom}`}
         caissier={caissier}
         enLigne={enLigne}
         heure={heure}
         ticketsEnAttente={enAttente.length}
+        enFile={enFile}
+        dernierTicket={dernierTicket}
       />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(340px,380px)_1fr]">
@@ -166,6 +281,7 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
           onCategorie={setCategorie}
           onValider={validerRecherche}
           onChoisir={encaisser}
+          categories={categories}
         />
       </div>
 
@@ -201,13 +317,17 @@ function EnTete({
   enLigne,
   heure,
   ticketsEnAttente,
+  enFile,
+  dernierTicket,
 }: {
   nomBoutique: string;
   nomCaisse: string;
-  caissier: CaissierDemo;
+  caissier: string;
   enLigne: boolean;
   heure: string | null;
   ticketsEnAttente: number;
+  enFile: number;
+  dernierTicket: string | null;
 }) {
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--filet)] bg-[var(--surface)] px-4 py-2.5">
@@ -236,9 +356,22 @@ function EnTete({
         </span>
       )}
 
+      {/* Ventes encaissées que le serveur n'a pas encore accusées. Le chiffre
+          est montré même à zéro dès qu'il a bougé : un caissier qui a vendu
+          hors connexion doit voir sa file se vider, sinon il rappelle le
+          gérant pour demander si « c'est bien parti ». */}
+      {enFile > 0 && (
+        <span className="rounded-full bg-marque-50 px-2.5 py-1 text-xs font-semibold text-marque-600">
+          {enFile} ticket{enFile > 1 ? "s" : ""} à remonter
+        </span>
+      )}
+
       <div className="ml-auto flex items-center gap-4 text-xs text-[var(--encre-douce)]">
+        {dernierTicket && (
+          <span className="chiffres text-valide-600">{dernierTicket}</span>
+        )}
         <span className="chiffres">{heure ?? "--:--"}</span>
-        <span className="font-medium text-[var(--encre)]">{caissier.nom}</span>
+        <span className="font-medium text-[var(--encre)]">{caissier}</span>
       </div>
     </header>
   );
@@ -437,15 +570,17 @@ function Catalogue({
   onCategorie,
   onValider,
   onChoisir,
+  categories,
 }: {
-  resultats: ArticleDemo[];
+  resultats: ArticleCaisse[];
+  categories: string[];
   recherche: string;
   categorie: string | null;
   champRecherche: React.RefObject<HTMLInputElement | null>;
   onRecherche: (valeur: string) => void;
   onCategorie: (valeur: string | null) => void;
   onValider: (event: React.FormEvent) => void;
-  onChoisir: (article: ArticleDemo) => void;
+  onChoisir: (article: ArticleCaisse) => void;
 }) {
   return (
     <section className="flex min-h-0 flex-col">
@@ -465,7 +600,7 @@ function Catalogue({
           <PastilleCategorie active={categorie === null} onClick={() => onCategorie(null)}>
             Tout
           </PastilleCategorie>
-          {CATEGORIES.map((nom) => (
+          {categories.map((nom) => (
             <PastilleCategorie
               key={nom}
               active={categorie === nom}
@@ -535,11 +670,13 @@ function BoutonArticle({
   article,
   onChoisir,
 }: {
-  article: ArticleDemo;
-  onChoisir: (article: ArticleDemo) => void;
+  article: ArticleCaisse;
+  onChoisir: (article: ArticleCaisse) => void;
 }) {
-  const rupture = article.stock <= 0;
-  const bas = !rupture && article.stock <= SEUIL_STOCK_BAS;
+  // Une prestation n'a pas de stock à épuiser : la livraison se vend toujours.
+  // L'afficher « en rupture » interdirait de facturer un montage.
+  const rupture = !article.service && article.stock <= 0;
+  const bas = !rupture && !article.service && article.stock <= SEUIL_RAYON;
 
   return (
     <button
@@ -549,7 +686,7 @@ function BoutonArticle({
       aria-label={
         rupture
           ? `${article.designation} — en rupture, indisponible`
-          : `${article.designation}, ${article.prix} francs`
+          : `${article.designation}, ${article.prix} francs${article.service ? ", prestation" : ""}`
       }
       className={`sans-selection flex h-full w-full flex-col justify-between gap-2 rounded-xl border p-3 text-left transition ${
         rupture
@@ -568,6 +705,10 @@ function BoutonArticle({
         {rupture ? (
           <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-600">
             Rupture
+          </span>
+        ) : article.service ? (
+          <span className="rounded-full bg-marque-50 px-2 py-0.5 text-[11px] font-semibold text-marque-600">
+            Service
           </span>
         ) : (
           <span

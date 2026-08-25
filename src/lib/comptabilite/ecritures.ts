@@ -382,3 +382,162 @@ export function decomposerTTC(
 export function ventilerTTC(montantTTC: number, poids: number[]): number[] {
   return allocateByWeights(montantTTC, poids);
 }
+
+// ------------------------------------------------------- vente au comptoir
+
+/** Moyens acceptés au comptoir. Le crédit n'en est pas un : c'est une créance. */
+export type MoyenComptoir = MoyenReglement | "carte" | "credit";
+
+/**
+ * La carte bancaire se solde en banque.
+ *
+ * Le versement arrive sur le compte, pas dans le tiroir-caisse : l'imputer en
+ * 571 ferait un fonds de caisse qui ne correspond à rien au comptage du soir.
+ */
+const COMPTE_COMPTOIR: Record<
+  Exclude<MoyenComptoir, "credit">,
+  { numero: string; libelle: string }
+> = {
+  especes: COMPTES.caisse,
+  banque: COMPTES.banque,
+  carte: COMPTES.banque,
+  mobile_money: COMPTES.caisseMobileMoney,
+};
+
+export interface LigneComptoir {
+  /** Montant TOUTES TAXES : le prix de rayon est TTC, celui du ticket aussi. */
+  montantTTC: number;
+  /** Taux en points de base : 1800 = 18 %. */
+  tauxTvaBp: number;
+  compte: string;
+  libelleCompte: string;
+}
+
+export interface PieceComptoir {
+  numero: string;
+  date: string;
+  /** Libellé du client. « Client au comptoir » quand il n'est pas identifié. */
+  client: string;
+  /** Compte auxiliaire, obligatoire dès qu'une part reste à crédit. */
+  compteAuxiliaire?: string;
+  lignes: LigneComptoir[];
+  reglements: { moyen: MoyenComptoir; montant: number }[];
+}
+
+/**
+ * Ticket de caisse.
+ *
+ *   5xx Trésorerie     débit   par moyen réellement reçu
+ *   411 Clients        débit   la part laissée à crédit, s'il y en a
+ *   701/706 Produits   crédit  HT, par compte et par taux
+ *   4431 TVA facturée  crédit  taxe collectée
+ *
+ * UNE écriture, pas deux. La vente au comptoir facture et encaisse dans le
+ * même geste : passer une facture puis un règlement produirait deux pièces là
+ * où le client n'en a reçu qu'une, et gonflerait le journal de caisse d'autant.
+ *
+ * La part à crédit, elle, reste en 411 : elle n'est pas encaissée, et la
+ * confondre avec le reste ferait passer pour payé ce qui ne l'est pas.
+ *
+ * Les montants entrent en TTC parce que c'est ainsi qu'ils ont été affichés en
+ * rayon et imprimés sur le ticket. Extraire la taxe plutôt que l'ajouter évite
+ * qu'un article marqué 300 F soit encaissé 354 F.
+ */
+export function ecritureVenteComptoir(piece: PieceComptoir): Ecriture {
+  const groupes = new Map<
+    string,
+    { compte: string; libelleCompte: string; tauxTvaBp: number; ttc: number }
+  >();
+
+  for (const ligne of piece.lignes) {
+    const cle = `${ligne.compte}|${ligne.tauxTvaBp}`;
+    const existant = groupes.get(cle);
+    if (existant) existant.ttc += ligne.montantTTC;
+    else
+      groupes.set(cle, {
+        compte: ligne.compte,
+        libelleCompte: ligne.libelleCompte,
+        tauxTvaBp: ligne.tauxTvaBp,
+        ttc: ligne.montantTTC,
+      });
+  }
+
+  const lignes: LigneEcriture[] = [];
+  let totalTVA = 0;
+  let totalTTC = 0;
+
+  for (const groupe of groupes.values()) {
+    // Le taux est en points de base sur la ligne de vente ; `decomposerTTC`
+    // raisonne en pourcentage. La division est exacte : 1800 / 100 = 18.
+    const { ht, tva } = decomposerTTC(groupe.ttc, groupe.tauxTvaBp / 100);
+    totalTVA += tva;
+    totalTTC += groupe.ttc;
+
+    if (ht > 0) {
+      lignes.push({
+        compte: groupe.compte,
+        libelleCompte: groupe.libelleCompte,
+        debit: 0,
+        credit: ht,
+      });
+    }
+  }
+
+  if (totalTVA > 0) {
+    lignes.push({
+      compte: COMPTES.tvaFacturee.numero,
+      libelleCompte: COMPTES.tvaFacturee.libelle,
+      debit: 0,
+      credit: totalTVA,
+    });
+  }
+
+  // Les débits viennent en tête à la lecture : on voit d'abord ce qui est
+  // entré, puis ce qui l'a justifié.
+  const debits: LigneEcriture[] = [];
+
+  for (const reglement of piece.reglements) {
+    if (reglement.montant <= 0) continue;
+
+    if (reglement.moyen === "credit") {
+      if (!piece.compteAuxiliaire) {
+        throw new Error(
+          `Ticket ${piece.numero} : une part à crédit sans compte client ` +
+            `ne peut pas être imputée. La créance serait perdue.`,
+        );
+      }
+      debits.push({
+        compte: COMPTES.clients.numero,
+        libelleCompte: COMPTES.clients.libelle,
+        auxiliaire: piece.compteAuxiliaire,
+        debit: reglement.montant,
+        credit: 0,
+      });
+      continue;
+    }
+
+    const compte = COMPTE_COMPTOIR[reglement.moyen];
+    debits.push({
+      compte: compte.numero,
+      libelleCompte: compte.libelle,
+      debit: reglement.montant,
+      credit: 0,
+    });
+  }
+
+  const encaisse = debits.reduce((somme, ligne) => somme + ligne.debit, 0);
+  if (encaisse !== totalTTC) {
+    throw new Error(
+      `Ticket ${piece.numero} : les règlements totalisent ${encaisse} ` +
+        `pour un ticket de ${totalTTC}. Une caisse ne se ferme pas sur un écart.`,
+    );
+  }
+
+  return exigerEquilibre({
+    journal: "CA",
+    date: piece.date,
+    piece: piece.numero,
+    libelle: `Ticket ${piece.numero} — ${piece.client}`,
+    lignes: [...debits, ...lignes],
+  });
+}

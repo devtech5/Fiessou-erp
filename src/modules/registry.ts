@@ -56,7 +56,11 @@ export const MODULES: ModuleDefinition[] = [
     key: "pos",
     name: "Ventes & Encaissement",
     layer: "socle",
-    status: "planifie",
+    // En base : postes de caisse, tickets, lignes avec prestation rattachée,
+    // règlements multiples. Un encaissement sort son stock et pose son écriture
+    // dans la même transaction, et la file locale encaisse sans réseau.
+    // Restent la session de caisse — ouverture, fond, comptage — et l'avoir.
+    status: "en_cours",
     requires: ["stock"],
     description:
       "Caisse : sessions, caissiers, paiements, tickets. Fonctionne hors connexion.",

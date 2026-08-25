@@ -35,8 +35,15 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
     if (resultat.depots > 0) {
       return {
         message:
-          `Catalogue déjà présent. ${resultat.depots} dépôts et ` +
-          `${resultat.mouvements} mouvements de stock ajoutés.`,
+          `Catalogue déjà présent. ${resultat.depots} dépôts, ` +
+          `${resultat.mouvements} mouvements de stock et ${resultat.postes} ` +
+          `postes de caisse ajoutés.`,
+      };
+    }
+
+    if (resultat.postes > 0) {
+      return {
+        message: `${resultat.postes} poste(s) de caisse ouvert(s). La caisse peut encaisser.`,
       };
     }
     return { message: "Le jeu de démonstration est déjà installé." };
@@ -45,7 +52,8 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
   return {
     message:
       `${resultat.articles} articles, ${resultat.tiers} tiers, ` +
-      `${resultat.codes} codes-barres, ${resultat.depots} dépôts et ` +
-      `${resultat.mouvements} mouvements de stock installés.`,
+      `${resultat.codes} codes-barres, ${resultat.depots} dépôts, ` +
+      `${resultat.mouvements} mouvements et ${resultat.postes} postes de ` +
+      `caisse installés.`,
   };
 }
