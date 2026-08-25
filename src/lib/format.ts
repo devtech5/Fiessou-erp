@@ -26,3 +26,14 @@ export function fmtCompact(montant: number): string {
 }
 
 export const fmtEntier = (valeur: number) => nombre.format(valeur);
+
+/** Taux en écriture française : « 6,3 » et non « 6.3 ». */
+export const fmtTaux = (taux: number) =>
+  new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(taux);
+
+/**
+ * Montant retranché, pour une colonne de retenues ou de charges.
+ * Un montant nul n'est pas « − 0 » : il n'y a rien à retrancher.
+ */
+export const fmtRetenue = (montant: number) =>
+  montant === 0 ? "—" : `− ${nombre.format(montant)}`;

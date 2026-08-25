@@ -23,6 +23,8 @@ export interface EntreeNav {
 const MODULES: (EntreeNav & { racine: string })[] = [
   { href: "/stock", racine: "/stock", libelle: "Stock" },
   { href: "/commercial", racine: "/commercial", libelle: "Commercial" },
+  { href: "/comptabilite", racine: "/comptabilite", libelle: "Comptabilité" },
+  { href: "/rh", racine: "/rh", libelle: "Personnel" },
 ];
 
 export function NavigationModules() {
