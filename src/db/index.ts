@@ -4,26 +4,48 @@ import postgres from "postgres";
 import { env } from "@/env";
 import * as schema from "./schema";
 
+type Database = ReturnType<typeof drizzle<typeof schema>>;
+
 /**
  * En développement, Next recharge les modules à chaque modification. Sans ce
- * cache, chaque rechargement ouvrirait un nouveau pool et finirait par saturer
- * les connexions de PostgreSQL.
+ * cache, chaque rechargement ouvrirait un pool supplémentaire et finirait par
+ * saturer les connexions de PostgreSQL.
  */
 const globalForDb = globalThis as unknown as {
-  connection?: ReturnType<typeof postgres>;
+  fiessouConnection?: ReturnType<typeof postgres>;
+  fiessouDb?: Database;
 };
 
-const connection =
-  globalForDb.connection ??
-  postgres(env.DATABASE_URL, {
-    max: env.NODE_ENV === "production" ? 20 : 5,
-    // Les horodatages circulent en UTC ; l'affichage local se fait à la vue.
-    transform: { undefined: null },
-  });
+/**
+ * La connexion n'est créée qu'au premier accès, jamais au chargement du
+ * module : `next build` importe ce fichier pour collecter les routes, à un
+ * moment où DATABASE_URL peut ne pas être disponible.
+ */
+function resolveDb(): Database {
+  if (globalForDb.fiessouDb) return globalForDb.fiessouDb;
 
-if (env.NODE_ENV !== "production") {
-  globalForDb.connection = connection;
+  const connection =
+    globalForDb.fiessouConnection ??
+    postgres(env.DATABASE_URL, {
+      max: env.NODE_ENV === "production" ? 20 : 5,
+      transform: { undefined: null },
+    });
+
+  const instance = drizzle(connection, { schema });
+
+  if (env.NODE_ENV !== "production") {
+    globalForDb.fiessouConnection = connection;
+    globalForDb.fiessouDb = instance;
+  }
+
+  return instance;
 }
 
-export const db = drizzle(connection, { schema });
+export const db = new Proxy({} as Database, {
+  get: (_target, key: string | symbol) => {
+    const value = resolveDb()[key as keyof Database];
+    return typeof value === "function" ? value.bind(resolveDb()) : value;
+  },
+});
+
 export { schema };
