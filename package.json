@@ -8,14 +8,16 @@
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm lint && pnpm typecheck",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test",
     "prepare": "git config core.hooksPath .githooks || exit 0",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "tsx src/scripts/verifier-base.ts",
     "demo:compte": "tsx src/scripts/compte-demo.ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0",
@@ -42,7 +44,8 @@
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@11.12.0"
 }

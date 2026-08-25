@@ -131,26 +131,49 @@ leur module et sont réexportées depuis `db/schema/index.ts`.
 
 ## Avant chaque commit
 
-`pnpm lint` **et** `pnpm typecheck` doivent passer. Les deux, pas l'un ou
-l'autre : le build Next réussit malgré des erreurs ESLint, et une erreur est
-ainsi restée plusieurs jours dans le dépôt — `registry.ts` assignait la
-variable réservée `module`.
+`pnpm lint`, `pnpm typecheck` **et** `pnpm test` doivent passer. Les trois, pas
+l'un ou l'autre : le build Next réussit malgré des erreurs ESLint, et une
+erreur est ainsi restée plusieurs jours dans le dépôt — `registry.ts`
+assignait la variable réservée `module`.
+
+Attention en vérifiant à la main : `pnpm verify | tail` renvoie le code de
+`tail`, pas celui de pnpm. Un échec de lint y passe pour un succès. Rediriger
+vers un fichier et lire `$?`.
 
 `lint` tourne avec `--max-warnings 0` : un avertissement fait échouer le
 commit. Sans cela le hook ne bloquait rien, puisque ESLint sort en code 0 tant
 qu'il n'y a que des avertissements. L'arbre est à zéro aujourd'hui, il y reste.
 
 C'est automatisé, pas laissé à la discipline. Le hook `.githooks/pre-commit`
-lance les deux ; `pnpm install` configure `core.hooksPath` tout seul via le
+lance les trois ; `pnpm install` configure `core.hooksPath` tout seul via le
 script `prepare`. En cas d'urgence, `git commit --no-verify` passe outre.
 
-Pour lancer les deux à la main : `pnpm verify`.
+Pour lancer les trois à la main : `pnpm verify`.
+
+### Ce que les tests couvrent
+
+Le **calcul**, et lui seul : l'argent, les quantités, la numérotation, le
+réapprovisionnement. Une erreur d'affichage se voit ; un franc perdu par ligne,
+non — il se découvre à la déclaration de TVA, six mois plus tard.
+
+Les tests vivent dans `tests/`, tournent sous Vitest et ne touchent jamais la
+base. Ce qui passe par PostgreSQL se vérifie contre une vraie base, avec ses
+contraintes et sa numérotation : un test à double simulerait justement la
+partie qui casse.
+
+`vitest.config.mts` neutralise `server-only` — le paquet lève une exception
+hors d'un bundler React, ce qui rendrait intestable un module serveur, y
+compris ses fonctions purement arithmétiques. Même piège en ligne de commande :
+un script `tsx` qui importe un tel module se lance avec
+`npx tsx --conditions=react-server`.
 
 ## Commandes
 
 ```bash
 pnpm dev                      # serveur de développement
-pnpm verify                   # analyse statique + types
+pnpm verify                   # analyse statique + types + tests
+pnpm test                     # tests unitaires seuls
+pnpm test:watch               # les mêmes, en continu
 pnpm db:generate              # génère la migration depuis le schéma
 pnpm db:migrate               # applique les migrations
 pnpm db:check                 # connexion, tables, RLS

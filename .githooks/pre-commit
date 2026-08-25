@@ -1,11 +1,16 @@
 #!/bin/sh
 #
-# Vérifications avant chaque commit : analyse statique puis types.
+# Vérifications avant chaque commit : analyse statique, types, puis calcul.
 #
-# Ces deux contrôles existaient déjà comme habitude, et l'habitude a échoué —
-# une erreur ESLint est restée plusieurs jours dans le dépôt parce que le build
-# Next passait malgré elle. Ce qui doit être vérifié à chaque fois n'est pas
-# une consigne, c'est un script.
+# Les deux premiers contrôles existaient déjà comme habitude, et l'habitude a
+# échoué — une erreur ESLint est restée plusieurs jours dans le dépôt parce que
+# le build Next passait malgré elle. Ce qui doit être vérifié à chaque fois
+# n'est pas une consigne, c'est un script.
+#
+# Les tests s'ajoutent pour la même raison. Ils ne couvrent que le calcul :
+# l'argent, les quantités, la numérotation, le réapprovisionnement. Une erreur
+# d'affichage se voit ; un franc perdu par ligne, non — il se découvre à la
+# déclaration de TVA, six mois plus tard.
 #
 # Pour passer outre en cas d'urgence : git commit --no-verify
 
@@ -16,5 +21,8 @@ pnpm lint
 
 echo "→ Vérification des types"
 pnpm typecheck
+
+echo "→ Tests unitaires"
+pnpm test
 
 echo "✓ Vérifications passées"
