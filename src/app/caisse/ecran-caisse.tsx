@@ -22,6 +22,11 @@ import { fmt } from "@/lib/format";
 import { ECHELLE_QUANTITE, UNITES, formaterQuantite, versQuantite } from "@/lib/quantite";
 import { encaisserTicket, type TicketEntrant } from "@/modules/ventes/actions";
 import { ModalePaiement } from "./modale-paiement";
+import {
+  PanneauSession,
+  type AttenduVue,
+  type SessionVue,
+} from "./panneau-session";
 import { SaisieQuantite } from "./saisie-quantite";
 import type { ArticleCaisse, PosteCaisseVue, ReglementSaisi } from "./types";
 
@@ -40,6 +45,9 @@ interface Props {
   poste: PosteCaisseVue;
   nomBoutique: string;
   deviceId: string | null;
+  /** Tiroir ouvert sur ce poste. Nul tant que personne ne l'a ouvert. */
+  session: SessionVue | null;
+  attendu: AttenduVue | null;
 }
 
 export function EcranCaisse({
@@ -48,6 +56,8 @@ export function EcranCaisse({
   poste,
   nomBoutique,
   deviceId,
+  session,
+  attendu,
 }: Props) {
   const [lignes, setLignes] = useState<LignePanier[]>([]);
   const [recherche, setRecherche] = useState("");
@@ -257,6 +267,9 @@ export function EcranCaisse({
         ticketsEnAttente={enAttente.length}
         enFile={enFile}
         dernierTicket={dernierTicket}
+        session={session}
+        attendu={attendu}
+        poste={poste}
       />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(340px,380px)_1fr]">
@@ -319,6 +332,9 @@ function EnTete({
   ticketsEnAttente,
   enFile,
   dernierTicket,
+  session,
+  attendu,
+  poste,
 }: {
   nomBoutique: string;
   nomCaisse: string;
@@ -328,6 +344,9 @@ function EnTete({
   ticketsEnAttente: number;
   enFile: number;
   dernierTicket: string | null;
+  session: SessionVue | null;
+  attendu: AttenduVue | null;
+  poste: PosteCaisseVue;
 }) {
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--filet)] bg-[var(--surface)] px-4 py-2.5">
@@ -365,6 +384,14 @@ function EnTete({
           {enFile} ticket{enFile > 1 ? "s" : ""} à remonter
         </span>
       )}
+
+      {/* L'état du tiroir se voit en permanence. Une caisse qu'on oublie
+          d'ouvrir se compte le soir sans savoir contre quoi. */}
+      <PanneauSession
+        poste={{ id: poste.id, code: poste.code, nom: poste.nom }}
+        session={session}
+        attendu={attendu}
+      />
 
       <div className="ml-auto flex items-center gap-4 text-xs text-[var(--encre-douce)]">
         {dernierTicket && (

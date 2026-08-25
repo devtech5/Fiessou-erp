@@ -51,6 +51,15 @@ export const COMPTES = {
   banque: { numero: "521", libelle: "Banques" },
   caisse: { numero: "571", libelle: "Caisse" },
   caisseMobileMoney: { numero: "5711", libelle: "Caisse Mobile Money" },
+  /**
+   * Écarts de caisse. Un manque est une charge, un excédent un produit.
+   *
+   * Jamais un compte d'attente : une différence laissée en 471 se traîne
+   * d'exercice en exercice et finit par cacher un vol régulier sous un solde
+   * que personne ne justifie.
+   */
+  manquantCaisse: { numero: "658", libelle: "Charges diverses — manquant de caisse" },
+  excedentCaisse: { numero: "758", libelle: "Produits divers — excédent de caisse" },
 } as const;
 
 /**
@@ -539,5 +548,82 @@ export function ecritureVenteComptoir(piece: PieceComptoir): Ecriture {
     piece: piece.numero,
     libelle: `Ticket ${piece.numero} — ${piece.client}`,
     lignes: [...debits, ...lignes],
+  });
+}
+
+// -------------------------------------------------------- écart de caisse
+
+export interface EcartComptage {
+  moyen: Exclude<MoyenComptoir, "credit">;
+  /** `compté - attendu`. Négatif : il manque. */
+  ecart: number;
+}
+
+/**
+ * Régularisation d'un écart de caisse à la clôture.
+ *
+ *   manque    : 658 Charges diverses   débit    | 5xx Trésorerie  crédit
+ *   excédent  : 5xx Trésorerie         débit    | 758 Produits    crédit
+ *
+ * Le compte de trésorerie suit le moyen : un manque en espèces sort du tiroir,
+ * un écart de mobile money du compte de l'opérateur. Les confondre ferait
+ * tomber juste une caisse qui ne l'est pas, en compensant un vol d'espèces par
+ * une commission mal saisie.
+ *
+ * Renvoie `null` quand tout tombe juste — le cas normal, qui ne mérite aucune
+ * écriture. Une écriture à zéro dans un journal est du bruit qui rend les
+ * vraies plus difficiles à repérer.
+ */
+export function ecritureEcartCaisse(cloture: {
+  numero: string;
+  date: string;
+  caissier: string;
+  ecarts: EcartComptage[];
+}): Ecriture | null {
+  const lignes: LigneEcriture[] = [];
+
+  for (const { moyen, ecart } of cloture.ecarts) {
+    if (ecart === 0) continue;
+
+    const tresorerie = COMPTE_COMPTOIR[moyen];
+
+    if (ecart < 0) {
+      // Il manque : la trésorerie diminue, la différence part en charge.
+      lignes.push({
+        compte: COMPTES.manquantCaisse.numero,
+        libelleCompte: COMPTES.manquantCaisse.libelle,
+        debit: -ecart,
+        credit: 0,
+      });
+      lignes.push({
+        compte: tresorerie.numero,
+        libelleCompte: tresorerie.libelle,
+        debit: 0,
+        credit: -ecart,
+      });
+    } else {
+      lignes.push({
+        compte: tresorerie.numero,
+        libelleCompte: tresorerie.libelle,
+        debit: ecart,
+        credit: 0,
+      });
+      lignes.push({
+        compte: COMPTES.excedentCaisse.numero,
+        libelleCompte: COMPTES.excedentCaisse.libelle,
+        debit: 0,
+        credit: ecart,
+      });
+    }
+  }
+
+  if (lignes.length === 0) return null;
+
+  return exigerEquilibre({
+    journal: "OD",
+    date: cloture.date,
+    piece: cloture.numero,
+    libelle: `Écart de caisse ${cloture.numero} — ${cloture.caissier}`,
+    lignes,
   });
 }

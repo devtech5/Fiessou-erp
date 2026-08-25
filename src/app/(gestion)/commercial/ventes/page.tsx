@@ -16,6 +16,7 @@ import {
   journeeCaisse,
   listerPostes,
 } from "@/modules/ventes/requetes";
+import { historiqueSessions } from "@/modules/ventes/session";
 import { EcriturePiece } from "./ecriture-piece";
 import { TicketsCaisse } from "./tickets-caisse";
 
@@ -38,12 +39,13 @@ export default async function PageVentes() {
 
   // L'état comptable vient de la base : c'est l'écriture enregistrée qui
   // fait foi, pas un drapeau posé à côté de la pièce.
-  const [passees, tickets, journee, postes, depots] = await Promise.all([
+  const [passees, tickets, journee, postes, depots, clotures] = await Promise.all([
     piecesComptabilisees(),
     derniersTickets(session.organizationId, 25),
     journeeCaisse(session.organizationId, debutJournee),
     listerPostes(session.organizationId),
     listerDepots(session.organizationId),
+    historiqueSessions(session.organizationId, 8),
   ]);
 
   const factures = DOCUMENTS.filter((d) => d.nature === "facture");
@@ -113,6 +115,7 @@ export default async function PageVentes() {
           dernierNumero: poste.dernierNumero,
         }))}
         depots={depots.map((depot) => ({ id: depot.id, nom: depot.nom }))}
+        clotures={clotures}
       />
 
       <h2 className="mb-2.5 text-base font-semibold">Pièces commerciales</h2>

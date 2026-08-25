@@ -6,6 +6,7 @@ import { exigerEntreprise } from "@/lib/auth/dal";
 import { listerArticles } from "@/modules/catalogue/requetes";
 import { stocksParArticle } from "@/modules/stock/requetes";
 import { dernierRang, posteDeLAppareil } from "@/modules/ventes/requetes";
+import { attenduDeSession, sessionOuverte } from "@/modules/ventes/session";
 import { EcranCaisse } from "./ecran-caisse";
 import type { ArticleCaisse } from "./types";
 
@@ -45,11 +46,18 @@ export default async function PageCaisse() {
     );
   }
 
-  const [catalogue, stocks, rang] = await Promise.all([
+  const [catalogue, stocks, rang, tiroir] = await Promise.all([
     listerArticles(session.organizationId),
     stocksParArticle(session.organizationId),
     dernierRang(session.organizationId, poste.id),
+    sessionOuverte(session.organizationId, poste.id),
   ]);
+
+  // L'attendu ne se calcule que si un tiroir est ouvert : sans session, il n'y
+  // a rien à comparer et la requête serait un aller-retour pour rien.
+  const attendu = tiroir
+    ? await attenduDeSession(session.organizationId, tiroir)
+    : null;
 
   /**
    * Le stock affiché est celui du DÉPÔT de ce poste, pas le stock global.
@@ -90,6 +98,17 @@ export default async function PageCaisse() {
         }}
         nomBoutique={session.organizationNom ?? "Fiessou"}
         deviceId={session.deviceId}
+        session={
+          tiroir
+            ? {
+                id: tiroir.id,
+                caissier: tiroir.caissier,
+                fondInitial: tiroir.fondInitial,
+                ouverteLe: tiroir.ouverteLe.toISOString(),
+              }
+            : null
+        }
+        attendu={attendu}
       />
     </>
   );

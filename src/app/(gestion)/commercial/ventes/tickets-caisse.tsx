@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Pastille, Tableau, Td, Th } from "@/components/ui/primitives";
 import { fmt, fmtEntier } from "@/lib/format";
 import type { JourneeCaisse, TicketResume } from "@/modules/ventes/requetes";
+import type { SessionCaisse } from "@/modules/ventes/schema-session";
 import type { MoyenReglementVente } from "@/modules/ventes/schema";
 import { FormulairePoste } from "./formulaire-poste";
 
@@ -33,11 +34,13 @@ export function TicketsCaisse({
   journee,
   postes,
   depots,
+  clotures,
 }: {
   tickets: TicketResume[];
   journee: JourneeCaisse;
   postes: { code: string; nom: string; depotNom: string; dernierNumero: number }[];
   depots: { id: string; nom: string }[];
+  clotures: (SessionCaisse & { caisseCode: string })[];
 }) {
   return (
     <section className="mb-6">
@@ -160,6 +163,48 @@ export function TicketsCaisse({
             ))}
           </tbody>
         </Tableau>
+      )}
+
+      {/* Les écarts passés. Constater un manque et ne jamais le revoir revient
+          à ne pas l'avoir constaté : c'est la répétition qui révèle un vol, pas
+          l'incident isolé. */}
+      {clotures.length > 0 && (
+        <div className="mt-4">
+          <h3 className="mb-2 text-sm font-semibold">Dernières clôtures</h3>
+          <ul className="divide-y divide-[var(--filet)] overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
+            {clotures.map((cloture) => (
+              <li
+                key={cloture.id}
+                className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 text-sm"
+              >
+                <span className="chiffres text-xs text-[var(--encre-faible)]">
+                  {cloture.caisseCode}
+                </span>
+                <span className="min-w-0 flex-1 truncate">
+                  {cloture.caissier}
+                  {cloture.motifEcart && (
+                    <span className="ml-2 text-xs text-[var(--encre-faible)]">
+                      {cloture.motifEcart}
+                    </span>
+                  )}
+                </span>
+                <span className="chiffres text-xs text-[var(--encre-faible)]">
+                  fond {fmt(cloture.fondInitial)}
+                </span>
+                {cloture.ecart === 0 ? (
+                  <Pastille ton="valide">Juste</Pastille>
+                ) : (
+                  <Pastille ton={cloture.ecart < 0 ? "danger" : "alerte"}>
+                    {cloture.ecart < 0 ? "Manque" : "Excédent"} {fmt(Math.abs(cloture.ecart))}
+                  </Pastille>
+                )}
+                <span className="chiffres text-xs text-[var(--encre-faible)]">
+                  {cloture.clotureeLe ? horodatage.format(cloture.clotureeLe) : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

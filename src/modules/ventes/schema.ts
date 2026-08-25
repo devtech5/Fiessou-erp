@@ -148,6 +148,19 @@ export const ventes = pgTable(
       onDelete: "set null",
     }),
 
+    /**
+     * Session de caisse à laquelle le ticket se rattache.
+     *
+     * Sans référence croisée : la session vit dans `schema-session.ts`, qui
+     * pointe déjà vers le poste. La contrainte manquante est assumée — un
+     * ticket peut naître hors session, notamment quand il remonte du hors-ligne
+     * après la clôture, et le refuser ferait perdre une vente réelle.
+     *
+     * Nul aussi quand le caissier n'a pas ouvert de session : l'écran le
+     * signale, mais bloquer la vente un samedi matin ferait revenir au cahier.
+     */
+    sessionCaisseId: uuid("session_caisse_id"),
+
     statut: statutVente("statut").notNull().default("encaissee"),
 
     /** Horodatage de l'encaissement, produit par la caisse. */

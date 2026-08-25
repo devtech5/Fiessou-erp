@@ -26,6 +26,7 @@ import {
   type LineKind,
   type MoyenReglementVente,
 } from "./schema";
+import { sessionsCaisse } from "./schema-session";
 
 /** Valeurs retenues quand l'article n'a ni taux propre ni famille. */
 const DEFAUTS = { tauxTva: 1800, compteVente: "701" };
@@ -140,6 +141,26 @@ export async function enregistrerVenteDans(
 
   const numero = `${poste.prefixe}${String(vente.numeroSeq).padStart(6, "0")}`;
 
+  /**
+   * Session en cours sur ce poste, s'il y en a une.
+   *
+   * Vide n'est pas une erreur : un ticket qui remonte du hors-ligne après la
+   * clôture n'a plus de session ouverte à rejoindre, et refuser la vente ferait
+   * perdre un encaissement réel. La clôture rattache après coup ce qui est
+   * arrivé pendant sa période.
+   */
+  const [session] = await tx
+    .select({ id: sessionsCaisse.id })
+    .from(sessionsCaisse)
+    .where(
+      and(
+        eq(sessionsCaisse.organizationId, organizationId),
+        eq(sessionsCaisse.caisseId, poste.id),
+        eq(sessionsCaisse.statut, "ouverte"),
+      ),
+    )
+    .limit(1);
+
   // ---------------------------------------------------------- le référentiel
   const referentiel = await referentielArticles(
     tx,
@@ -227,6 +248,7 @@ export async function enregistrerVenteDans(
     numeroSeq: vente.numeroSeq,
     numero,
     clientId: vente.clientId ?? null,
+    sessionCaisseId: session?.id ?? null,
     encaisseeLe,
     totalBrut,
     totalRemise,
