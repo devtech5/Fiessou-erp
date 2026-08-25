@@ -25,6 +25,8 @@ const MODULES: (EntreeNav & { racine: string })[] = [
   { href: "/commercial", racine: "/commercial", libelle: "Commercial" },
   { href: "/comptabilite", racine: "/comptabilite", libelle: "Comptabilité" },
   { href: "/rh", racine: "/rh", libelle: "Personnel" },
+  { href: "/actifs", racine: "/actifs", libelle: "Actifs" },
+  { href: "/monnaie", racine: "/monnaie", libelle: "Guichet" },
 ];
 
 export function NavigationModules() {
