@@ -54,12 +54,23 @@ export function FormulaireConnexion() {
 
       {etat.etape === "code" && (
         <>
-          <p className="text-sm text-[var(--encre-douce)]">
-            Code envoyé au{" "}
-            <span className="chiffres font-semibold text-[var(--encre)]">
-              {etat.telephone}
-            </span>
-          </p>
+          {etat.codeDemo ? (
+            <div className="rounded-xl border border-dashed border-alerte-600 bg-alerte-50 px-3 py-2.5 text-center">
+              <p className="text-xs font-medium text-alerte-600">
+                Démonstration — aucun SMS n&apos;est envoyé
+              </p>
+              <p className="chiffres mt-1 text-2xl font-bold tracking-[0.3em] text-alerte-600">
+                {etat.codeDemo}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--encre-douce)]">
+              Code envoyé au{" "}
+              <span className="chiffres font-semibold text-[var(--encre)]">
+                {etat.telephone}
+              </span>
+            </p>
+          )}
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium">Code reçu</span>

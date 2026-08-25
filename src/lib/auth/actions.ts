@@ -23,6 +23,8 @@ export interface EtatConnexion {
   telephone?: string;
   erreur?: string;
   message?: string;
+  /** Code affiché à l'écran, en mode démonstration uniquement. */
+  codeDemo?: string;
 }
 
 /**
@@ -60,10 +62,13 @@ export async function demanderCode(
   return {
     etape: "code",
     telephone,
+    codeDemo: envoi.codeAffiche,
     message:
       env.OTP_CHANNEL === "console"
         ? "Code écrit dans les journaux du serveur (mode développement)."
-        : `Code envoyé au ${telephone}.`,
+        : env.OTP_CHANNEL === "demo"
+          ? undefined
+          : `Code envoyé au ${telephone}.`,
   };
 }
 

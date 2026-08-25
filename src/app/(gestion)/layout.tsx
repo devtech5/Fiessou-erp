@@ -1,3 +1,4 @@
+import { BandeauDemo } from "@/components/coque/bandeau-demo";
 import { BarreLaterale } from "@/components/coque/barre-laterale";
 import { FilAriane } from "@/components/coque/fil-ariane";
 import type { OptionSelecteur } from "@/components/coque/selecteur";
@@ -48,23 +49,27 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col lg:flex-row">
-      <BarreLaterale
-        nomUtilisateur={session.nom}
-        entrepriseActive={session.organizationNom}
-      />
+    <div className="flex min-h-dvh flex-col">
+      <BandeauDemo />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center gap-3 border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-1.5">
-          <FilAriane
-            entreprises={options}
-            entrepriseActive={active}
-            exercice={active ? exerciceCourant : null}
-            exercices={[exerciceCourant]}
-          />
-        </header>
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <BarreLaterale
+          nomUtilisateur={session.nom}
+          entrepriseActive={session.organizationNom}
+        />
 
-        <main className="min-w-0 flex-1 p-4 lg:p-6">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex shrink-0 items-center gap-3 border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-1.5">
+            <FilAriane
+              entreprises={options}
+              entrepriseActive={active}
+              exercice={active ? exerciceCourant : null}
+              exercices={[exerciceCourant]}
+            />
+          </header>
+
+          <main className="min-w-0 flex-1 p-4 lg:p-6">{children}</main>
+        </div>
       </div>
     </div>
   );

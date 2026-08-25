@@ -62,8 +62,14 @@ export function normaliserTelephone(saisie: string): string | null {
 export async function emettreCode(
   destination: string,
   purpose: "connexion" | "inscription" | "reinitialisation" | "verification_telephone",
-): Promise<{ ok: true } | { ok: false; raison: "trop_frequent" }> {
-  const recents = await db
+): Promise<
+  | { ok: true; codeAffiche?: string }
+  | { ok: false; raison: "trop_frequent" }
+> {
+  // Le délai de renvoi protège d'un pilonnage de SMS. En démonstration aucun
+  // message ne part, et un exposant bloqué soixante secondes devant son public
+  // n'a aucun moyen de retrouver le code : il est haché.
+  const recents = env.OTP_CHANNEL === "demo" ? [] : await db
     .select({ createdAt: verificationCodes.createdAt })
     .from(verificationCodes)
     .where(
@@ -98,29 +104,45 @@ export async function emettreCode(
   await db.insert(verificationCodes).values({
     id: newId(),
     destination,
-    channel: env.OTP_CHANNEL === "console" ? "sms" : env.OTP_CHANNEL,
+    // `console` et `demo` ne sont pas des canaux d'acheminement mais des modes
+    // de développement : la colonne enregistre le canal qu'ils remplacent.
+    channel:
+      env.OTP_CHANNEL === "console" || env.OTP_CHANNEL === "demo"
+        ? "sms"
+        : env.OTP_CHANNEL,
     purpose,
     codeHash: await hash(code),
     maxAttempts: TENTATIVES_MAX,
     expiresAt: new Date(Date.now() + VALIDITE_MINUTES * 60 * 1000),
   });
 
-  await remettreCode(destination, code);
-  return { ok: true };
+  return { ok: true, codeAffiche: await remettreCode(destination, code) };
 }
 
 /**
  * Achemine le code vers le destinataire.
  *
- * Un seul canal est implémenté : la console, pour le développement. SMS et
- * WhatsApp attendent le choix d'un opérateur — ce choix a un coût par message
- * et engage la marge du produit, il ne se tranche pas dans un fichier.
+ * Aucun canal réel n'est implémenté : SMS et WhatsApp attendent le choix d'un
+ * opérateur — ce choix a un coût par message et engage la marge du produit, il
+ * ne se tranche pas dans un fichier.
+ *
+ * Retourne le code lorsqu'il doit être AFFICHÉ à l'appelant plutôt qu'envoyé,
+ * et `undefined` sinon.
  */
-async function remettreCode(destination: string, code: string): Promise<void> {
+async function remettreCode(
+  destination: string,
+  code: string,
+): Promise<string | undefined> {
   if (env.OTP_CHANNEL === "console") {
     console.info(`\n  Code de connexion pour ${destination} : ${code}\n`);
-    return;
+    return undefined;
   }
+
+  // Mode démonstration : le code revient à l'écran. Rien n'est envoyé, donc
+  // rien à recevoir — quiconque atteint l'instance peut entrer avec n'importe
+  // quel numéro. C'est le prix d'une démo sans opérateur, et la raison pour
+  // laquelle ce mode ne doit jamais côtoyer de vraies données.
+  if (env.OTP_CHANNEL === "demo") return code;
 
   throw new Error(
     `Canal « ${env.OTP_CHANNEL} » non implémenté. Aucun opérateur n'est encore branché.`,

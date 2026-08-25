@@ -1,0 +1,50 @@
+# Déploiement Render — https://render.com/docs/blueprint-spec
+#
+# Render plutôt que Cloudflare ou un runtime Edge : Fiessou dépend de
+# @node-rs/argon2, un binaire natif qui exige un vrai runtime Node. Un isolate
+# V8 ne peut pas l'exécuter.
+services:
+  - type: web
+    name: fiessou
+    runtime: node
+    # Francfort est la région la plus proche de la base Supabase (eu-west-1,
+    # Irlande). Choisir Oregon ajouterait un aller-retour transatlantique à
+    # chaque requête.
+    region: frankfurt
+    plan: free
+    branch: main
+
+    # Corepack active pnpm à la version fixée dans package.json. Sans lui,
+    # Render tenterait npm et ignorerait le lockfile.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+      # Chaîne du pooler en mode transaction (port 6543). Le pool applicatif
+      # s'adapte seul : Render fait tourner un process durable, donc plusieurs
+      # connexions, contrairement à une fonction sans serveur.
+      - key: DATABASE_URL
+        sync: false
+
+      - key: AUTH_SECRET
+        sync: false
+
+      - key: DEFAULT_COUNTRY
+        value: CI
+
+      # Canal d'envoi des codes de connexion.
+      #
+      #   console — écrit dans les journaux (développement)
+      #   demo    — affiche le code à l'écran, pour une instance de
+      #             démonstration SANS données réelles
+      #   sms / whatsapp — non implémentés, en attente d'un opérateur
+      #
+      # ⚠️ « demo » rend l'application ouverte à quiconque connaît un numéro.
+      # Ne jamais l'activer sur une instance contenant de vraies données.
+      - key: OTP_CHANNEL
+        value: demo

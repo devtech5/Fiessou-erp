@@ -16,7 +16,15 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL est requis"),
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET doit faire au moins 32 caractères"),
   DEFAULT_COUNTRY: z.string().length(2).default("CI"),
-  OTP_CHANNEL: z.enum(["console", "sms", "whatsapp"]).default("console"),
+  /**
+   * Acheminement des codes de connexion.
+   *
+   * `demo` affiche le code À L'ÉCRAN au lieu de l'envoyer. C'est ce qui rend une
+   * instance de démonstration utilisable sans opérateur SMS — et c'est aussi ce
+   * qui l'ouvre à quiconque connaît un numéro. Réservé aux instances sans
+   * données réelles.
+   */
+  OTP_CHANNEL: z.enum(["console", "demo", "sms", "whatsapp"]).default("console"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
