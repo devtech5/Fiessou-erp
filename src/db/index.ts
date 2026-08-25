@@ -17,35 +17,49 @@ const globalForDb = globalThis as unknown as {
 };
 
 /**
- * La connexion n'est créée qu'au premier accès, jamais au chargement du
- * module : `next build` importe ce fichier pour collecter les routes, à un
- * moment où DATABASE_URL peut ne pas être disponible.
+ * Un pooler en mode transaction — Supavisor sur le port 6543, ou PgBouncer —
+ * rend la connexion au pool après chaque requête. Les requêtes préparées, qui
+ * survivent à la session, ne peuvent donc pas être réutilisées : les désactiver
+ * évite un « prepared statement already exists » intermittent, qui n'apparaît
+ * que sous charge.
  */
-/**
- * Un pooler en mode transaction (Supabase Supavisor sur le port 6543, PgBouncer)
- * rend une connexion au pool après chaque requête. Les requêtes préparées, qui
- * survivent à la session, ne peuvent donc pas être réutilisées : il faut les
- * désactiver, sinon la base répond « prepared statement already exists » de
- * façon intermittente, sous charge seulement.
- *
- * Le pool applicatif doit aussi rester minuscule : c'est le pooler qui
- * mutualise, pas nous. Vingt connexions par instance sans serveur épuisent le
- * quota en quelques minutes de trafic.
- */
-function detecterPoolerTransaction(url: string): boolean {
+function derrierePoolerTransaction(url: string): boolean {
   return url.includes(":6543") || /pgbouncer=true/i.test(url);
 }
+
+/**
+ * Une fonction sans serveur traite une requête à la fois : un pool d'une seule
+ * connexion y est le bon réglage, et vingt connexions par instance épuiseraient
+ * le quota en quelques minutes de trafic.
+ *
+ * Un processus Node durable — `next dev`, ou un serveur sur VPS — sert au
+ * contraire toutes les requêtes en parallèle. Un pool d'une connexion y
+ * sérialise l'application entière : une requête lente bloque toutes les autres.
+ */
+const SANS_SERVEUR = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
 function resolveDb(): Database {
   if (globalForDb.fiessouDb) return globalForDb.fiessouDb;
 
-  const derriereePooler = detecterPoolerTransaction(env.DATABASE_URL);
+  const pooler = derrierePoolerTransaction(env.DATABASE_URL);
 
   const connection =
     globalForDb.fiessouConnection ??
     postgres(env.DATABASE_URL, {
-      max: derriereePooler ? 1 : env.NODE_ENV === "production" ? 10 : 5,
-      prepare: !derriereePooler,
+      max: SANS_SERVEUR ? 1 : 10,
+      prepare: !pooler,
+
+      /**
+       * Les trois délais ci-dessous ne sont pas du réglage fin : sans eux, une
+       * connexion que le pooler a fermée de son côté reste dans le pool, et la
+       * requête suivante attend dessus sans jamais aboutir ni échouer. Observé
+       * en conditions réelles — Next répondait en 5 ms, le code applicatif
+       * bloquait quarante secondes et ne se libérait qu'à l'abandon du client.
+       */
+      idle_timeout: 20,
+      connect_timeout: 15,
+      max_lifetime: 60 * 30,
+
       transform: { undefined: null },
     });
 
@@ -59,6 +73,11 @@ function resolveDb(): Database {
   return instance;
 }
 
+/**
+ * La connexion n'est créée qu'au premier accès, jamais au chargement du
+ * module : `next build` importe ce fichier pour collecter les routes, à un
+ * moment où DATABASE_URL peut ne pas être disponible.
+ */
 export const db = new Proxy({} as Database, {
   get: (_target, key: string | symbol) => {
     const value = resolveDb()[key as keyof Database];
