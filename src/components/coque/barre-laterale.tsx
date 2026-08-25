@@ -17,6 +17,13 @@ export interface GroupeModules {
   modules: EntreeModule[];
 }
 
+/** Le tableau de bord n'appartient à aucun groupe : il les traverse tous. */
+const ACCUEIL: EntreeModule = {
+  href: "/",
+  racine: "/",
+  libelle: "Tableau de bord",
+};
+
 const GROUPES: GroupeModules[] = [
   {
     titre: "Commerce",
@@ -84,6 +91,18 @@ export function BarreLaterale({
       aria-label="Modules"
       className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-2 lg:w-56 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-2.5 lg:py-3"
     >
+      <Link
+        href={ACCUEIL.href}
+        aria-current={chemin === "/" ? "page" : undefined}
+        className={`h-cible mb-2 flex shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium lg:w-full ${
+          chemin === "/"
+            ? "bg-marque-600 text-white"
+            : "text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]"
+        }`}
+      >
+        {ACCUEIL.libelle}
+      </Link>
+
       {GROUPES.map((groupe) => {
         const replie = replies.includes(groupe.titre);
         // Un groupe qui contient la page courante ne se laisse pas replier :
