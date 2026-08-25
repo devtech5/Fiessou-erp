@@ -8,6 +8,7 @@ import {
   CLIENTS,
   DOCUMENTS,
   LIBELLE_STATUT,
+  totalTTC,
   type ClientDemo,
   type StatutDocument,
 } from "@/lib/fixtures/gestion";
@@ -192,7 +193,7 @@ export function ListeClients() {
                         {LIBELLE_STATUT[doc.statut]}
                       </Pastille>
                       <span className="chiffres w-24 text-right font-semibold">
-                        {fmt(doc.montant)}
+                        {fmt(totalTTC(doc))}
                       </span>
                     </span>
                   </li>

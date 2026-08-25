@@ -169,28 +169,154 @@ export type StatutDocument =
   | "refuse"
   | "converti";
 
+/**
+ * Ligne de pièce commerciale.
+ *
+ * Porte le montant HORS TAXES et son compte d'imputation. C'est ce couple qui
+ * permet de générer l'écriture : sans compte sur la ligne, la comptabilité ne
+ * saurait pas distinguer une vente de marchandise d'une prestation, et la
+ * ventilation par nature de produit serait perdue.
+ */
+export interface LigneDocument {
+  designation: string;
+  montantHT: number;
+  tauxTVA: number;
+  compte: string;
+  libelleCompte: string;
+}
+
 export interface DocumentDemo {
   id: string;
   numero: string;
   nature: "facture" | "devis" | "avoir";
   client: string;
+  /** Compte auxiliaire du client, classe 411. */
+  compteAuxiliaire: string;
   date: string;
   echeance?: string;
-  montant: number;
   statut: StatutDocument;
+  lignes: LigneDocument[];
+  /** Date de comptabilisation. Absente tant que l'écriture n'est pas passée. */
+  comptabiliseLe?: string;
+}
+
+const VENTES = { compte: "701", libelle: "Ventes de marchandises" };
+const SERVICES = { compte: "706", libelle: "Services vendus" };
+
+/** Raccourci de lisibilité pour une ligne au taux normal. */
+function ligne(
+  designation: string,
+  montantHT: number,
+  nature = VENTES,
+  tauxTVA = 18,
+): LigneDocument {
+  return {
+    designation,
+    montantHT,
+    tauxTVA,
+    compte: nature.compte,
+    libelleCompte: nature.libelle,
+  };
 }
 
 export const DOCUMENTS: DocumentDemo[] = [
-  { id: "v1", numero: "FAC-2026-0321", nature: "facture", client: "Ets Sopé Naby", date: "23/08/2026", echeance: "22/09/2026", montant: 2750000, statut: "envoye" },
-  { id: "v2", numero: "FAC-2026-0320", nature: "facture", client: "Pharmacie du Plateau", date: "22/08/2026", echeance: "21/09/2026", montant: 1125000, statut: "envoye" },
-  { id: "v3", numero: "FAC-2026-0319", nature: "facture", client: "Restaurant Akwaba", date: "21/08/2026", echeance: "05/09/2026", montant: 875000, statut: "en_retard" },
-  { id: "v4", numero: "FAC-2026-0318", nature: "facture", client: "Maquis Le Baoulé", date: "20/08/2026", echeance: "19/09/2026", montant: 640000, statut: "paye" },
-  { id: "v5", numero: "FAC-2026-0317", nature: "facture", client: "Quincaillerie Adjamé", date: "19/08/2026", montant: 340000, statut: "brouillon" },
-  { id: "v6", numero: "DEV-2026-0121", nature: "devis", client: "Restaurant Akwaba", date: "18/08/2026", montant: 1480000, statut: "envoye" },
-  { id: "v7", numero: "DEV-2026-0120", nature: "devis", client: "Ets Sopé Naby", date: "16/08/2026", montant: 3200000, statut: "converti" },
-  { id: "v8", numero: "DEV-2026-0119", nature: "devis", client: "Kouadio Yao", date: "14/08/2026", montant: 186000, statut: "refuse" },
-  { id: "v9", numero: "AVO-2026-0031", nature: "avoir", client: "Pharmacie du Plateau", date: "13/08/2026", montant: 74000, statut: "paye" },
+  {
+    id: "v1", numero: "FAC-2026-0321", nature: "facture", client: "Ets Sopé Naby",
+    compteAuxiliaire: "411003", date: "23/08/2026", echeance: "22/09/2026", statut: "envoye",
+    lignes: [
+      ligne("Riz parfumé 5 kg × 400", 1_800_000),
+      ligne("Huile Dinor 1 L × 200", 500_000),
+      ligne("Livraison Bouaké", 30_000, SERVICES),
+    ],
+  },
+  {
+    id: "v2", numero: "FAC-2026-0320", nature: "facture", client: "Pharmacie du Plateau",
+    compteAuxiliaire: "411001", date: "22/08/2026", echeance: "21/09/2026", statut: "envoye",
+    comptabiliseLe: "22/08/2026",
+    lignes: [
+      ligne("Eau minérale Céleste — palettes", 750_000),
+      // Produit alimentaire de base : exonéré. Le taux vit sur la ligne, pas
+      // sur le document — une même facture peut mélanger les régimes.
+      ligne("Riz local en vrac 500 kg", 260_000, VENTES, 0),
+    ],
+  },
+  {
+    id: "v3", numero: "FAC-2026-0319", nature: "facture", client: "Restaurant Akwaba",
+    compteAuxiliaire: "411005", date: "21/08/2026", echeance: "05/09/2026", statut: "en_retard",
+    comptabiliseLe: "21/08/2026",
+    lignes: [
+      ligne("Approvisionnement hebdomadaire", 620_000),
+      ligne("Prestation de mise en place", 121_000, SERVICES),
+    ],
+  },
+  {
+    id: "v4", numero: "FAC-2026-0318", nature: "facture", client: "Maquis Le Baoulé",
+    compteAuxiliaire: "411002", date: "20/08/2026", echeance: "19/09/2026", statut: "paye",
+    comptabiliseLe: "20/08/2026",
+    lignes: [ligne("Boissons et consommables", 542_373)],
+  },
+  {
+    id: "v5", numero: "FAC-2026-0317", nature: "facture", client: "Quincaillerie Adjamé",
+    compteAuxiliaire: "411006", date: "19/08/2026", statut: "brouillon",
+    lignes: [ligne("Fournitures diverses", 288_136)],
+  },
+  {
+    id: "v6", numero: "DEV-2026-0121", nature: "devis", client: "Restaurant Akwaba",
+    compteAuxiliaire: "411005", date: "18/08/2026", statut: "envoye",
+    lignes: [ligne("Contrat d'approvisionnement mensuel", 1_254_237)],
+  },
+  {
+    id: "v7", numero: "DEV-2026-0120", nature: "devis", client: "Ets Sopé Naby",
+    compteAuxiliaire: "411003", date: "16/08/2026", statut: "converti",
+    lignes: [ligne("Commande trimestrielle", 2_711_864)],
+  },
+  {
+    id: "v8", numero: "DEV-2026-0119", nature: "devis", client: "Kouadio Yao",
+    compteAuxiliaire: "411004", date: "14/08/2026", statut: "refuse",
+    lignes: [ligne("Aménagement boutique", 157_627, SERVICES)],
+  },
+  {
+    id: "v9", numero: "AVO-2026-0031", nature: "avoir", client: "Pharmacie du Plateau",
+    compteAuxiliaire: "411001", date: "13/08/2026", statut: "paye",
+    comptabiliseLe: "13/08/2026",
+    lignes: [ligne("Retour marchandise non conforme", 62_712)],
+  },
 ];
+
+/**
+ * Total hors taxes d'une pièce.
+ *
+ * Calculé depuis les lignes, jamais stocké à côté d'elles : un total conservé
+ * en parallèle des lignes qui le composent finit toujours par diverger.
+ */
+export function totalHT(document: DocumentDemo): number {
+  return document.lignes.reduce((somme, l) => somme + l.montantHT, 0);
+}
+
+/** Total de la taxe, taux par taux. */
+export function totalTVA(document: DocumentDemo): number {
+  return document.lignes.reduce(
+    (somme, l) => somme + Math.round((l.montantHT * l.tauxTVA) / 100),
+    0,
+  );
+}
+
+/** Ce que le client doit réellement. */
+export function totalTTC(document: DocumentDemo): number {
+  return totalHT(document) + totalTVA(document);
+}
+
+/**
+ * Une pièce est comptabilisable si elle engage l'entreprise.
+ *
+ * Un devis n'engage rien : il ne crée ni créance ni produit tant qu'il n'est
+ * pas accepté. Le comptabiliser gonflerait le chiffre d'affaires de propositions
+ * qui peuvent être refusées.
+ */
+export function comptabilisable(document: DocumentDemo): boolean {
+  if (document.nature === "devis") return false;
+  return document.statut !== "brouillon" && document.statut !== "refuse";
+}
 
 export const LIBELLE_STATUT: Record<StatutDocument, string> = {
   brouillon: "Brouillon",
