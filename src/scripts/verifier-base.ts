@@ -44,7 +44,9 @@ const TABLES_ATTENDUES = [
 
 const sql = postgres(url, { max: 1, prepare: false });
 
-try {
+// Enveloppé dans une fonction : tsx compile ce script en CommonJS, qui n'admet
+// pas d'`await` au niveau racine.
+async function main() {
   const debut = Date.now();
   await sql`select 1`;
   console.log(`Connexion établie en ${Date.now() - debut} ms.`);
@@ -98,10 +100,12 @@ try {
   }
 
   console.log("\nBase conforme.");
-} catch (erreur) {
-  console.error("\nÉchec de la vérification :");
-  console.error(erreur instanceof Error ? erreur.message : erreur);
-  process.exit(1);
-} finally {
-  await sql.end();
 }
+
+main()
+  .catch((erreur) => {
+    console.error("\nÉchec de la vérification :");
+    console.error(erreur instanceof Error ? erreur.message : erreur);
+    process.exitCode = 1;
+  })
+  .finally(() => sql.end());
