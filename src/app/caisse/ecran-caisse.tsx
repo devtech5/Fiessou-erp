@@ -17,11 +17,8 @@ import {
   type ArticleDemo,
   type CaissierDemo,
 } from "@/lib/fixtures/catalogue";
+import { fmt } from "@/lib/format";
 import { ModalePaiement } from "./modale-paiement";
-
-/** Affichage compact des montants : le suffixe FCFA est porté par l'en-tête. */
-const nf = new Intl.NumberFormat("fr-FR");
-export const fmt = (montant: number) => nf.format(montant);
 
 interface Props {
   articles: ArticleDemo[];

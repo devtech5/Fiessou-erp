@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { monnaieARendre, resteAPayer, type LignePanier } from "@/lib/caisse/panier";
 import { MOYENS_PAIEMENT, type MoyenPaiementId } from "@/lib/fixtures/catalogue";
-import { fmt } from "./ecran-caisse";
+import { fmt } from "@/lib/format";
 
 interface Reglement {
   moyen: MoyenPaiementId;
