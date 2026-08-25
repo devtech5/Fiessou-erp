@@ -54,7 +54,10 @@ const GROUPES: GroupeModules[] = [
   },
   {
     titre: "Équipe",
-    modules: [{ href: "/rh", racine: "/rh", libelle: "Personnel" }],
+    modules: [
+      { href: "/rh", racine: "/rh", libelle: "Personnel" },
+      { href: "/documents", racine: "/documents", libelle: "Documents" },
+    ],
   },
 ];
 
