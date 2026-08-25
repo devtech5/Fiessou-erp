@@ -108,28 +108,40 @@ export async function lireSession(): Promise<SessionActive | null> {
   const ligne = lignes[0];
   if (!ligne || ligne.statut !== "actif") return null;
 
-  // L'entreprise active peut ne pas être encore choisie : un utilisateur peut
-  // appartenir à plusieurs entreprises, ou à aucune juste après inscription.
-  let organizationNom: string | null = null;
-  let roleId: string | null = null;
+  // Rattachements actifs de l'utilisateur, tous confondus.
+  const rattachements = await db
+    .select({
+      organizationId: memberships.organizationId,
+      nom: organizations.name,
+      roleId: memberships.roleId,
+    })
+    .from(memberships)
+    .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+    .where(
+      and(eq(memberships.userId, ligne.userId), eq(memberships.status, "actif")),
+    );
 
-  if (ligne.organizationId) {
-    const rattachements = await db
-      .select({ nom: organizations.name, roleId: memberships.roleId })
-      .from(memberships)
-      .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
-      .where(
-        and(
-          eq(memberships.userId, ligne.userId),
-          eq(memberships.organizationId, ligne.organizationId),
-          eq(memberships.status, "actif"),
-        ),
-      )
-      .limit(1);
+  /**
+   * L'entreprise active se déduit plutôt qu'elle ne se demande.
+   *
+   * Un exploitant qui n'a qu'une entreprise ne doit jamais avoir à la choisir :
+   * lui présenter un sélecteur à une seule ligne est une étape inutile juste
+   * après l'inscription. Le choix explicite n'a de sens qu'à partir de deux.
+   *
+   * Un rattachement révoqué depuis la dernière visite invalide l'entreprise
+   * active sans invalider la session : on retombe sur les autres, ou sur aucune.
+   */
+  let actif = ligne.organizationId
+    ? (rattachements.find((r) => r.organizationId === ligne.organizationId) ?? null)
+    : null;
 
-    // Un rattachement révoqué invalide l'entreprise active, pas la session.
-    organizationNom = rattachements[0]?.nom ?? null;
-    roleId = rattachements[0]?.roleId ?? null;
+  if (!actif && rattachements.length === 1) {
+    actif = rattachements[0];
+    // Persisté pour ne pas refaire cette déduction à chaque requête.
+    await db
+      .update(sessions)
+      .set({ organizationId: actif.organizationId, updatedAt: new Date() })
+      .where(eq(sessions.id, ligne.sessionId));
   }
 
   return {
@@ -137,9 +149,9 @@ export async function lireSession(): Promise<SessionActive | null> {
     userId: ligne.userId,
     nom: ligne.nom,
     telephone: ligne.telephone,
-    organizationId: organizationNom ? ligne.organizationId : null,
-    organizationNom,
-    roleId,
+    organizationId: actif?.organizationId ?? null,
+    organizationNom: actif?.nom ?? null,
+    roleId: actif?.roleId ?? null,
   };
 }
 
