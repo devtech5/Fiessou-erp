@@ -30,12 +30,22 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
   revalidatePath("/", "layout");
 
   if (resultat.deja) {
+    // Le catalogue était là, mais pas forcément le stock : les entreprises
+    // amorcées avant le module Stock n'avaient ni dépôt ni mouvement.
+    if (resultat.depots > 0) {
+      return {
+        message:
+          `Catalogue déjà présent. ${resultat.depots} dépôts et ` +
+          `${resultat.mouvements} mouvements de stock ajoutés.`,
+      };
+    }
     return { message: "Le jeu de démonstration est déjà installé." };
   }
 
   return {
     message:
-      `${resultat.articles} articles, ${resultat.tiers} tiers et ` +
-      `${resultat.codes} codes-barres installés.`,
+      `${resultat.articles} articles, ${resultat.tiers} tiers, ` +
+      `${resultat.codes} codes-barres, ${resultat.depots} dépôts et ` +
+      `${resultat.mouvements} mouvements de stock installés.`,
   };
 }

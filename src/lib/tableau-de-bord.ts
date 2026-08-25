@@ -1,14 +1,7 @@
-import { CATALOGUE } from "@/lib/fixtures/catalogue";
 import { ACTIFS, ECHEANCES, resteAvantEcheance } from "@/lib/fixtures/actifs";
 import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
 import { COMPTES_CLES } from "@/lib/fixtures/comptabilite";
-import {
-  ALERTES,
-  DOCUMENTS,
-  comptabilisable,
-  joursRestants,
-  totalTTC,
-} from "@/lib/fixtures/gestion";
+import { DOCUMENTS, comptabilisable, totalTTC } from "@/lib/fixtures/gestion";
 import { MISSIONS } from "@/lib/fixtures/missions";
 import { RESEAUX, SEUIL_FLOAT_BAS, totauxJournee } from "@/lib/fixtures/monnaie";
 import { CONTRATS } from "@/lib/fixtures/reservations";
@@ -47,15 +40,33 @@ const ORDRE: Record<Gravite, number> = {
 };
 
 /**
+ * État du stock, tel que la base le connaît.
+ *
+ * Passé en paramètre plutôt que lu ici, comme `piecesPassees` : ce module reste
+ * une fonction de mise en forme, sans accès à la base, donc lisible et
+ * testable. C'est l'écran qui interroge.
+ */
+export interface EtatStock {
+  ruptures: number;
+  /** Articles dont l'autonomie tombe sous le délai de réaction habituel. */
+  aCommanderVite: number;
+  /** Valeur au coût moyen pondéré, en francs entiers. */
+  valeur: number;
+}
+
+/**
  * Ce qui demande une décision aujourd'hui.
  *
  * Classé par gravité, pas par module : quelqu'un qui ouvre son application le
  * matin veut savoir ce qui brûle, pas parcourir un sommaire.
  *
- * `piecesPassees` vient de la base — les autres sources sont encore des
- * fixtures.
+ * `piecesPassees` et `stock` viennent de la base — les autres sources sont
+ * encore des fixtures, en attendant leurs modules.
  */
-export function alertes(piecesPassees: Record<string, string>): Alerte[] {
+export function alertes(
+  piecesPassees: Record<string, string>,
+  stock: EtatStock,
+): Alerte[] {
   const liste: Alerte[] = [];
 
   // ------------------------------------------------------------- ventes
@@ -92,21 +103,21 @@ export function alertes(piecesPassees: Record<string, string>): Alerte[] {
   }
 
   // -------------------------------------------------------------- stock
-  const ruptures = CATALOGUE.filter((a) => a.stock <= 0);
-  if (ruptures.length > 0) {
+  if (stock.ruptures > 0) {
     liste.push({
       id: "ruptures",
       gravite: "critique",
       module: "Stock",
       titre: "Articles en rupture",
+      // Un stock négatif compte ici aussi : il signale une sortie enregistrée
+      // avant son entrée, et la vente suivante partira sur une quantité fausse.
       detail: "Aucune vente possible sur ces références",
       href: "/stock",
-      nombre: ruptures.length,
+      nombre: stock.ruptures,
     });
   }
 
-  const urgents = ALERTES.filter((a) => joursRestants(a) <= 3);
-  if (urgents.length > 0) {
+  if (stock.aCommanderVite > 0) {
     liste.push({
       id: "reappro",
       gravite: "attention",
@@ -114,7 +125,7 @@ export function alertes(piecesPassees: Record<string, string>): Alerte[] {
       titre: "À commander sous trois jours",
       detail: "Le délai fournisseur ne sera pas tenu au-delà",
       href: "/stock/reapprovisionnement",
-      nombre: urgents.length,
+      nombre: stock.aCommanderVite,
     });
   }
 
@@ -309,8 +320,15 @@ export function tresorerie(): Tresorerie[] {
   ];
 }
 
-/** Chiffres du jour, pour juger l'activité sans ouvrir un module. */
-export function activiteDuJour() {
+/**
+ * Chiffres du jour, pour juger l'activité sans ouvrir un module.
+ *
+ * La valeur du stock arrive du dehors : elle se lit en base, au coût moyen
+ * pondéré. Elle était auparavant estimée au prix de VENTE — ce qui affichait la
+ * marge future comme si elle était déjà acquise, et gonflait le patrimoine de
+ * l'entreprise d'un tiers.
+ */
+export function activiteDuJour(valeurStock: number) {
   const guichet = totauxJournee();
 
   const encaisse = DOCUMENTS.filter(
@@ -328,9 +346,6 @@ export function activiteDuJour() {
     creances,
     operationsGuichet: guichet.operations,
     commissionsGuichet: guichet.commissions,
-    valeurStock: CATALOGUE.reduce(
-      (s, a) => s + Math.round((a.prix * a.stock) / 1000),
-      0,
-    ),
+    valeurStock,
   };
 }

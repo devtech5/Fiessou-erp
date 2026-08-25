@@ -19,4 +19,5 @@ export * from "./sync";
 // L'ordre suit les dépendances : un article pointe vers son fournisseur.
 export * from "@/modules/tiers/schema";
 export * from "@/modules/catalogue/schema";
+export * from "@/modules/stock/schema";
 export * from "@/modules/comptabilite/schema";

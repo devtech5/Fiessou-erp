@@ -44,8 +44,9 @@ export const MODULES: ModuleDefinition[] = [
     key: "stock",
     name: "Catalogue & Stock",
     layer: "socle",
-    // Catalogue en base : articles, familles, unités, codes scannables.
-    // Restent les dépôts, les mouvements et la valorisation.
+    // En base : articles, familles, unités, codes scannables, dépôts,
+    // mouvements typés et valorisation au coût moyen pondéré. Restent
+    // l'inventaire tournant, les lots et les dates de péremption.
     status: "en_cours",
     requires: [],
     description:

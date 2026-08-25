@@ -3,77 +3,24 @@
  *
  * Provisoire, comme le catalogue : remplacé dès que les modules sont branchés
  * sur la base. Montants en francs CFA entiers.
+ *
+ * Les dépôts et les mouvements en sont partis : ils vivent en base depuis que
+ * le module Stock existe, et leurs données d'amorçage sont dans `stock.ts`.
+ * Ce qui reste ici sert encore au tableau de bord racine.
  */
-
-// ------------------------------------------------------------------- dépôts
-
-export interface DepotDemo {
-  id: string;
-  code: string;
-  nom: string;
-  ville: string;
-  /**
-   * Un seul dépôt par défaut, et c'est le seul statut qui existe.
-   * Le concurrent fait cohabiter « Principal » et « Par défaut » sur le même
-   * écran, sans que la différence soit définie nulle part.
-   */
-  parDefaut: boolean;
-  articles: number;
-  unites: number;
-  valeur: number;
-}
-
-export const DEPOTS: DepotDemo[] = [
-  { id: "d1", code: "DEP-YOP", nom: "Dépôt Yopougon", ville: "Abidjan", parDefaut: true, articles: 263, unites: 24815, valeur: 48750450 },
-  { id: "d2", code: "DEP-ADJ", nom: "Dépôt Adjamé", ville: "Abidjan", parDefaut: false, articles: 118, unites: 11276, valeur: 28934780 },
-  { id: "d3", code: "MAG-TRE", nom: "Magasin Treichville", ville: "Abidjan", parDefaut: false, articles: 97, unites: 8943, valeur: 19876600 },
-  { id: "d4", code: "MAG-BKE", nom: "Magasin Bouaké", ville: "Bouaké", parDefaut: false, articles: 84, unites: 7652, valeur: 12430200 },
-];
-
-// -------------------------------------------------------------- mouvements
-
-export type TypeMouvement =
-  | "reception"
-  | "vente"
-  | "transfert"
-  | "ajustement"
-  | "retour";
-
-export interface MouvementDemo {
-  id: string;
-  type: TypeMouvement;
-  /**
-   * Pièce à l'origine du mouvement. Aucun mouvement de stock n'existe sans
-   * pièce source : c'est ce qui rend l'inventaire explicable.
-   */
-  piece: string;
-  article: string;
-  depot: string;
-  depotVers?: string;
-  quantite: number;
-  motif?: string;
-  auteur: string;
-  horodatage: string;
-}
-
-export const MOUVEMENTS: MouvementDemo[] = [
-  { id: "m1", type: "reception", piece: "CMD-2026-0178", article: "Riz parfumé 5 kg", depot: "Dépôt Yopougon", quantite: 500, auteur: "Koffi B.", horodatage: "Aujourd'hui · 10:22" },
-  { id: "m2", type: "vente", piece: "TIC-2026-0256", article: "Eau Céleste 33 cl", depot: "Magasin Treichville", quantite: -120, auteur: "Amani T.", horodatage: "Aujourd'hui · 09:15" },
-  { id: "m3", type: "transfert", piece: "TRF-2026-0094", article: "Huile Dinor 1 L", depot: "Dépôt Yopougon", depotVers: "Dépôt Adjamé", quantite: -80, auteur: "Sékou D.", horodatage: "Aujourd'hui · 08:40" },
-  { id: "m4", type: "ajustement", piece: "INV-2026-0012", article: "Savon Palmida", depot: "Dépôt Adjamé", quantite: -15, motif: "Correction inventaire", auteur: "Aya D.", horodatage: "Aujourd'hui · 08:10" },
-  { id: "m5", type: "retour", piece: "AVO-2026-0031", article: "Lait Nido 400 g", depot: "Magasin Treichville", quantite: 6, motif: "Retour client", auteur: "Amani T.", horodatage: "Hier · 17:48" },
-  { id: "m6", type: "reception", piece: "CMD-2026-0177", article: "Sucre en morceaux 1 kg", depot: "Dépôt Yopougon", quantite: 240, auteur: "Koffi B.", horodatage: "Hier · 15:02" },
-  { id: "m7", type: "vente", piece: "TIC-2026-0249", article: "Coca-Cola 1,5 L", depot: "Magasin Treichville", quantite: -24, auteur: "Aya D.", horodatage: "Hier · 12:31" },
-  { id: "m8", type: "transfert", piece: "TRF-2026-0093", article: "Cube Maggi tablette", depot: "Dépôt Adjamé", depotVers: "Magasin Bouaké", quantite: -400, auteur: "Sékou D.", horodatage: "Hier · 09:20" },
-];
 
 // ------------------------------------------------------------ réapprovision
 
+/**
+ * Alertes de réapprovisionnement.
+ *
+ * Ne sert plus à l'affichage — l'écran lit les mouvements. Elle reste la source
+ * d'amorçage du prix d'achat, du fournisseur habituel et des ventes du mois,
+ * que le catalogue de démonstration ne porte pas.
+ */
 export interface AlerteReappro {
   id: string;
   article: string;
-  stock: number;
-  seuil: number;
   /** Ventes constatées sur les 30 derniers jours. */
   ventes30j: number;
   /** Délai de livraison moyen du fournisseur, en jours. */
@@ -83,34 +30,15 @@ export interface AlerteReappro {
 }
 
 export const ALERTES: AlerteReappro[] = [
-  { id: "r1", article: "Cerelac fruits 250 g", stock: 0, seuil: 20, ventes30j: 320, delaiJours: 3, fournisseur: "Nestlé CI", prixAchat: 1020 },
-  { id: "r2", article: "Thé Lipton 25 sachets", stock: 0, seuil: 15, ventes30j: 85, delaiJours: 4, fournisseur: "Unilever CI", prixAchat: 820 },
-  { id: "r3", article: "Déodorant Nivea 50 ml", stock: 0, seuil: 10, ventes30j: 42, delaiJours: 6, fournisseur: "Beiersdorf CI", prixAchat: 1650 },
-  { id: "r4", article: "Mayonnaise Vinco 250 g", stock: 3, seuil: 15, ventes30j: 60, delaiJours: 4, fournisseur: "Unilever CI", prixAchat: 640 },
-  { id: "r5", article: "Éponge vaisselle × 3", stock: 6, seuil: 20, ventes30j: 48, delaiJours: 2, fournisseur: "Sivop", prixAchat: 190 },
-  { id: "r6", article: "Gel douche Aqualis Cool 2 L", stock: 9, seuil: 15, ventes30j: 36, delaiJours: 5, fournisseur: "Sivop", prixAchat: 1180 },
-  { id: "r7", article: "Couche Babidou taille 6", stock: 4, seuil: 12, ventes30j: 28, delaiJours: 3, fournisseur: "Nestlé CI", prixAchat: 7900 },
-  { id: "r8", article: "Attiéké sachet 1 kg", stock: 12, seuil: 25, ventes30j: 190, delaiJours: 1, fournisseur: "Coopérative Anono", prixAchat: 340 },
+  { id: "r1", article: "Cerelac fruits 250 g", ventes30j: 320, delaiJours: 3, fournisseur: "Nestlé CI", prixAchat: 1020 },
+  { id: "r2", article: "Thé Lipton 25 sachets", ventes30j: 85, delaiJours: 4, fournisseur: "Unilever CI", prixAchat: 820 },
+  { id: "r3", article: "Déodorant Nivea 50 ml", ventes30j: 42, delaiJours: 6, fournisseur: "Beiersdorf CI", prixAchat: 1650 },
+  { id: "r4", article: "Mayonnaise Vinco 250 g", ventes30j: 60, delaiJours: 4, fournisseur: "Unilever CI", prixAchat: 640 },
+  { id: "r5", article: "Éponge vaisselle × 3", ventes30j: 48, delaiJours: 2, fournisseur: "Sivop", prixAchat: 190 },
+  { id: "r6", article: "Gel douche Aqualis Cool 2 L", ventes30j: 36, delaiJours: 5, fournisseur: "Sivop", prixAchat: 1180 },
+  { id: "r7", article: "Couche Babidou taille 6", ventes30j: 28, delaiJours: 3, fournisseur: "Nestlé CI", prixAchat: 7900 },
+  { id: "r8", article: "Attiéké sachet 1 kg", ventes30j: 190, delaiJours: 1, fournisseur: "Coopérative Anono", prixAchat: 340 },
 ];
-
-/**
- * Quantité à commander : ce que l'article consommera pendant le délai de
- * livraison, plus une réserve d'un mois, moins ce qui reste en rayon.
- *
- * Arrondi à l'entier supérieur — on ne commande pas un demi-sac.
- */
-export function quantiteSuggeree(alerte: AlerteReappro): number {
-  const parJour = alerte.ventes30j / 30;
-  const besoin = parJour * (alerte.delaiJours + 30);
-  return Math.max(alerte.seuil, Math.ceil(besoin - alerte.stock));
-}
-
-/** Jours avant rupture au rythme de vente constaté. */
-export function joursRestants(alerte: AlerteReappro): number {
-  const parJour = alerte.ventes30j / 30;
-  if (parJour <= 0) return Infinity;
-  return Math.floor(alerte.stock / parJour);
-}
 
 // -------------------------------------------------------------------- tiers
 

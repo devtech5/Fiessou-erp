@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { CarteIndicateur, EnTetePage } from "@/components/ui/primitives";
+import { exigerEntreprise } from "@/lib/auth/dal";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
 import { piecesComptabilisees } from "@/modules/comptabilite/actions";
+import {
+  alertesReapprovisionnement,
+  joursRestants,
+  resumeStock,
+} from "@/modules/stock/requetes";
 import {
   activiteDuJour,
   alertes,
@@ -41,10 +47,30 @@ const LIBELLE: Record<Gravite, string> = {
  */
 const GRILLE = "grid gap-3 sm:grid-cols-2 xl:grid-cols-4";
 
+/**
+ * Délai de réaction : au-delà, une commande passée aujourd'hui arrive trop
+ * tard. Trois jours couvrent le délai courant d'un fournisseur d'Abidjan.
+ */
+const DELAI_REACTION_JOURS = 3;
+
 export default async function PageTableauDeBord() {
-  const passees = await piecesComptabilisees();
-  const liste = alertes(passees);
-  const activite = activiteDuJour();
+  const session = await exigerEntreprise();
+
+  const [passees, resume, aCommander] = await Promise.all([
+    piecesComptabilisees(),
+    resumeStock(session.organizationId),
+    alertesReapprovisionnement(session.organizationId),
+  ]);
+
+  const liste = alertes(passees, {
+    ruptures: resume.ruptures,
+    aCommanderVite: aCommander.filter(
+      (alerte) => joursRestants(alerte) <= DELAI_REACTION_JOURS,
+    ).length,
+    valeur: resume.valeur,
+  });
+
+  const activite = activiteDuJour(resume.valeur);
   const soldes = tresorerie();
 
   const critiques = liste.filter((a) => a.gravite === "critique");
@@ -120,7 +146,7 @@ export default async function PageTableauDeBord() {
             libelle="Valeur du stock"
             valeur={fmtCompact(activite.valeurStock)}
             unite="FCFA"
-            precision="Au prix de vente"
+            precision="Au coût moyen pondéré"
           />
         </div>
       </section>

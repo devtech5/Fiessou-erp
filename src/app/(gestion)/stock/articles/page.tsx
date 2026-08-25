@@ -18,6 +18,7 @@ import {
   listerArticles,
   listerFamilles,
 } from "@/modules/catalogue/requetes";
+import { stocksParArticle } from "@/modules/stock/requetes";
 import { listerTiers } from "@/modules/tiers/requetes";
 import { FormulaireArticle } from "./formulaire-article";
 
@@ -26,11 +27,12 @@ export const metadata: Metadata = { title: "Articles" };
 export default async function PageArticles() {
   const session = await exigerEntreprise();
 
-  const [catalogue, familles, fournisseurs, codes] = await Promise.all([
+  const [catalogue, familles, fournisseurs, codes, stocks] = await Promise.all([
     listerArticles(session.organizationId),
     listerFamilles(session.organizationId),
     listerTiers(session.organizationId, "fournisseur"),
     codesParArticle(session.organizationId),
+    stocksParArticle(session.organizationId),
   ]);
 
   const marchandises = catalogue.filter((a) => a.type === "marchandise");
@@ -114,6 +116,7 @@ export default async function PageArticles() {
                 <Th>Famille</Th>
                 <Th aligne="droite">Prix de vente</Th>
                 <Th aligne="droite">TVA</Th>
+                <Th aligne="droite">En stock</Th>
                 <Th aligne="droite">Seuil</Th>
                 <Th>Fournisseur</Th>
               </tr>
@@ -167,6 +170,29 @@ export default async function PageArticles() {
                       fmtTauxBp(article.tauxTvaEffectif)
                     )}
                   </Td>
+                  {/* Le stock n'est pas une colonne de l'article : c'est la
+                      somme de ses mouvements, tous dépôts confondus. Le détail
+                      par lieu est sur l'écran Stock. */}
+                  <Td aligne="droite" chiffres>
+                    {(() => {
+                      if (!article.suiviStock) return "—";
+                      const detenu = stocks.get(article.id)?.quantite ?? 0;
+                      return (
+                        <span
+                          className={
+                            detenu <= 0
+                              ? "font-semibold text-danger-600"
+                              : detenu <= article.seuilAlerte &&
+                                  article.seuilAlerte > 0
+                                ? "font-semibold text-alerte-600"
+                                : ""
+                          }
+                        >
+                          {formaterQuantite(detenu, article.unite)}
+                        </span>
+                      );
+                    })()}
+                  </Td>
                   <Td aligne="droite" chiffres>
                     {article.suiviStock
                       ? formaterQuantite(article.seuilAlerte, article.unite)
@@ -182,12 +208,10 @@ export default async function PageArticles() {
             </tbody>
           </Tableau>
 
-          {/* Le stock n'est pas une colonne de l'article : il se compte par
-              dépôt, et il est la somme des mouvements. Il revient avec le
-              module Stock, qui apporte les dépôts et les mouvements. */}
-          <p className="mt-3 text-xs text-[var(--encre-faible)]">
-            Les quantités en stock apparaîtront ici avec le module Stock : elles
-            se comptent par dépôt, à partir des mouvements.
+          <p className="mt-3 max-w-[70ch] text-xs text-[var(--encre-faible)]">
+            La colonne « en stock » totalise tous les dépôts. Le détail par lieu
+            est sur l&apos;écran Stock : une quantité n&apos;a de sens
+            qu&apos;attachée à l&apos;endroit où la marchandise se trouve.
           </p>
         </>
       )}
