@@ -1,6 +1,7 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -10,7 +11,12 @@ import { memberships, organizations, roles, users } from "@/db/schema";
 import { env } from "@/env";
 import { newId } from "@/lib/ids";
 import { emettreCode, normaliserTelephone, verifierCode } from "./otp";
-import { fermerSession, lireSession, ouvrirSession } from "./session";
+import {
+  choisirEntreprise,
+  fermerSession,
+  lireSession,
+  ouvrirSession,
+} from "./session";
 
 export interface EtatConnexion {
   etape: "telephone" | "code" | "inscription";
@@ -183,6 +189,38 @@ export async function finaliserInscription(
 export async function seDeconnecter(): Promise<void> {
   await fermerSession();
   redirect("/connexion");
+}
+
+/**
+ * Bascule l'entreprise active de la session.
+ *
+ * Le rattachement est revérifié ici et pas seulement au moment d'afficher le
+ * sélecteur : l'identifiant vient du client, et rien n'empêche d'en poster un
+ * autre. Sans ce contrôle, il suffirait de deviner un identifiant pour entrer
+ * dans les données d'une entreprise voisine.
+ */
+export async function basculerEntreprise(organizationId: string): Promise<void> {
+  const active = await lireSession();
+  if (!active) redirect("/connexion");
+
+  const autorises = await db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.userId, active.userId),
+        eq(memberships.organizationId, organizationId),
+        eq(memberships.status, "actif"),
+      ),
+    )
+    .limit(1);
+
+  if (autorises.length === 0) {
+    throw new Error("Entreprise inaccessible.");
+  }
+
+  await choisirEntreprise(active.sessionId, organizationId);
+  revalidatePath("/", "layout");
 }
 
 /** Entreprise active de la session, pour l'affichage. */

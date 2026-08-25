@@ -1,4 +1,4 @@
-import { SousNavigation } from "@/components/navigation";
+import { SousNavigation } from "@/components/coque/sous-navigation";
 
 /**
  * Trois sections, pas dix.
