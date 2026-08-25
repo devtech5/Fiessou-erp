@@ -37,10 +37,9 @@ export function FilAriane({
 
   function changerEntreprise(id: string) {
     if (id === entrepriseActive?.id) return;
-    demarrer(async () => {
-      await basculerEntreprise(id);
-      routeur.refresh();
-    });
+    // L'action redirige elle-même : un refresh client ne suffisait pas, le
+    // layout continuait d'afficher l'entreprise précédente.
+    demarrer(() => basculerEntreprise(id));
   }
 
   return (

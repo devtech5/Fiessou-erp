@@ -220,7 +220,17 @@ export async function basculerEntreprise(organizationId: string): Promise<void> 
   }
 
   await choisirEntreprise(active.sessionId, organizationId);
+
+  /**
+   * Retour à l'accueil, et pas un simple rafraîchissement.
+   *
+   * Changer d'entreprise change tout ce qui est affiché. Rester sur la fiche
+   * d'une facture montrerait une pièce qui n'existe pas dans la nouvelle
+   * entreprise — au mieux une erreur, au pire les chiffres d'une société
+   * confondus avec ceux d'une autre.
+   */
   revalidatePath("/", "layout");
+  redirect("/");
 }
 
 /** Entreprise active de la session, pour l'affichage. */
