@@ -178,3 +178,62 @@ export function BoutonPrincipal({
     </button>
   );
 }
+
+/**
+ * Écran vide.
+ *
+ * Un tableau sans lignes n'est pas une erreur, c'est le premier jour d'un
+ * exploitant. Il doit dire quoi faire, pas afficher un cadre gris : sur les
+ * écrans de démonstration du concurrent, une liste vide ne propose rien et
+ * laisse croire que le module ne fonctionne pas.
+ */
+export function EtatVide({
+  titre,
+  message,
+  actions,
+}: {
+  titre: string;
+  message: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-[var(--filet)] bg-[var(--surface)] px-6 py-12 text-center">
+      <p className="text-base font-semibold">{titre}</p>
+      <p className="mx-auto mt-1.5 max-w-md text-sm text-[var(--encre-douce)]">
+        {message}
+      </p>
+      {actions && (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          {actions}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Champ de formulaire : libellé, contrôle, et précision facultative. */
+export function Champ({
+  libelle,
+  precision,
+  children,
+}: {
+  libelle: string;
+  precision?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium">{libelle}</span>
+      {children}
+      {precision && (
+        <span className="mt-1 block text-xs text-[var(--encre-faible)]">
+          {precision}
+        </span>
+      )}
+    </label>
+  );
+}
+
+/** Classe commune aux entrées de formulaire, pour ne pas la recopier partout. */
+export const CLASSE_CHAMP =
+  "h-cible w-full rounded-lg border border-[var(--filet)] bg-[var(--fond)] px-3.5 text-sm outline-none focus:border-marque-500";

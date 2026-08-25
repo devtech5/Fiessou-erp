@@ -5,7 +5,7 @@
  *
  * Vérifie trois choses, dans cet ordre d'importance :
  *   1. la connexion aboutit ;
- *   2. les quinze tables du socle existent ;
+ *   2. les tables attendues existent — socle et modules livrés ;
  *   3. la sécurité au niveau ligne est active sur chacune.
  *
  * Le troisième point n'est pas cosmétique : sur Supabase, une table du schéma
@@ -25,10 +25,14 @@ if (!url) {
 }
 
 const TABLES_ATTENDUES = [
+  "articles",
   "audit_logs",
   "change_log",
   "document_sequences",
+  "ecritures",
   "entity_codes",
+  "familles_article",
+  "lignes_ecriture",
   "memberships",
   "organization_modules",
   "organizations",
@@ -38,6 +42,7 @@ const TABLES_ATTENDUES = [
   "sessions",
   "sync_cursors",
   "sync_mutations",
+  "tiers",
   "users",
   "verification_codes",
 ];
@@ -65,7 +70,7 @@ async function main() {
   );
 
   console.log(
-    `\nTables du socle : ${TABLES_ATTENDUES.length - manquantes.length} / ${TABLES_ATTENDUES.length}`,
+    `\nTables attendues : ${TABLES_ATTENDUES.length - manquantes.length} / ${TABLES_ATTENDUES.length}`,
   );
 
   if (manquantes.length > 0) {
@@ -88,7 +93,7 @@ async function main() {
 
   console.log(`RLS actif sur les ${TABLES_ATTENDUES.length} tables.`);
 
-  // Les tables hors socle sont signalées sans faire échouer : ce sont soit des
+  // Les tables hors liste sont signalées sans faire échouer : ce sont soit des
   // tables métier à venir, soit des tables propres à l'hébergeur.
   const autres = lignes.filter((l) => !TABLES_ATTENDUES.includes(l.tablename));
   if (autres.length > 0) {

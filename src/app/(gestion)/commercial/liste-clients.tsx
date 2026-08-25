@@ -3,25 +3,8 @@
 import { useMemo, useState } from "react";
 
 import { BoutonPrincipal, BoutonSecondaire, Pastille } from "@/components/ui/primitives";
-import { fmt } from "@/lib/format";
-import {
-  CLIENTS,
-  DOCUMENTS,
-  LIBELLE_STATUT,
-  totalTTC,
-  type ClientDemo,
-  type StatutDocument,
-} from "@/lib/fixtures/gestion";
-
-const TON_STATUT: Record<StatutDocument, "neutre" | "valide" | "alerte" | "danger" | "marque"> = {
-  brouillon: "neutre",
-  envoye: "marque",
-  paye: "valide",
-  en_retard: "danger",
-  accepte: "valide",
-  refuse: "danger",
-  converti: "valide",
-};
+import { fmt, fmtDateIso } from "@/lib/format";
+import type { FicheTiers } from "@/modules/tiers/requetes";
 
 /**
  * Fichier clients avec panneau latéral.
@@ -30,25 +13,31 @@ const TON_STATUT: Record<StatutDocument, "neutre" | "valide" | "alerte" | "dange
  * ouvre son historique et ses actions sans quitter la liste. Sur un fichier de
  * plusieurs centaines de tiers, cela évite l'aller-retour permanent entre la
  * liste et la fiche.
+ *
+ * Les données viennent du serveur, déjà agrégées. Ce composant ne calcule
+ * aucun solde : encours et facturé sont la conséquence des écritures, et se
+ * déduisent là où les écritures sont — pas dans le navigateur.
  */
-export function ListeClients() {
+export function ListeClients({ clients }: { clients: FicheTiers[] }) {
   const [recherche, setRecherche] = useState("");
-  const [selection, setSelection] = useState<ClientDemo | null>(CLIENTS[0]);
+  const [selectionId, setSelectionId] = useState<string | null>(
+    clients[0]?.id ?? null,
+  );
 
   const resultats = useMemo(() => {
     const terme = recherche.trim().toLowerCase();
-    if (!terme) return CLIENTS;
-    return CLIENTS.filter(
+    if (!terme) return clients;
+    return clients.filter(
       (client) =>
         client.nom.toLowerCase().includes(terme) ||
-        client.telephone.includes(terme) ||
-        client.ncc?.toLowerCase().includes(terme),
+        client.code.toLowerCase().includes(terme) ||
+        client.telephone?.includes(terme) ||
+        client.identifiantFiscal?.toLowerCase().includes(terme),
     );
-  }, [recherche]);
+  }, [recherche, clients]);
 
-  const documents = selection
-    ? DOCUMENTS.filter((doc) => doc.client === selection.nom)
-    : [];
+  const selection =
+    clients.find((client) => client.id === selectionId) ?? resultats[0] ?? null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_minmax(320px,380px)]">
@@ -57,7 +46,7 @@ export function ListeClients() {
         <input
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Nom, téléphone ou numéro de compte contribuable"
+          placeholder="Nom, référence, téléphone ou numéro de compte contribuable"
           className="h-cible mb-3 w-full rounded-lg border border-[var(--filet)] bg-[var(--surface)] px-3.5 text-sm outline-none focus:border-marque-500"
         />
 
@@ -68,7 +57,7 @@ export function ListeClients() {
               <li key={client.id}>
                 <button
                   type="button"
-                  onClick={() => setSelection(client)}
+                  onClick={() => setSelectionId(client.id)}
                   aria-current={actif ? "true" : undefined}
                   className={`flex w-full items-center gap-3 px-4 py-3 text-left ${
                     actif ? "bg-[var(--surface-creuse)]" : "hover:bg-[var(--surface-creuse)]"
@@ -83,14 +72,18 @@ export function ListeClients() {
                       {client.nom}
                     </span>
                     <span className="chiffres block truncate text-xs text-[var(--encre-faible)]">
-                      {client.telephone}
+                      {client.telephone ?? client.code}
                     </span>
                   </span>
 
-                  {client.encours > 0 && (
+                  {client.encoursClient > 0 && (
                     <span className="shrink-0 text-right">
-                      <span className="chiffres block text-sm font-semibold text-alerte-600">
-                        {fmt(client.encours)}
+                      <span
+                        className={`chiffres block text-sm font-semibold ${
+                          depasse(client) ? "text-danger-600" : "text-alerte-600"
+                        }`}
+                      >
+                        {fmt(client.encoursClient)}
                       </span>
                       <span className="block text-[11px] text-[var(--encre-faible)]">
                         encours
@@ -116,84 +109,94 @@ export function ListeClients() {
           <header className="border-b border-[var(--filet)] p-4">
             <div className="flex items-start justify-between gap-2">
               <h2 className="text-base font-semibold leading-snug">{selection.nom}</h2>
-              <Pastille>{selection.type}</Pastille>
+              <Pastille>
+                {selection.nature === "particulier" ? "Particulier" : "Entreprise"}
+              </Pastille>
             </div>
 
             <dl className="mt-3 space-y-1.5 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-[var(--encre-faible)]">Téléphone</dt>
-                <dd className="chiffres">{selection.telephone}</dd>
-              </div>
-              {selection.email && (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[var(--encre-faible)]">E-mail</dt>
-                  <dd className="truncate">{selection.email}</dd>
-                </div>
-              )}
-              <div className="flex justify-between gap-3">
-                <dt className="text-[var(--encre-faible)]">Ville</dt>
-                <dd>{selection.ville}</dd>
-              </div>
+              <Ligne libelle="Référence" valeur={selection.code} chiffres />
+              <Ligne libelle="Téléphone" valeur={selection.telephone} chiffres />
+              {selection.email && <Ligne libelle="E-mail" valeur={selection.email} />}
+              <Ligne libelle="Ville" valeur={selection.ville} />
               {/* Identifiant fiscal ivoirien. Le libellé suit le pays de
                   l'entreprise : jamais « NINEA » codé en dur. */}
-              <div className="flex justify-between gap-3">
-                <dt className="text-[var(--encre-faible)]">N° compte contribuable</dt>
-                <dd className="chiffres text-right">{selection.ncc ?? "—"}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-[var(--encre-faible)]">Compte auxiliaire</dt>
-                <dd className="chiffres">{selection.compteAuxiliaire}</dd>
-              </div>
+              <Ligne
+                libelle="N° compte contribuable"
+                valeur={selection.identifiantFiscal}
+                chiffres
+              />
+              <Ligne libelle="Compte auxiliaire" valeur={selection.compteClient} chiffres />
+              {selection.delaiReglementJours > 0 && (
+                <Ligne
+                  libelle="Délai de règlement"
+                  valeur={`${selection.delaiReglementJours} jours`}
+                  chiffres
+                />
+              )}
             </dl>
           </header>
 
           <div className="grid grid-cols-2 divide-x divide-[var(--filet)] border-b border-[var(--filet)]">
             <div className="p-4">
-              <p className="text-xs text-[var(--encre-faible)]">Chiffre d&apos;affaires</p>
+              <p className="text-xs text-[var(--encre-faible)]">Facturé</p>
               <p className="chiffres mt-0.5 text-lg font-bold">
-                {fmt(selection.chiffreAffaires)}
+                {fmt(selection.factureClient)}
               </p>
             </div>
             <div className="p-4">
               <p className="text-xs text-[var(--encre-faible)]">Encours</p>
               <p
                 className={`chiffres mt-0.5 text-lg font-bold ${
-                  selection.encours > 0 ? "text-alerte-600" : ""
+                  depasse(selection)
+                    ? "text-danger-600"
+                    : selection.encoursClient > 0
+                      ? "text-alerte-600"
+                      : ""
                 }`}
               >
-                {fmt(selection.encours)}
+                {fmt(selection.encoursClient)}
               </p>
+              {/* Un encours au-delà du plafond n'est pas une statistique :
+                  c'est une décision à prendre avant la prochaine livraison. */}
+              {depasse(selection) && (
+                <p className="mt-0.5 text-[11px] font-medium text-danger-600">
+                  Plafond {fmt(selection.plafondEncours)} dépassé
+                </p>
+              )}
             </div>
           </div>
 
           <div className="p-4">
             <h3 className="mb-2 text-xs font-semibold text-[var(--encre-faible)]">
-              Derniers documents
+              Derniers mouvements
             </h3>
 
-            {documents.length === 0 ? (
+            {selection.mouvements.length === 0 ? (
               <p className="text-sm text-[var(--encre-faible)]">
-                Aucun document pour ce client.
+                Aucune écriture sur ce compte.
               </p>
             ) : (
               <ul className="space-y-1.5">
-                {documents.map((doc) => (
+                {selection.mouvements.map((mouvement) => (
                   <li
-                    key={doc.id}
+                    key={`${mouvement.numero}-${mouvement.date}`}
                     className="flex items-center justify-between gap-2 text-sm"
                   >
                     <span className="min-w-0">
-                      <span className="chiffres block truncate text-xs">{doc.numero}</span>
+                      <span className="chiffres block truncate text-xs">
+                        {mouvement.numero}
+                      </span>
                       <span className="block text-xs text-[var(--encre-faible)]">
-                        {doc.date}
+                        {fmtDateIso(mouvement.date)}
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <Pastille ton={TON_STATUT[doc.statut]}>
-                        {LIBELLE_STATUT[doc.statut]}
+                      <Pastille ton={mouvement.lettree ? "valide" : "alerte"}>
+                        {mouvement.lettree ? "Lettré" : "Ouvert"}
                       </Pastille>
                       <span className="chiffres w-24 text-right font-semibold">
-                        {fmt(totalTTC(doc))}
+                        {fmt(mouvement.debit || mouvement.credit)}
                       </span>
                     </span>
                   </li>
@@ -208,6 +211,30 @@ export function ListeClients() {
           </div>
         </aside>
       )}
+    </div>
+  );
+}
+
+/** L'encours dépasse-t-il le crédit accordé ? Sans plafond, rien à dépasser. */
+function depasse(client: FicheTiers): boolean {
+  return client.plafondEncours > 0 && client.encoursClient > client.plafondEncours;
+}
+
+function Ligne({
+  libelle,
+  valeur,
+  chiffres = false,
+}: {
+  libelle: string;
+  valeur: string | null;
+  chiffres?: boolean;
+}) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="text-[var(--encre-faible)]">{libelle}</dt>
+      <dd className={`text-right ${chiffres ? "chiffres" : "truncate"}`}>
+        {valeur ?? "—"}
+      </dd>
     </div>
   );
 }

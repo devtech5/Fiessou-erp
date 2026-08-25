@@ -32,6 +32,28 @@ export const fmtTaux = (taux: number) =>
   new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(taux);
 
 /**
+ * Taux stocké en points de base, rendu en pourcentage : 1800 → « 18 % ».
+ *
+ * Les taux voyagent en entiers depuis la base jusqu'au calcul ; la division
+ * par cent n'a lieu qu'ici, au moment de l'affichage, où plus rien n'est
+ * recalculé derrière.
+ */
+export const fmtTauxBp = (pointsDeBase: number) =>
+  `${fmtTaux(pointsDeBase / 100)} %`;
+
+/**
+ * Date ISO du jour comptable en écriture française : « 2026-08-23 » → « 23/08/2026 ».
+ *
+ * Découpage de chaîne et non `new Date` : une colonne `date` PostgreSQL n'a pas
+ * d'heure, et la passer par un objet Date la décale d'un jour dès que le fuseau
+ * du serveur est à l'ouest d'Abidjan.
+ */
+export function fmtDateIso(iso: string): string {
+  const [annee, mois, jour] = iso.split("-");
+  return jour ? `${jour}/${mois}/${annee}` : iso;
+}
+
+/**
  * Montant retranché, pour une colonne de retenues ou de charges.
  * Un montant nul n'est pas « − 0 » : il n'y a rien à retrancher.
  */

@@ -99,3 +99,17 @@ export function allocateByWeights(amount: number, weights: number[]): number[] {
   }
   return shares;
 }
+
+/**
+ * Applique un taux exprimé en POINTS DE BASE : 1800 = 18 %, 925 = 9,25 %.
+ *
+ * `percentOf` suffit tant que le taux est un entier de pourcentage. Il ne
+ * suffit plus dès qu'un taux porte des décimales — et il en existe : taxes
+ * spécifiques, prélèvements sectoriels, taux réduits négociés. Les stocker en
+ * points de base garde l'entier partout, du schéma jusqu'au calcul.
+ *
+ * @example rateOf(1275, 1800) → 230
+ */
+export function rateOf(amount: number, rateBp: number): number {
+  return Math.round((amount * rateBp) / 10_000);
+}

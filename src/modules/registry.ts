@@ -33,7 +33,9 @@ export const MODULES: ModuleDefinition[] = [
     key: "tiers",
     name: "Tiers & Commercial",
     layer: "socle",
-    status: "planifie",
+    // Fichier tiers en base, avec comptes auxiliaires et soldes déduits des
+    // écritures. Restent les devis, factures et achats.
+    status: "en_cours",
     requires: [],
     description:
       "Clients, fournisseurs, devis, factures, achats, encours. Absorbe le CRM.",
@@ -42,7 +44,9 @@ export const MODULES: ModuleDefinition[] = [
     key: "stock",
     name: "Catalogue & Stock",
     layer: "socle",
-    status: "planifie",
+    // Catalogue en base : articles, familles, unités, codes scannables.
+    // Restent les dépôts, les mouvements et la valorisation.
+    status: "en_cours",
     requires: [],
     description:
       "Articles, dépôts, mouvements typés, inventaires, valorisation, lots.",

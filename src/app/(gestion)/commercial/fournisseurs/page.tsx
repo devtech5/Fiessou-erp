@@ -1,99 +1,133 @@
 import type { Metadata } from "next";
 
+import { BoutonDemonstration } from "@/components/bouton-demonstration";
 import {
-  BoutonPrincipal,
-  BoutonSecondaire,
   CarteIndicateur,
   EnTetePage,
+  EtatVide,
   Tableau,
   Td,
   Th,
 } from "@/components/ui/primitives";
-import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
-import { FOURNISSEURS } from "@/lib/fixtures/gestion";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import { fmt, fmtCompact, fmtEntier, fmtTaux } from "@/lib/format";
+import { fichesTiers } from "@/modules/tiers/requetes";
+import { FormulaireTiers } from "../formulaire-tiers";
 
 export const metadata: Metadata = { title: "Fournisseurs" };
 
-export default function PageFournisseurs() {
-  const volume = FOURNISSEURS.reduce((somme, f) => somme + f.volumeAchats, 0);
-  const du = FOURNISSEURS.reduce((somme, f) => somme + f.soldeDu, 0);
+export default async function PageFournisseurs() {
+  const session = await exigerEntreprise();
+  const fournisseurs = await fichesTiers(session.organizationId, "fournisseur");
+
+  const volume = fournisseurs.reduce((somme, f) => somme + f.achatsFournisseur, 0);
+  const du = fournisseurs.reduce((somme, f) => somme + f.duFournisseur, 0);
+
+  // Moyenne sur les seuls fournisseurs dont le délai est renseigné : compter
+  // les zéros comme des livraisons instantanées rendrait la moyenne flatteuse
+  // et le réapprovisionnement trop tardif.
+  const avecDelai = fournisseurs.filter((f) => f.delaiLivraisonJours > 0);
   const delaiMoyen =
-    FOURNISSEURS.reduce((somme, f) => somme + f.delaiJours, 0) / FOURNISSEURS.length;
+    avecDelai.length === 0
+      ? null
+      : avecDelai.reduce((somme, f) => somme + f.delaiLivraisonJours, 0) /
+        avecDelai.length;
 
   return (
     <>
       <EnTetePage
         titre="Fournisseurs"
-        sousTitre={`${FOURNISSEURS.length} fournisseurs référencés`}
-        actions={
-          <>
-            <BoutonSecondaire>Importer</BoutonSecondaire>
-            <BoutonPrincipal>Nouveau fournisseur</BoutonPrincipal>
-          </>
+        sousTitre={
+          fournisseurs.length === 0
+            ? "Aucun fournisseur référencé"
+            : `${fournisseurs.length} fournisseurs référencés`
         }
+        actions={<FormulaireTiers role="fournisseur" />}
       />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-3">
-        <CarteIndicateur libelle="Volume d'achats" valeur={fmtCompact(volume)} unite="FCFA" />
-        <CarteIndicateur
-          libelle="Solde dû"
-          valeur={fmtCompact(du)}
-          unite="FCFA"
-          ton={du > 0 ? "alerte" : "valide"}
+      {fournisseurs.length === 0 ? (
+        <EtatVide
+          titre="Aucun fournisseur"
+          message="Le délai de livraison saisi ici alimente le réapprovisionnement : sans lui, la quantité suggérée arrive après la rupture."
+          actions={<BoutonDemonstration libelle="Installer le fichier de démonstration" />}
         />
-        <CarteIndicateur
-          libelle="Délai moyen"
-          valeur={delaiMoyen.toFixed(1).replace(".", ",")}
-          unite="jours"
-          precision="Sert au calcul du réapprovisionnement"
-        />
-      </section>
+      ) : (
+        <>
+          <section className="mb-5 grid gap-3 sm:grid-cols-3">
+            <CarteIndicateur
+              libelle="Volume d'achats"
+              valeur={fmtCompact(volume)}
+              unite="FCFA"
+              precision="Déduit des écritures d'achat"
+            />
+            <CarteIndicateur
+              libelle="Solde dû"
+              valeur={fmtCompact(du)}
+              unite="FCFA"
+              ton={du > 0 ? "alerte" : "valide"}
+              precision="Lignes 401 non lettrées"
+            />
+            <CarteIndicateur
+              libelle="Délai moyen"
+              valeur={delaiMoyen === null ? "—" : fmtTaux(delaiMoyen)}
+              unite={delaiMoyen === null ? undefined : "jours"}
+              precision={
+                delaiMoyen === null
+                  ? "Aucun délai renseigné"
+                  : "Sert au calcul du réapprovisionnement"
+              }
+            />
+          </section>
 
-      <Tableau>
-        <thead>
-          <tr>
-            <Th>Code</Th>
-            <Th>Fournisseur</Th>
-            <Th>Catégorie</Th>
-            <Th>Téléphone</Th>
-            <Th aligne="droite">Délai</Th>
-            <Th aligne="droite">Achats</Th>
-            <Th aligne="droite">Solde dû</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {FOURNISSEURS.map((fournisseur) => (
-            <tr key={fournisseur.id}>
-              <Td chiffres>{fournisseur.code}</Td>
-              <Td fort>
-                {fournisseur.nom}
-                {fournisseur.ncc && (
-                  <span className="chiffres block text-xs font-normal text-[var(--encre-faible)]">
-                    {fournisseur.ncc}
-                  </span>
-                )}
-              </Td>
-              <Td>
-                <span className="text-xs text-[var(--encre-douce)]">
-                  {fournisseur.categorie}
-                </span>
-              </Td>
-              <Td chiffres>{fournisseur.telephone}</Td>
-              <Td aligne="droite" chiffres>
-                {fmtEntier(fournisseur.delaiJours)} j
-              </Td>
-              <Td aligne="droite" chiffres>
-                {fmt(fournisseur.volumeAchats)}
-              </Td>
-              <Td aligne="droite" chiffres fort>
-                <span className={fournisseur.soldeDu > 0 ? "text-alerte-600" : ""}>
-                  {fmt(fournisseur.soldeDu)}
-                </span>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </Tableau>
+          <Tableau>
+            <thead>
+              <tr>
+                <Th>Référence</Th>
+                <Th>Fournisseur</Th>
+                <Th>Secteur</Th>
+                <Th>Téléphone</Th>
+                <Th aligne="droite">Délai</Th>
+                <Th aligne="droite">Achats</Th>
+                <Th aligne="droite">Solde dû</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {fournisseurs.map((fournisseur) => (
+                <tr key={fournisseur.id}>
+                  <Td chiffres>{fournisseur.code}</Td>
+                  <Td fort>
+                    {fournisseur.nom}
+                    {fournisseur.identifiantFiscal && (
+                      <span className="chiffres block text-xs font-normal text-[var(--encre-faible)]">
+                        {fournisseur.identifiantFiscal}
+                      </span>
+                    )}
+                  </Td>
+                  <Td>
+                    <span className="text-xs text-[var(--encre-douce)]">
+                      {fournisseur.secteur ?? "—"}
+                    </span>
+                  </Td>
+                  <Td chiffres>{fournisseur.telephone ?? "—"}</Td>
+                  <Td aligne="droite" chiffres>
+                    {fournisseur.delaiLivraisonJours > 0
+                      ? `${fmtEntier(fournisseur.delaiLivraisonJours)} j`
+                      : "—"}
+                  </Td>
+                  <Td aligne="droite" chiffres>
+                    {fmt(fournisseur.achatsFournisseur)}
+                  </Td>
+                  <Td aligne="droite" chiffres fort>
+                    <span className={fournisseur.duFournisseur > 0 ? "text-alerte-600" : ""}>
+                      {fmt(fournisseur.duFournisseur)}
+                    </span>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Tableau>
+        </>
+      )}
     </>
   );
 }

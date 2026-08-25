@@ -16,4 +16,7 @@ export * from "./audit";
 export * from "./sync";
 
 // ------------------------------------------------------------- modules métier
+// L'ordre suit les dépendances : un article pointe vers son fournisseur.
+export * from "@/modules/tiers/schema";
+export * from "@/modules/catalogue/schema";
 export * from "@/modules/comptabilite/schema";
