@@ -14,7 +14,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "argon2": "^0.45.1",
+    "@node-rs/argon2": "^2.1.0",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.10",
     "next": "16.3.2",

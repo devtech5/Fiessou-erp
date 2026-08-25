@@ -1,5 +1,8 @@
+# pnpm n'exécute plus les scripts de build des dépendances sans autorisation
+# explicite. Un paquet laissé sans décision fait échouer `pnpm install`.
 allowBuilds:
-  argon2: set this to true or false
-  esbuild: set this to true or false
+  # Requis par drizzle-kit pour les migrations.
+  esbuild: true
+  # Non utilisés : aucun traitement d'image ni résolveur natif côté serveur.
   sharp: false
   unrs-resolver: false
