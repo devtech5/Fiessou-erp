@@ -18,7 +18,9 @@ import {
   type CaissierDemo,
 } from "@/lib/fixtures/catalogue";
 import { fmt } from "@/lib/format";
+import { ECHELLE_QUANTITE, UNITES, formaterQuantite } from "@/lib/quantite";
 import { ModalePaiement } from "./modale-paiement";
+import { SaisieQuantite } from "./saisie-quantite";
 
 interface Props {
   articles: ArticleDemo[];
@@ -35,6 +37,9 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
   const [paiementOuvert, setPaiementOuvert] = useState(false);
   const [enLigne, setEnLigne] = useState(true);
   const [heure, setHeure] = useState<string | null>(null);
+  // Article en attente d'une pesée : la vente au poids ne s'ajoute pas
+  // d'un clic, il faut lire la balance.
+  const [aPeser, setAPeser] = useState<ArticleDemo | null>(null);
   const champRecherche = useRef<HTMLInputElement>(null);
 
   const totaux = totaliser(lignes);
@@ -83,8 +88,21 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
 
   function encaisser(article: ArticleDemo) {
     if (article.stock <= 0) return;
-    setLignes((actuel) => ajouterArticle(actuel, article));
+
+    // Un article au poids passe par la saisie ; un article à la pièce entre
+    // directement, pour ne pas ralentir la file d'attente.
+    if (UNITES[article.unite].fractionnable) {
+      setAPeser(article);
+      return;
+    }
+
+    ajouterAuPanier(article, ECHELLE_QUANTITE);
+  }
+
+  function ajouterAuPanier(article: ArticleDemo, quantite: number) {
+    setLignes((actuel) => ajouterArticle(actuel, article, quantite));
     setRecherche("");
+    setAPeser(null);
     champRecherche.current?.focus();
   }
 
@@ -150,6 +168,17 @@ export function EcranCaisse({ articles, caissier, nomCaisse, nomBoutique }: Prop
           onChoisir={encaisser}
         />
       </div>
+
+      {aPeser && (
+        <SaisieQuantite
+          designation={aPeser.designation}
+          prixUnitaire={aPeser.prix}
+          unite={aPeser.unite}
+          stock={aPeser.stock}
+          onAnnuler={() => setAPeser(null)}
+          onValider={(quantite) => ajouterAuPanier(aPeser, quantite)}
+        />
+      )}
 
       {paiementOuvert && (
         <ModalePaiement
@@ -293,18 +322,28 @@ function Panier({
                   <div className="flex items-center overflow-hidden rounded-lg border border-[var(--filet)]">
                     <button
                       type="button"
-                      onClick={() => onQuantite(ligne.id, ligne.quantite - 1)}
+                      onClick={() =>
+                        onQuantite(
+                          ligne.id,
+                          ligne.quantite - UNITES[ligne.unite].pas,
+                        )
+                      }
                       aria-label="Diminuer la quantité"
                       className="sans-selection size-9 text-lg leading-none hover:bg-[var(--surface-creuse)]"
                     >
                       −
                     </button>
                     <span className="chiffres w-10 text-center text-sm font-semibold">
-                      {ligne.quantite}
+                      {formaterQuantite(ligne.quantite, ligne.unite, false)}
                     </span>
                     <button
                       type="button"
-                      onClick={() => onQuantite(ligne.id, ligne.quantite + 1)}
+                      onClick={() =>
+                        onQuantite(
+                          ligne.id,
+                          ligne.quantite + UNITES[ligne.unite].pas,
+                        )
+                      }
                       aria-label="Augmenter la quantité"
                       className="sans-selection size-9 text-lg leading-none hover:bg-[var(--surface-creuse)]"
                     >
@@ -314,6 +353,8 @@ function Panier({
 
                   <span className="chiffres text-xs text-[var(--encre-faible)]">
                     × {fmt(ligne.prixUnitaire)}
+                    {UNITES[ligne.unite].fractionnable &&
+                      ` / ${UNITES[ligne.unite].abrege}`}
                   </span>
 
                   <span className="chiffres ml-auto text-sm font-semibold">
@@ -536,7 +577,7 @@ function BoutonArticle({
                 : "bg-[var(--surface-creuse)] text-[var(--encre-faible)]"
             }`}
           >
-            {article.stock}
+            {formaterQuantite(article.stock, article.unite, false)}
           </span>
         )}
       </span>

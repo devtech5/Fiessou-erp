@@ -9,13 +9,19 @@ import {
   Td,
   Th,
 } from "@/components/ui/primitives";
-import { fmt, fmtEntier } from "@/lib/format";
+import { fmt } from "@/lib/format";
+import { formaterQuantite, montantLigne, UNITES } from "@/lib/quantite";
 import { CATALOGUE, SEUIL_STOCK_BAS } from "@/lib/fixtures/catalogue";
 
 export const metadata: Metadata = { title: "Articles" };
 
 export default function PageArticles() {
-  const valeur = CATALOGUE.reduce((somme, a) => somme + a.prix * a.stock, 0);
+  // Le stock est en millièmes : une multiplication directe par le prix
+  // donnerait mille fois la valeur réelle.
+  const valeur = CATALOGUE.reduce(
+    (somme, a) => somme + montantLigne(a.prix, a.stock),
+    0,
+  );
 
   return (
     <>
@@ -69,18 +75,30 @@ export default function PageArticles() {
                 </Td>
                 <Td aligne="droite" chiffres>
                   {fmt(article.prix)}
+                  {/* Un prix au kilo doit le dire : « 4 500 » sur du poisson
+                      ne veut rien dire sans son unité. */}
+                  {UNITES[article.unite].fractionnable && (
+                    <span className="text-xs text-[var(--encre-faible)]">
+                      {" "}
+                      / {UNITES[article.unite].abrege}
+                    </span>
+                  )}
                 </Td>
                 <Td aligne="droite">
                   {rupture ? (
                     <Pastille ton="danger">Rupture</Pastille>
                   ) : bas ? (
-                    <Pastille ton="alerte">{fmtEntier(article.stock)}</Pastille>
+                    <Pastille ton="alerte">
+                      {formaterQuantite(article.stock, article.unite)}
+                    </Pastille>
                   ) : (
-                    <span className="chiffres">{fmtEntier(article.stock)}</span>
+                    <span className="chiffres">
+                      {formaterQuantite(article.stock, article.unite)}
+                    </span>
                   )}
                 </Td>
                 <Td aligne="droite" chiffres>
-                  {fmt(article.prix * article.stock)}
+                  {fmt(montantLigne(article.prix, article.stock))}
                 </Td>
               </tr>
             );

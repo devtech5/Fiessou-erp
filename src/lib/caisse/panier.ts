@@ -1,10 +1,20 @@
 import { allocateByWeights } from "@/lib/money";
+import {
+  ECHELLE_QUANTITE,
+  montantLigne,
+  type CodeUnite,
+} from "@/lib/quantite";
 
 /**
  * Calculs du panier de caisse.
  *
  * Logique pure, sans React ni base de données : c'est le seul endroit où les
  * montants d'un ticket sont décidés, donc le seul à devoir être juste.
+ *
+ * Les quantités sont en millièmes d'unité de vente — une poissonnerie vend
+ * 1,340 kg, pas un poisson. Le montant reste un entier de francs : l'arrondi
+ * se fait à la multiplication, jamais sur la quantité, car arrondir un poids
+ * changerait ce que le client emporte.
  *
  * Convention de présentation, reprise d'un ticket SOCOCE relevé à Yopougon :
  *
@@ -24,28 +34,30 @@ export interface LignePanier {
   id: string;
   articleId: string;
   designation: string;
-  /** Prix unitaire en francs entiers. */
+  /** Prix unitaire en francs entiers, pour UNE unité de vente. */
   prixUnitaire: number;
+  /** Quantité en millièmes d'unité. 1000 = une unité entière. */
   quantite: number;
+  unite: CodeUnite;
   /** Remise de ligne, en francs entiers. Jamais un pourcentage stocké. */
   remise: number;
 }
 
 export interface TotauxPanier {
-  /** Somme des quantités × prix unitaires, avant toute remise. */
+  /** Somme des montants de ligne, avant toute remise. */
   brut: number;
   /** Remises de ligne + remise de pied ventilée. */
   remise: number;
   /** Ce que le client doit réellement. */
   net: number;
-  /** Nombre d'articles, quantités comprises. */
-  articles: number;
+  /** Nombre de lignes. Les quantités ne s'additionnent plus entre elles :
+   *  additionner des kilos et des bouteilles ne veut rien dire. */
   lignes: number;
 }
 
-/** Montant brut d'une ligne : quantité × prix unitaire. */
+/** Montant brut d'une ligne, arrondi au franc. */
 export function brutLigne(ligne: LignePanier): number {
-  return ligne.prixUnitaire * ligne.quantite;
+  return montantLigne(ligne.prixUnitaire, ligne.quantite);
 }
 
 /** Montant net d'une ligne, remise déduite. Jamais négatif. */
@@ -75,7 +87,6 @@ export function totaliser(lignes: LignePanier[], remisePied = 0): TotauxPanier {
     brut,
     remise: remiseLignes + remiseAppliquee,
     net: netAvantPied - remiseAppliquee,
-    articles: lignes.reduce((somme, ligne) => somme + ligne.quantite, 0),
     lignes: lignes.length,
   };
 }
@@ -114,8 +125,13 @@ export function resteAPayer(net: number, regle: number): number {
 
 export function ajouterArticle(
   lignes: LignePanier[],
-  article: { id: string; designation: string; prix: number },
-  quantite = 1,
+  article: {
+    id: string;
+    designation: string;
+    prix: number;
+    unite: CodeUnite;
+  },
+  quantite = ECHELLE_QUANTITE,
 ): LignePanier[] {
   // Un article rescanné incrémente la ligne existante, tant qu'elle n'a pas de
   // remise propre : sinon on écraserait une remise déjà accordée.
@@ -139,6 +155,7 @@ export function ajouterArticle(
       designation: article.designation,
       prixUnitaire: article.prix,
       quantite,
+      unite: article.unite,
       remise: 0,
     },
   ];

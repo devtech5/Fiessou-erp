@@ -8,6 +8,7 @@ import {
   BoutonSecondaire,
 } from "@/components/ui/primitives";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
+import { depuisQuantite } from "@/lib/quantite";
 import { CATALOGUE, SEUIL_STOCK_BAS } from "@/lib/fixtures/catalogue";
 import { ALERTES, DEPOTS, joursRestants } from "@/lib/fixtures/gestion";
 
@@ -60,7 +61,7 @@ export default function PageStock() {
           libelle="Stock bas"
           valeur={fmtEntier(bas)}
           ton={bas > 0 ? "alerte" : "valide"}
-          precision={`Au seuil de ${SEUIL_STOCK_BAS} unités`}
+          precision={`Au seuil de ${depuisQuantite(SEUIL_STOCK_BAS)} unités`}
         />
       </section>
 
