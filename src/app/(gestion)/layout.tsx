@@ -49,7 +49,20 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    /**
+     * La coque occupe exactement la hauteur de la fenêtre et ne défile pas :
+     * `h-dvh` plutôt que `min-h-dvh`, et le débordement est coupé ici. Le seul
+     * élément qui défile est le contenu, plus bas.
+     *
+     * C'est ce qui garde la barre latérale et le fil d'Ariane à l'écran en
+     * permanence. Avec une page qui défile d'un bloc, ils disparaissaient dès
+     * le premier écran de liste — et sur un catalogue de quatre cents articles,
+     * changer de module obligeait à remonter tout le tableau.
+     *
+     * `dvh` et non `vh` : sur un téléphone, la barre d'adresse se rétracte au
+     * défilement et `vh` laisse alors une bande morte en bas de l'écran.
+     */
+    <div className="flex h-dvh flex-col overflow-hidden">
       <BandeauDemo />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -58,7 +71,15 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
           entrepriseActive={session.organizationNom}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/*
+          `min-h-0` ici aussi, et pas seulement sur le contenu. Sur téléphone
+          la coque s'empile en colonne : sans lui, cette colonne refuse de
+          descendre sous la hauteur de son contenu, le contenu ne déborde donc
+          jamais, et tout ce qui dépasse l'écran se fait couper par le
+          `overflow-hidden` du dessus — inatteignable, sans barre de défilement
+          pour le signaler.
+        */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex shrink-0 items-center gap-3 border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-1.5">
             <FilAriane
               entreprises={options}
@@ -68,7 +89,15 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
             />
           </header>
 
-          <main className="min-w-0 flex-1 p-4 lg:p-6">{children}</main>
+          {/*
+            Le contenu est le conteneur de défilement. `min-h-0` est
+            indispensable : un enfant de flexbox refuse par défaut de devenir
+            plus petit que son contenu, et sans lui `overflow-y-auto` n'a rien
+            à faire déborder — la page recommencerait à défiler d'un bloc.
+          */}
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
+            {children}
+          </main>
         </div>
       </div>
     </div>
