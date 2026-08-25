@@ -1,0 +1,269 @@
+"use server";
+
+import { and, eq, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+
+import { db } from "@/db";
+import { auditLogs, documentSequences, ecritures, lignesEcriture } from "@/db/schema";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import {
+  ecritureAvoir,
+  ecritureFacture,
+  estEquilibree,
+  totalDebit,
+  type Ecriture,
+} from "@/lib/comptabilite/ecritures";
+import { DOCUMENTS, comptabilisable } from "@/lib/fixtures/gestion";
+import { buildDocumentNumber, newId } from "@/lib/ids";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type ResultatComptabilisation =
+  | { ok: true; numero: string }
+  | { ok: false; message: string };
+
+/**
+ * Attribue le prochain numéro d'un journal, dans la transaction en cours.
+ *
+ * L'incrément et la lecture se font en une seule requête, avec RETURNING : un
+ * SELECT suivi d'un UPDATE laisserait deux comptabilisations simultanées
+ * repartir du même numéro, et une numérotation comptable ne tolère ni trou ni
+ * doublon.
+ *
+ * La ligne de compteur est verrouillée le temps de l'opération, ce qui sérialise
+ * naturellement les demandes concurrentes sur le même journal.
+ */
+async function prochainNumero(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  organizationId: string,
+  journal: string,
+  exercice: string,
+): Promise<string> {
+  const cle = `ecriture:${journal}`;
+
+  const existants = await tx
+    .update(documentSequences)
+    .set({ nextValue: sql`${documentSequences.nextValue} + 1` })
+    .where(
+      and(
+        eq(documentSequences.organizationId, organizationId),
+        eq(documentSequences.key, cle),
+        eq(documentSequences.periodKey, exercice),
+      ),
+    )
+    .returning({ valeur: documentSequences.nextValue });
+
+  if (existants.length > 0) {
+    return buildDocumentNumber({
+      prefix: `${journal}-${exercice}-`,
+      // nextValue vaut déjà la valeur suivante : le numéro attribué est le
+      // précédent.
+      value: existants[0].valeur - 1,
+      padding: 5,
+    });
+  }
+
+  // Premier numéro de ce journal pour cet exercice.
+  await tx.insert(documentSequences).values({
+    id: newId(),
+    organizationId,
+    key: cle,
+    scope: "",
+    prefix: `${journal}-${exercice}-`,
+    padding: 5,
+    periodicity: "annuelle",
+    periodKey: exercice,
+    nextValue: 2,
+  });
+
+  return buildDocumentNumber({
+    prefix: `${journal}-${exercice}-`,
+    value: 1,
+    padding: 5,
+  });
+}
+
+/**
+ * Enregistre une écriture calculée.
+ *
+ * Le contrôle d'équilibre est refait ICI, alors que le moteur l'a déjà fait.
+ * Ce n'est pas de la redondance inutile : entre le calcul et l'enregistrement,
+ * l'écriture a traversé une frontière réseau. Une balance fausse ne se répare
+ * pas, elle se traîne.
+ */
+async function enregistrer(
+  ecriture: Ecriture,
+  contexte: {
+    organizationId: string;
+    userId: string;
+    origine: "facture" | "avoir" | "reglement" | "achat" | "bon_caisse" | "vente_pos";
+    /** Identifiant technique de la pièce. Nul tant que la pièce vient des
+     *  fixtures : l'unicité repose de toute façon sur son numéro. */
+    pieceId: string | null;
+    exercice: string;
+    dateIso: string;
+  },
+): Promise<string> {
+  if (!estEquilibree(ecriture)) {
+    throw new Error("Écriture déséquilibrée : enregistrement refusé.");
+  }
+
+  return db.transaction(async (tx) => {
+    const numero = await prochainNumero(
+      tx,
+      contexte.organizationId,
+      ecriture.journal,
+      contexte.exercice,
+    );
+
+    const ecritureId = newId();
+
+    await tx.insert(ecritures).values({
+      id: ecritureId,
+      organizationId: contexte.organizationId,
+      journal: ecriture.journal,
+      numero,
+      exercice: contexte.exercice,
+      dateEcriture: contexte.dateIso,
+      libelle: ecriture.libelle,
+      origine: contexte.origine,
+      pieceId: contexte.pieceId,
+      pieceNumero: ecriture.piece,
+      passeeParUserId: contexte.userId,
+    });
+
+    await tx.insert(lignesEcriture).values(
+      ecriture.lignes.map((ligne, index) => ({
+        id: newId(),
+        ecritureId,
+        organizationId: contexte.organizationId,
+        compte: ligne.compte,
+        libelleCompte: ligne.libelleCompte,
+        auxiliaire: ligne.auxiliaire ?? null,
+        debit: ligne.debit,
+        credit: ligne.credit,
+        ordre: index,
+      })),
+    );
+
+    await tx.insert(auditLogs).values({
+      id: newId(),
+      organizationId: contexte.organizationId,
+      userId: contexte.userId,
+      action: "ecriture.passer",
+      entityType: "ecriture",
+      entityId: ecritureId,
+      after: {
+        numero,
+        journal: ecriture.journal,
+        piece: ecriture.piece,
+        montant: totalDebit(ecriture),
+      },
+    });
+
+    return numero;
+  });
+}
+
+/** Convertit « 23/08/2026 » en date ISO. */
+function versIso(date: string): string {
+  const [jour, mois, annee] = date.split("/");
+  return `${annee}-${mois}-${jour}`;
+}
+
+/**
+ * Comptabilise une pièce commerciale.
+ *
+ * L'écriture n'est pas transmise par le client : elle est RECALCULÉE côté
+ * serveur depuis la pièce. Accepter des lignes toutes faites laisserait
+ * n'importe qui poster l'écriture de son choix.
+ */
+export async function comptabiliserPiece(
+  documentId: string,
+): Promise<ResultatComptabilisation> {
+  const session = await exigerEntreprise();
+
+  const document = DOCUMENTS.find((d) => d.id === documentId);
+  if (!document) return { ok: false, message: "Pièce introuvable." };
+
+  if (!comptabilisable(document)) {
+    return {
+      ok: false,
+      message:
+        document.nature === "devis"
+          ? "Un devis ne se comptabilise pas tant qu'il n'est pas accepté."
+          : "Une pièce en brouillon ou refusée ne se comptabilise pas.",
+    };
+  }
+
+  const piece = {
+    numero: document.numero,
+    date: document.date,
+    client: document.client,
+    compteAuxiliaire: document.compteAuxiliaire,
+    lignes: document.lignes,
+  };
+
+  try {
+    const ecriture =
+      document.nature === "avoir" ? ecritureAvoir(piece) : ecritureFacture(piece);
+
+    const numero = await enregistrer(ecriture, {
+      organizationId: session.organizationId,
+      userId: session.userId,
+      origine: document.nature === "avoir" ? "avoir" : "facture",
+      // Les fixtures utilisent des identifiants courts ; la colonne attend
+      // un UUID. Le numéro de pièce suffit à la traçabilité et porte
+      // l'unicité.
+      pieceId: UUID.test(documentId) ? documentId : null,
+      exercice: document.date.slice(-4),
+      dateIso: versIso(document.date),
+    });
+
+    revalidatePath("/commercial/ventes");
+    revalidatePath("/comptabilite");
+    return { ok: true, numero };
+  } catch (erreur) {
+    const message = erreur instanceof Error ? erreur.message : String(erreur);
+
+    // La contrainte d'unicité fait son travail : la pièce était déjà passée.
+    if (message.includes("ecritures_piece_unique")) {
+      return { ok: false, message: "Cette pièce est déjà comptabilisée." };
+    }
+
+    if (message.includes("Écriture déséquilibrée")) {
+      return { ok: false, message };
+    }
+
+    /**
+     * Toute autre erreur reste au serveur.
+     *
+     * Un message de base de données contient les noms de colonnes, les
+     * identifiants et parfois les valeurs insérées. Le renvoyer au navigateur
+     * livre la structure interne à qui la lit — et n'apprend rien d'utile à
+     * l'utilisateur, qui ne peut rien en faire.
+     */
+    console.error("Échec de comptabilisation", erreur);
+    return {
+      ok: false,
+      message: "L'écriture n'a pas pu être enregistrée. Réessayez.",
+    };
+  }
+}
+
+/**
+ * Écritures déjà passées, indexées par NUMÉRO de pièce.
+ *
+ * Par le numéro et non l'identifiant technique : c'est lui qui porte l'unicité
+ * en base, et il reste lisible même quand la pièce n'a pas encore d'identifiant.
+ */
+export async function piecesComptabilisees(): Promise<Record<string, string>> {
+  const session = await exigerEntreprise();
+
+  const lignes = await db
+    .select({ pieceNumero: ecritures.pieceNumero, numero: ecritures.numero })
+    .from(ecritures)
+    .where(eq(ecritures.organizationId, session.organizationId));
+
+  return Object.fromEntries(lignes.map((l) => [l.pieceNumero, l.numero]));
+}

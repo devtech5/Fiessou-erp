@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
-import { BoutonPrincipal, Pastille, type TonPastille } from "@/components/ui/primitives";
+import { Pastille, type TonPastille } from "@/components/ui/primitives";
+import { comptabiliserPiece } from "@/modules/comptabilite/actions";
 import {
   ecritureAvoir,
   ecritureFacture,
@@ -47,8 +49,33 @@ const NATURE = { facture: "Facture", devis: "Devis", avoir: "Avoir" } as const;
  * Une écriture figée pendant que sa facture change laisserait les deux
  * diverger sans que rien ne le signale.
  */
-export function EcriturePiece() {
+export function EcriturePiece({
+  passees,
+}: {
+  /** Numéro d'écriture, indexé par numéro de pièce. */
+  passees: Record<string, string>;
+}) {
   const [selection, setSelection] = useState<DocumentDemo>(DOCUMENTS[0]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [enCours, demarrer] = useTransition();
+  const routeur = useRouter();
+
+  // L'état vient de la base, pas des fixtures : c'est l'écriture réellement
+  // enregistrée qui fait foi, pas un drapeau posé à côté de la pièce.
+  const numeroEcriture = passees[selection.numero];
+
+  function comptabiliser() {
+    setMessage(null);
+    demarrer(async () => {
+      const resultat = await comptabiliserPiece(selection.id);
+      setMessage(
+        resultat.ok
+          ? `Écriture ${resultat.numero} enregistrée.`
+          : resultat.message,
+      );
+      if (resultat.ok) routeur.refresh();
+    });
+  }
 
   const ecriture = useMemo<Ecriture | { erreur: string }>(() => {
     if (!comptabilisable(selection)) {
@@ -121,8 +148,8 @@ export function EcriturePiece() {
                     {/* L'état comptable est distinct de l'état commercial :
                         une facture envoyée peut n'être pas encore passée. */}
                     {comptabilisable(document) && (
-                      <Pastille ton={document.comptabiliseLe ? "valide" : "alerte"}>
-                        {document.comptabiliseLe ? "comptabilisée" : "à passer"}
+                      <Pastille ton={passees[document.numero] ? "valide" : "alerte"}>
+                        {passees[document.numero] ? "comptabilisée" : "à passer"}
                       </Pastille>
                     )}
                   </span>
@@ -236,12 +263,28 @@ export function EcriturePiece() {
               </p>
 
               <div className="mt-4">
-                {selection.comptabiliseLe ? (
-                  <p className="chiffres text-center text-xs text-[var(--encre-faible)]">
-                    Passée le {selection.comptabiliseLe}
+                {numeroEcriture ? (
+                  <p className="chiffres rounded-lg bg-valide-50 px-3 py-2 text-center text-xs font-medium text-valide-600">
+                    Écriture {numeroEcriture}
                   </p>
                 ) : (
-                  <BoutonPrincipal>Comptabiliser</BoutonPrincipal>
+                  <button
+                    type="button"
+                    disabled={enCours}
+                    onClick={comptabiliser}
+                    className="h-cible w-full rounded-lg bg-marque-600 px-3.5 text-sm font-semibold text-white hover:bg-marque-700 disabled:opacity-50"
+                  >
+                    {enCours ? "Enregistrement…" : "Comptabiliser"}
+                  </button>
+                )}
+
+                {message && (
+                  <p
+                    role="status"
+                    className="mt-2 rounded-lg bg-[var(--surface-creuse)] px-3 py-2 text-xs text-[var(--encre-douce)]"
+                  >
+                    {message}
+                  </p>
                 )}
               </div>
             </>

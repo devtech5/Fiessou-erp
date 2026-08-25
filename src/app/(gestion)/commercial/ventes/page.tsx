@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/primitives";
 import { fmtCompact, fmtEntier } from "@/lib/format";
 import { DOCUMENTS, comptabilisable, totalTTC } from "@/lib/fixtures/gestion";
+import { piecesComptabilisees } from "@/modules/comptabilite/actions";
 import { EcriturePiece } from "./ecriture-piece";
 
 export const metadata: Metadata = { title: "Ventes" };
@@ -19,7 +20,11 @@ export const metadata: Metadata = { title: "Ventes" };
  * facture, une facture se corrige par un avoir. Les séparer en trois onglets
  * oblige à traverser l'application pour suivre une seule affaire.
  */
-export default function PageVentes() {
+export default async function PageVentes() {
+  // L'état comptable vient de la base : c'est l'écriture enregistrée qui
+  // fait foi, pas un drapeau posé à côté de la pièce.
+  const passees = await piecesComptabilisees();
+
   const factures = DOCUMENTS.filter((d) => d.nature === "facture");
   const devis = DOCUMENTS.filter((d) => d.nature === "devis");
 
@@ -34,7 +39,7 @@ export default function PageVentes() {
 
   // Pièces qui engagent l'entreprise mais n'ont pas encore d'écriture. C'est
   // l'écart entre ce que le commerce a vendu et ce que la comptabilité sait.
-  const aPasser = DOCUMENTS.filter((d) => comptabilisable(d) && !d.comptabiliseLe);
+  const aPasser = DOCUMENTS.filter((d) => comptabilisable(d) && !passees[d.numero]);
 
   return (
     <>
@@ -77,7 +82,7 @@ export default function PageVentes() {
         />
       </section>
 
-      <EcriturePiece />
+      <EcriturePiece passees={passees} />
 
       <p className="mt-5 max-w-[70ch] text-xs text-[var(--encre-faible)]">
         L&apos;écriture est calculée à l&apos;affichage, jamais conservée à côté

@@ -14,3 +14,6 @@ export * from "./sequences";
 export * from "./codes";
 export * from "./audit";
 export * from "./sync";
+
+// ------------------------------------------------------------- modules métier
+export * from "@/modules/comptabilite/schema";

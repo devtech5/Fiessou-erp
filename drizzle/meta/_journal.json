@@ -15,6 +15,20 @@
       "when": 1787647873784,
       "tag": "0001_activer_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787658460560,
+      "tag": "0002_yummy_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787658829292,
+      "tag": "0003_curved_blazing_skull",
+      "breakpoints": true
     }
   ]
 }
