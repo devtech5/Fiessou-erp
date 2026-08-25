@@ -34,6 +34,7 @@ const GROUPES: GroupeModules[] = [
     modules: [
       { href: "/commercial", racine: "/commercial", libelle: "Commercial" },
       { href: "/stock", racine: "/stock", libelle: "Stock" },
+      { href: "/reservations", racine: "/reservations", libelle: "Réservations" },
     ],
   },
   {
