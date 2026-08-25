@@ -12,6 +12,7 @@
     "prepare": "git config core.hooksPath .githooks || exit 0",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:check": "tsx src/scripts/verifier-base.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
