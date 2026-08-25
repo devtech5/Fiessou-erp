@@ -1,0 +1,6 @@
+# Les hooks git sont exécutés par sh : des fins de ligne Windows les rendraient
+# illisibles ("bad interpreter"). On force LF quel que soit le poste.
+.githooks/* text eol=lf
+
+# Idem pour tout ce qui est exécuté par un interpréteur.
+*.sh text eol=lf

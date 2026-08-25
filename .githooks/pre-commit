@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# Vérifications avant chaque commit : analyse statique puis types.
+#
+# Ces deux contrôles existaient déjà comme habitude, et l'habitude a échoué —
+# une erreur ESLint est restée plusieurs jours dans le dépôt parce que le build
+# Next passait malgré elle. Ce qui doit être vérifié à chaque fois n'est pas
+# une consigne, c'est un script.
+#
+# Pour passer outre en cas d'urgence : git commit --no-verify
+
+set -e
+
+echo "→ Analyse statique"
+pnpm lint
+
+echo "→ Vérification des types"
+pnpm typecheck
+
+echo "✓ Vérifications passées"

@@ -129,11 +129,29 @@ Le schéma sous `db/schema` ne contient que le socle : entreprises, comptes,
 droits, numérotation, audit, synchronisation. Les tables métier vivent dans
 leur module et sont réexportées depuis `db/schema/index.ts`.
 
+## Avant chaque commit
+
+`pnpm lint` **et** `pnpm typecheck` doivent passer. Les deux, pas l'un ou
+l'autre : le build Next réussit malgré des erreurs ESLint, et une erreur est
+ainsi restée plusieurs jours dans le dépôt — `registry.ts` assignait la
+variable réservée `module`.
+
+`lint` tourne avec `--max-warnings 0` : un avertissement fait échouer le
+commit. Sans cela le hook ne bloquait rien, puisque ESLint sort en code 0 tant
+qu'il n'y a que des avertissements. L'arbre est à zéro aujourd'hui, il y reste.
+
+C'est automatisé, pas laissé à la discipline. Le hook `.githooks/pre-commit`
+lance les deux ; `pnpm install` configure `core.hooksPath` tout seul via le
+script `prepare`. En cas d'urgence, `git commit --no-verify` passe outre.
+
+Pour lancer les deux à la main : `pnpm verify`.
+
 ## Commandes
 
 ```bash
 docker compose up -d          # PostgreSQL local
 pnpm dev                      # serveur de développement
+pnpm verify                   # analyse statique + types
 pnpm db:generate              # génère la migration depuis le schéma
 pnpm db:migrate               # applique les migrations
 pnpm db:studio                # inspecteur de base
