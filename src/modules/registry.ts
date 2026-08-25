@@ -171,12 +171,14 @@ export function modulesByLayer(layer: ModuleLayer): ModuleDefinition[] {
 export function resolveDependencies(keys: string[]): string[] {
   const resolved = new Set<string>();
 
+  // Nommé `definition` et non `module` : ce dernier est réservé par CommonJS,
+  // et Next refuse qu'on lui assigne quoi que ce soit.
   const visit = (key: string) => {
     if (resolved.has(key)) return;
-    const module = BY_KEY.get(key);
-    if (!module) throw new Error(`Module inconnu : ${key}`);
+    const definition = BY_KEY.get(key);
+    if (!definition) throw new Error(`Module inconnu : ${key}`);
     resolved.add(key);
-    module.requires.forEach(visit);
+    definition.requires.forEach(visit);
   };
 
   keys.forEach(visit);

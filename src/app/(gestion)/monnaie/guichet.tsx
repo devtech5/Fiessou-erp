@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { BoutonPrincipal, Pastille } from "@/components/ui/primitives";
+import { Pastille } from "@/components/ui/primitives";
 import { fmt } from "@/lib/format";
 import {
   RESEAUX,

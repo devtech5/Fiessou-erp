@@ -63,7 +63,7 @@ export default function PageBillets() {
           libelle="À embarquer"
           valeur={fmtEntier(valides.length)}
           ton="marque"
-          precision="Départs à venir"
+          precision={`${embarques.length} déjà montés à bord`}
         />
         <CarteIndicateur
           libelle="Non présentés"

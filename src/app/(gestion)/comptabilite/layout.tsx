@@ -11,6 +11,7 @@ import { SousNavigation } from "@/components/navigation";
 const SECTIONS = [
   { href: "/comptabilite", libelle: "Vue d'ensemble" },
   { href: "/comptabilite/ecritures", libelle: "Écritures" },
+  { href: "/comptabilite/caisse", libelle: "Caisse" },
   { href: "/comptabilite/etats", libelle: "États financiers" },
   { href: "/comptabilite/fiscalite", libelle: "Fiscalité" },
 ];
