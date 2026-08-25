@@ -12,10 +12,11 @@ export function CarteIndicateur({
   valeur: string;
   unite?: string;
   precision?: string;
-  ton?: "neutre" | "alerte" | "danger" | "valide";
+  ton?: "neutre" | "marque" | "alerte" | "danger" | "valide";
 }) {
   const tons = {
     neutre: "text-[var(--encre)]",
+    marque: "text-marque-600",
     alerte: "text-alerte-600",
     danger: "text-danger-600",
     valide: "text-valide-600",
