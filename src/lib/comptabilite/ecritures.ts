@@ -82,6 +82,19 @@ export const COMPTES = {
    */
   manquantCaisse: { numero: "658", libelle: "Charges diverses — manquant de caisse" },
   excedentCaisse: { numero: "758", libelle: "Produits divers — excédent de caisse" },
+  /**
+   * Rémunérations de personnel extérieur à l'entreprise.
+   *
+   * C'est là que va ce qu'on verse à un maçon, un manœuvre, un chauffeur
+   * occasionnel ou un serveur extra — pas en classe 66, qui est celle des
+   * charges de personnel salarié. Les confondre gonflerait la masse salariale
+   * déclarée de gens qui ne figurent sur aucune déclaration CNPS, et l'écart
+   * se découvrirait au contrôle.
+   */
+  personnelExterieur: {
+    numero: "637",
+    libelle: "Rémunérations de personnel extérieur",
+  },
 } as const;
 
 /**
@@ -647,6 +660,67 @@ export function ecritureEcartCaisse(cloture: {
     piece: cloture.numero,
     libelle: `Écart de caisse ${cloture.numero} — ${cloture.caissier}`,
     lignes,
+  });
+}
+
+// ------------------------------------------------------- bon de paiement
+
+/** Moyens par lesquels un intervenant est réellement payé. Pas de crédit. */
+export type MoyenBonPaiement = Exclude<MoyenComptoir, "credit">;
+
+/**
+ * Versement à un intervenant.
+ *
+ *   637 Personnel extérieur   débit   montant versé
+ *   5xx Trésorerie            crédit  montant versé
+ *
+ * La charge naît au PAIEMENT et non au pointage, exactement comme le stock
+ * naît du mouvement et non de la commande. Un pointage engage l'entreprise
+ * sans rien décaisser ; le comptabiliser ferait apparaître une dette envers
+ * quelqu'un qui n'a pas de compte fournisseur, et qu'aucun lettrage ne saurait
+ * solder.
+ *
+ * Aucune retenue, aucune cotisation : ce n'est pas un bulletin de paie. Un
+ * intervenant n'est ni déclaré à la CNPS ni soumis à l'ITS par son donneur
+ * d'ordre — le lui appliquer produirait une déclaration fausse.
+ */
+export function ecritureBonPaiement(bon: {
+  numero: string;
+  date: string;
+  intervenant: string;
+  montant: number;
+  moyen: MoyenBonPaiement;
+}): Ecriture {
+  if (bon.montant <= 0) {
+    throw new Error(
+      `Bon de paiement ${bon.numero} : un versement sans montant n'a rien à enregistrer.`,
+    );
+  }
+
+  const tresorerie = COMPTE_COMPTOIR[bon.moyen];
+
+  return exigerEquilibre({
+    // La carte et le virement sortent du compte bancaire, donc du journal de
+    // banque. Les imputer au journal de caisse ferait un tiroir qui ne
+    // correspond à rien au comptage du soir.
+    journal: bon.moyen === "banque" || bon.moyen === "carte" ? "BQ" : "CA",
+    date: bon.date,
+    piece: bon.numero,
+    libelle: `Bon de paiement ${bon.numero} — ${bon.intervenant}`,
+    lignes: [
+      {
+        compte: COMPTES.personnelExterieur.numero,
+        libelleCompte: COMPTES.personnelExterieur.libelle,
+        debit: bon.montant,
+        credit: 0,
+      },
+      {
+        compte: tresorerie.numero,
+        libelleCompte: tresorerie.libelle,
+        debit: 0,
+        credit: bon.montant,
+      },
+    ],
   });
 }
 

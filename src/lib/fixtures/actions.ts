@@ -46,6 +46,17 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
         message: `${resultat.postes} poste(s) de caisse ouvert(s). La caisse peut encaisser.`,
       };
     }
+
+    // Même raison pour le personnel : les entreprises amorcées avant le module
+    // Personnes ouvriraient les écrans RH sur une page vide.
+    if (resultat.salaries > 0 || resultat.intervenants > 0) {
+      return {
+        message:
+          `${resultat.salaries} salariés et ${resultat.intervenants} ` +
+          `intervenants ajoutés.`,
+      };
+    }
+
     return { message: "Le jeu de démonstration est déjà installé." };
   }
 
@@ -53,7 +64,8 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
     message:
       `${resultat.articles} articles, ${resultat.tiers} tiers, ` +
       `${resultat.codes} codes-barres, ${resultat.depots} dépôts, ` +
-      `${resultat.mouvements} mouvements et ${resultat.postes} postes de ` +
-      `caisse installés.`,
+      `${resultat.mouvements} mouvements, ${resultat.postes} postes de ` +
+      `caisse, ${resultat.salaries} salariés et ${resultat.intervenants} ` +
+      `intervenants installés.`,
   };
 }

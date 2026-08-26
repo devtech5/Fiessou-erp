@@ -9,6 +9,7 @@ import { rateOf } from "@/lib/money";
 import { versQuantite } from "@/lib/quantite";
 import { creerArticleDans, creerFamilleDans } from "@/modules/catalogue/creation";
 import { articles } from "@/modules/catalogue/schema";
+import { aUnIntervenant, aUnSalarie } from "@/modules/personnes/requetes";
 import { aUnDepot, listerDepots } from "@/modules/stock/requetes";
 import { depots } from "@/modules/stock/schema";
 import { creerTiersDans } from "@/modules/tiers/creation";
@@ -19,6 +20,7 @@ import { ALERTES, CLIENTS, FOURNISSEURS } from "./gestion";
 import { creerPosteCaisseDans } from "@/modules/ventes/creation";
 import { postesCaisse } from "@/modules/ventes/schema";
 
+import { amorcerPersonnel } from "./rh";
 import { amorcerStock, type ArticleAAmorcer } from "./stock";
 
 /**
@@ -72,6 +74,9 @@ export interface ResultatInstallation {
   depots: number;
   mouvements: number;
   postes: number;
+  salaries: number;
+  intervenants: number;
+  pointages: number;
 }
 
 /** Code de famille sur trois lettres, désambiguïsé si deux catégories collent. */
@@ -102,6 +107,7 @@ export async function installerJeuDemonstration(
     // écran ne leur proposerait plus rien. On complète ce qui manque plutôt que
     // de renvoyer « déjà installé » devant un stock vide.
     const stock = await completerStock(organizationId, userId);
+    const personnel = await completerPersonnel(organizationId, userId);
 
     return {
       deja: true,
@@ -110,6 +116,7 @@ export async function installerJeuDemonstration(
       articles: 0,
       codes: 0,
       ...stock,
+      ...personnel,
     };
   }
 
@@ -268,6 +275,11 @@ export async function installerJeuDemonstration(
     // le stock n'est rien d'autre que la somme de ces mouvements.
     const stock = await amorcerStock(tx, organizationId, aAmorcer, userId);
 
+    // Le personnel ne dépend ni du catalogue ni du stock : il vient en dernier
+    // parce qu'il coûte le moins, et qu'un échec ici ne doit pas se payer d'un
+    // catalogue de trois cents articles reconstruit.
+    const personnel = await amorcerPersonnel(tx, organizationId, userId);
+
     return {
       deja: false,
       tiers: FOURNISSEURS.length + CLIENTS.length,
@@ -277,6 +289,9 @@ export async function installerJeuDemonstration(
       depots: stock.depots,
       mouvements: stock.mouvements,
       postes: stock.postes,
+      salaries: personnel.salaries,
+      intervenants: personnel.intervenants,
+      pointages: personnel.pointages,
     };
   });
 }
@@ -406,6 +421,24 @@ async function completerStock(
 
     return amorcerStock(tx, organizationId, aAmorcer, userId);
   });
+}
+
+/**
+ * Verse le personnel dans une entreprise amorcée avant le module Personnes.
+ *
+ * Même raison que pour les dépôts et les postes de caisse : ces entreprises-là
+ * ont leur catalogue et leur stock, mais leurs écrans RH s'ouvriraient sur une
+ * page vide, ce qui ferait croire que le module ne fonctionne pas.
+ */
+async function completerPersonnel(
+  organizationId: string,
+  userId?: string,
+): Promise<{ salaries: number; intervenants: number; pointages: number }> {
+  if ((await aUnSalarie(organizationId)) || (await aUnIntervenant(organizationId))) {
+    return { salaries: 0, intervenants: 0, pointages: 0 };
+  }
+
+  return db.transaction((tx) => amorcerPersonnel(tx, organizationId, userId));
 }
 
 /**

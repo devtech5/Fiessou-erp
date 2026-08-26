@@ -1,0 +1,190 @@
+"use client";
+
+import { useActionState, useState } from "react";
+
+import { Champ, CLASSE_CHAMP } from "@/components/ui/primitives";
+import { embaucherSalarie, type EtatSalarie } from "@/modules/personnes/actions";
+
+const CONTRATS = [
+  {
+    valeur: "cdi",
+    libelle: "Durée indéterminée",
+    precision: "Sans terme. Aucune échéance à surveiller.",
+  },
+  {
+    valeur: "cdd",
+    libelle: "Durée déterminée",
+    precision: "Le terme est obligatoire : c'est lui qui déclenche l'alerte.",
+  },
+  {
+    valeur: "essai",
+    libelle: "Période d'essai",
+    precision: "Une fin, donc une décision à prendre avant elle.",
+  },
+  {
+    valeur: "stage",
+    libelle: "Stage",
+    precision: "Convention à durée fixe.",
+  },
+] as const;
+
+type Contrat = (typeof CONTRATS)[number]["valeur"];
+
+/**
+ * Embauche d'un salarié.
+ *
+ * Le champ de terme n'apparaît que pour les contrats qui en ont un. Le laisser
+ * visible sur un CDI ferait saisir une date « au cas où », et l'écran des
+ * échéances annoncerait des fins de contrat qui n'existent pas.
+ */
+export function FormulaireSalarie({ premier = false }: { premier?: boolean }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [contrat, setContrat] = useState<Contrat>("cdi");
+  const [etat, action, enCours] = useActionState<EtatSalarie, FormData>(
+    embaucherSalarie,
+    {},
+  );
+
+  const [dernier, setDernier] = useState(etat.matricule);
+  if (etat.matricule !== dernier) {
+    setDernier(etat.matricule);
+    if (etat.matricule) setOuvert(false);
+  }
+
+  const definition = CONTRATS.find((c) => c.valeur === contrat) ?? CONTRATS[0];
+  const aUnTerme = contrat !== "cdi";
+
+  if (!ouvert) {
+    return (
+      <div className="flex items-center gap-3">
+        {etat.matricule && (
+          <span className="text-sm text-valide-600">
+            <span className="chiffres">{etat.matricule}</span> embauché.
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          className="h-cible rounded-lg bg-marque-600 px-3.5 text-sm font-semibold text-white hover:bg-marque-700"
+        >
+          {premier ? "Embaucher le premier salarié" : "Nouveau salarié"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={action}
+      className="mb-5 w-full rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4"
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">Nouveau salarié</h2>
+        <button
+          type="button"
+          onClick={() => setOuvert(false)}
+          className="text-sm text-[var(--encre-faible)] hover:underline"
+        >
+          Annuler
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Champ libelle="Nom">
+          <input name="nom" required placeholder="Koffi Bernard" className={CLASSE_CHAMP} />
+        </Champ>
+
+        <Champ libelle="Poste">
+          <input name="poste" required placeholder="Magasinier" className={CLASSE_CHAMP} />
+        </Champ>
+
+        <Champ libelle="Contrat" precision={definition.precision}>
+          <select
+            name="contrat"
+            value={contrat}
+            onChange={(e) => setContrat(e.target.value as Contrat)}
+            className={CLASSE_CHAMP}
+          >
+            {CONTRATS.map((c) => (
+              <option key={c.valeur} value={c.valeur}>
+                {c.libelle}
+              </option>
+            ))}
+          </select>
+        </Champ>
+
+        <Champ libelle="Date d'embauche">
+          <input
+            name="debut"
+            type="date"
+            required
+            className={`${CLASSE_CHAMP} chiffres`}
+          />
+        </Champ>
+
+        {aUnTerme && (
+          <Champ libelle="Terme du contrat" precision="Obligatoire hors CDI.">
+            <input
+              name="fin"
+              type="date"
+              required
+              className={`${CLASSE_CHAMP} chiffres`}
+            />
+          </Champ>
+        )}
+
+        <Champ libelle="Salaire de base" precision="Brut mensuel, en francs entiers.">
+          <input
+            name="salaireBase"
+            inputMode="numeric"
+            required
+            defaultValue="0"
+            className={`${CLASSE_CHAMP} chiffres`}
+          />
+        </Champ>
+
+        <Champ
+          libelle="Numéro CNPS"
+          precision="Sans lui, aucune déclaration sociale n'est possible."
+        >
+          <input
+            name="numeroCnps"
+            placeholder="0123456789"
+            className={`${CLASSE_CHAMP} chiffres`}
+          />
+        </Champ>
+
+        <Champ libelle="Téléphone">
+          <input
+            name="telephone"
+            placeholder="+225 07 00 00 00 00"
+            className={`${CLASSE_CHAMP} chiffres`}
+          />
+        </Champ>
+
+        <Champ libelle="Adresse électronique">
+          <input name="email" type="email" className={CLASSE_CHAMP} />
+        </Champ>
+      </div>
+
+      {etat.erreur && (
+        <p
+          role="alert"
+          className="mt-4 rounded-lg bg-danger-50 px-3 py-2.5 text-sm font-medium text-danger-600"
+        >
+          {etat.erreur}
+        </p>
+      )}
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="submit"
+          disabled={enCours}
+          className="h-cible rounded-lg bg-marque-600 px-4 text-sm font-semibold text-white hover:bg-marque-700 disabled:opacity-50"
+        >
+          {enCours ? "Enregistrement…" : "Embaucher"}
+        </button>
+      </div>
+    </form>
+  );
+}

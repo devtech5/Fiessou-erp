@@ -1,124 +1,57 @@
-/**
- * Jeu de démonstration — personnel et rémunération.
- *
- * ⚠️ Les taux ci-dessous servent à faire tourner l'écran de démonstration.
- * Ils DOIVENT être vérifiés auprès de la CNPS et de la DGI, et confrontés à
- * des bulletins réels, avant toute mise en production. Un barème approximatif
- * dans un moteur de paie est une faute, pas un détail : le concurrent affiche
- * des taux sénégalais — IPRES, CSS — sur ses écrans vendus en Côte d'Ivoire.
- *
- * Ce qui compte à ce stade, et qui est vrai ici : la cascade de calcul est
- * juste. Net = brut − cotisations salariales − impôt. Leur propre capture
- * marketing affiche un net supérieur au brut sur chaque ligne.
- */
+import "server-only";
 
-export const BAREME_CI = {
-  /** Retraite CNPS — part salariale. */
-  cnpsRetraiteSalarie: 6.3,
-  /** Retraite CNPS — part patronale. */
-  cnpsRetraitePatronal: 7.7,
-  /** Plafond mensuel de cotisation retraite. */
-  cnpsPlafondMensuel: 3_375_000,
-  /** Prestations familiales — entièrement patronal. */
-  prestationsFamiliales: 5.75,
-  /** Accident du travail — patronal, variable selon le risque de l'activité. */
-  accidentTravail: 2,
-  aVerifier: true,
-} as const;
+import { newId } from "@/lib/ids";
+import { montantLigne, versQuantite } from "@/lib/quantite";
+import { prochainNumero, type Transaction } from "@/lib/sequences";
+import {
+  creerIntervenantDans,
+  creerSalarieDans,
+} from "@/modules/personnes/creation";
+import { pointages, type ModeRemuneration, type TypeContrat } from "@/modules/personnes/schema";
+
+/**
+ * Amorçage du personnel de démonstration.
+ *
+ * Ces tableaux ont longtemps servi d'affichage : les écrans RH lisaient
+ * directement le jeu en mémoire. Ils ne servent plus qu'à VERSER en base — les
+ * salariés, les intervenants et leurs pointages traversent désormais les
+ * contraintes, la numérotation et le journal d'audit, comme le ferait une
+ * saisie réelle.
+ *
+ * Le barème social et le calcul du bulletin ont quitté ce fichier : ils vivent
+ * dans `@/modules/personnes/paie`, où ils sont testés. Un moteur de paie n'a
+ * rien à faire dans un jeu d'essai.
+ */
 
 // ------------------------------------------------------------------ salariés
 
-export type TypeContrat = "CDI" | "CDD" | "Stage" | "Essai";
-
-export interface EmployeDemo {
-  id: string;
+export interface SalarieDemo {
   matricule: string;
   nom: string;
   poste: string;
   contrat: TypeContrat;
+  /** Dates nues, format ISO. */
   debut: string;
-  /** Nul pour un contrat à durée indéterminée. */
   fin?: string;
   salaireBase: number;
   numeroCnps?: string;
 }
 
-export const EMPLOYES: EmployeDemo[] = [
-  { id: "e1", matricule: "S0001", nom: "Koffi Bernard", poste: "Gérant", contrat: "CDI", debut: "01/03/2023", salaireBase: 450000, numeroCnps: "0123456789" },
-  { id: "e2", matricule: "S0002", nom: "Amani Tatiana", poste: "Caissière", contrat: "CDI", debut: "15/06/2024", salaireBase: 180000, numeroCnps: "0123456790" },
-  { id: "e3", matricule: "S0003", nom: "Aya Danielle", poste: "Caissière", contrat: "CDD", debut: "01/02/2026", fin: "31/08/2026", salaireBase: 165000, numeroCnps: "0123456791" },
-  { id: "e4", matricule: "S0004", nom: "Sékou Diarra", poste: "Magasinier", contrat: "CDI", debut: "10/09/2024", salaireBase: 210000, numeroCnps: "0123456792" },
-  { id: "e5", matricule: "S0005", nom: "Konan Michel", poste: "Livreur", contrat: "CDD", debut: "01/04/2026", fin: "30/09/2026", salaireBase: 155000, numeroCnps: "0123456793" },
-  { id: "e6", matricule: "S0006", nom: "Traoré Fatou", poste: "Comptable", contrat: "CDI", debut: "05/01/2025", salaireBase: 320000, numeroCnps: "0123456794" },
-  { id: "e7", matricule: "S0007", nom: "Yao Prince", poste: "Stagiaire", contrat: "Stage", debut: "01/07/2026", fin: "30/09/2026", salaireBase: 75000 },
+export const SALARIES_DEMO: SalarieDemo[] = [
+  { matricule: "S0001", nom: "Koffi Bernard", poste: "Gérant", contrat: "cdi", debut: "2023-03-01", salaireBase: 450_000, numeroCnps: "0123456789" },
+  { matricule: "S0002", nom: "Amani Tatiana", poste: "Caissière", contrat: "cdi", debut: "2024-06-15", salaireBase: 180_000, numeroCnps: "0123456790" },
+  { matricule: "S0003", nom: "Aya Danielle", poste: "Caissière", contrat: "cdd", debut: "2026-02-01", fin: "2026-08-31", salaireBase: 165_000, numeroCnps: "0123456791" },
+  { matricule: "S0004", nom: "Sékou Diarra", poste: "Magasinier", contrat: "cdi", debut: "2024-09-10", salaireBase: 210_000, numeroCnps: "0123456792" },
+  { matricule: "S0005", nom: "Konan Michel", poste: "Livreur", contrat: "cdd", debut: "2026-04-01", fin: "2026-09-30", salaireBase: 155_000, numeroCnps: "0123456793" },
+  { matricule: "S0006", nom: "Traoré Fatou", poste: "Comptable", contrat: "cdi", debut: "2025-01-05", salaireBase: 320_000, numeroCnps: "0123456794" },
+  // Sans numéro CNPS : l'absence est un cas réel, et l'écran doit la signaler
+  // plutôt que de laisser une case vide qu'on ne remarque pas.
+  { matricule: "S0007", nom: "Yao Prince", poste: "Stagiaire", contrat: "stage", debut: "2026-07-01", fin: "2026-09-30", salaireBase: 75_000 },
 ];
-
-export interface Bulletin {
-  employe: EmployeDemo;
-  brut: number;
-  cotisationsSalariales: number;
-  impot: number;
-  net: number;
-  chargesPatronales: number;
-  /** Ce que l'employeur débourse réellement. */
-  coutTotal: number;
-}
-
-/** Barème ITS simplifié pour la démonstration. À remplacer par le barème réel. */
-function impotSurSalaire(base: number): number {
-  if (base <= 75_000) return 0;
-  if (base <= 240_000) return Math.round((base - 75_000) * 0.015);
-  if (base <= 800_000) return Math.round(2_475 + (base - 240_000) * 0.05);
-  return Math.round(30_475 + (base - 800_000) * 0.1);
-}
-
-/**
- * Calcule un bulletin. Cascade explicite, vérifiable à la main :
- * le net est toujours inférieur au brut.
- */
-export function calculerBulletin(employe: EmployeDemo): Bulletin {
-  const brut = employe.salaireBase;
-  const assiette = Math.min(brut, BAREME_CI.cnpsPlafondMensuel);
-
-  const cotisationsSalariales = Math.round(
-    (assiette * BAREME_CI.cnpsRetraiteSalarie) / 100,
-  );
-  const impot = impotSurSalaire(brut - cotisationsSalariales);
-  const net = brut - cotisationsSalariales - impot;
-
-  const chargesPatronales = Math.round(
-    (assiette * BAREME_CI.cnpsRetraitePatronal) / 100 +
-      (brut * BAREME_CI.prestationsFamiliales) / 100 +
-      (brut * BAREME_CI.accidentTravail) / 100,
-  );
-
-  return {
-    employe,
-    brut,
-    cotisationsSalariales,
-    impot,
-    net,
-    chargesPatronales,
-    coutTotal: brut + chargesPatronales,
-  };
-}
-
-export const BULLETINS = EMPLOYES.map(calculerBulletin);
 
 // -------------------------------------------------------------- intervenants
 
-export type ModeRemuneration = "journee" | "tache" | "unite" | "forfait";
-
-/**
- * Intervenant : ni utilisateur du logiciel, ni salarié déclaré.
- *
- * Maçon, ferrailleur, coffreur, manœuvre, peintre, mais aussi chauffeur
- * occasionnel, serveur extra, coiffeuse à la commission, ouvrier saisonnier ou
- * mécanicien à la tâche. Il n'a pas de bulletin de paie mais un bon de
- * paiement, et sa dépense ne se ventile pas comme un salaire.
- */
 export interface IntervenantDemo {
-  id: string;
   nom: string;
   qualification: string;
   telephone: string;
@@ -127,29 +60,114 @@ export interface IntervenantDemo {
   taux: number;
   uniteLibelle: string;
   chantier: string;
-  /** Quantité pointée sur la période : jours, tâches ou unités d'œuvre. */
+  /** Quantité pointée sur la période, en unités humaines. */
   pointe: number;
-  regle: number;
 }
 
-export const INTERVENANTS: IntervenantDemo[] = [
-  { id: "i1", nom: "Ouattara Ibrahim", qualification: "Maçon", telephone: "+225 07 11 22 33 44", mode: "journee", taux: 8000, uniteLibelle: "jour", chantier: "Villa Riviera 3", pointe: 18, regle: 96000 },
-  { id: "i2", nom: "Bamba Souleymane", qualification: "Maçon", telephone: "+225 05 66 77 88 99", mode: "unite", taux: 3500, uniteLibelle: "m² enduit", chantier: "Villa Riviera 3", pointe: 62, regle: 140000 },
-  { id: "i3", nom: "Koné Salif", qualification: "Ferrailleur", telephone: "+225 01 44 55 66 77", mode: "journee", taux: 9000, uniteLibelle: "jour", chantier: "Immeuble Cocody", pointe: 22, regle: 198000 },
-  { id: "i4", nom: "Diomandé Adama", qualification: "Manœuvre", telephone: "+225 07 88 99 00 11", mode: "journee", taux: 5000, uniteLibelle: "jour", chantier: "Immeuble Cocody", pointe: 24, regle: 90000 },
-  { id: "i5", nom: "Coulibaly Yaya", qualification: "Coffreur", telephone: "+225 05 33 22 11 00", mode: "tache", taux: 45000, uniteLibelle: "coffrage", chantier: "Villa Riviera 3", pointe: 3, regle: 135000 },
-  { id: "i6", nom: "N'Guessan Paul", qualification: "Peintre", telephone: "+225 01 77 66 55 44", mode: "unite", taux: 1200, uniteLibelle: "m² peint", chantier: "Villa Riviera 3", pointe: 210, regle: 180000 },
-  { id: "i7", nom: "Touré Mamadou", qualification: "Chauffeur occasionnel", telephone: "+225 07 22 33 44 55", mode: "journee", taux: 12000, uniteLibelle: "jour", chantier: "Livraisons Abidjan", pointe: 9, regle: 108000 },
+export const INTERVENANTS_DEMO: IntervenantDemo[] = [
+  { nom: "Ouattara Ibrahim", qualification: "Maçon", telephone: "+225 07 11 22 33 44", mode: "journee", taux: 8_000, uniteLibelle: "jour", chantier: "Villa Riviera 3", pointe: 18 },
+  { nom: "Bamba Souleymane", qualification: "Maçon", telephone: "+225 05 66 77 88 99", mode: "unite", taux: 3_500, uniteLibelle: "m² enduit", chantier: "Villa Riviera 3", pointe: 62 },
+  { nom: "Koné Salif", qualification: "Ferrailleur", telephone: "+225 01 44 55 66 77", mode: "journee", taux: 9_000, uniteLibelle: "jour", chantier: "Immeuble Cocody", pointe: 22 },
+  { nom: "Diomandé Adama", qualification: "Manœuvre", telephone: "+225 07 88 99 00 11", mode: "journee", taux: 5_000, uniteLibelle: "jour", chantier: "Immeuble Cocody", pointe: 24 },
+  { nom: "Coulibaly Yaya", qualification: "Coffreur", telephone: "+225 05 33 22 11 00", mode: "tache", taux: 45_000, uniteLibelle: "coffrage", chantier: "Villa Riviera 3", pointe: 3 },
+  { nom: "N'Guessan Paul", qualification: "Peintre", telephone: "+225 01 77 66 55 44", mode: "unite", taux: 1_200, uniteLibelle: "m² peint", chantier: "Villa Riviera 3", pointe: 210 },
+  { nom: "Touré Mamadou", qualification: "Chauffeur occasionnel", telephone: "+225 07 22 33 44 55", mode: "journee", taux: 12_000, uniteLibelle: "jour", chantier: "Livraisons Abidjan", pointe: 9 },
 ];
 
-export const LIBELLE_MODE: Record<ModeRemuneration, string> = {
-  journee: "À la journée",
-  tache: "À la tâche",
-  unite: "À l'unité d'œuvre",
-  forfait: "Au forfait",
-};
+// ----------------------------------------------------------------- amorçage
 
-/** Montant dû à un intervenant : quantité pointée × taux, moins les acomptes. */
-export function duIntervenant(intervenant: IntervenantDemo): number {
-  return intervenant.pointe * intervenant.taux - intervenant.regle;
+export interface ResultatPersonnel {
+  salaries: number;
+  intervenants: number;
+  pointages: number;
+}
+
+/**
+ * Verse le personnel de démonstration dans une entreprise.
+ *
+ * Les pointages sont insérés en BLOC, comme les mouvements de stock : chaque
+ * intervenant reçoit une seule ligne portant tout ce qu'il a fait sur la
+ * période. Passer par `enregistrerPointageDans` donnerait un numéro de bon par
+ * ligne et autant d'allers-retours vers Abidjan, sans rien démontrer de plus.
+ *
+ * Les bons de paiement, eux, ne sont PAS amorcés : chacun pose une écriture
+ * comptable, et sept écritures de charge injectées dans un exercice de
+ * démonstration fausseraient le compte de résultat affiché par les états
+ * financiers. Ce qui a été réglé se voit dans la démonstration à l'usage, en
+ * émettant un vrai bon depuis l'écran.
+ */
+export async function amorcerPersonnel(
+  tx: Transaction,
+  organizationId: string,
+  userId?: string,
+): Promise<ResultatPersonnel> {
+  for (const salarie of SALARIES_DEMO) {
+    await creerSalarieDans(
+      tx,
+      organizationId,
+      {
+        matricule: salarie.matricule,
+        nom: salarie.nom,
+        poste: salarie.poste,
+        contrat: salarie.contrat,
+        debut: salarie.debut,
+        fin: salarie.fin ?? null,
+        salaireBase: salarie.salaireBase,
+        numeroCnps: salarie.numeroCnps ?? null,
+      },
+      userId,
+    );
+  }
+
+  const lignes: (typeof pointages.$inferInsert)[] = [];
+
+  for (const intervenant of INTERVENANTS_DEMO) {
+    const { id } = await creerIntervenantDans(
+      tx,
+      organizationId,
+      {
+        nom: intervenant.nom,
+        qualification: intervenant.qualification,
+        telephone: intervenant.telephone,
+        mode: intervenant.mode,
+        taux: intervenant.taux,
+        uniteLibelle: intervenant.uniteLibelle,
+        affectation: intervenant.chantier,
+      },
+      userId,
+    );
+
+    const quantite = versQuantite(intervenant.pointe);
+    const piece = await prochainNumero(tx, organizationId, {
+      cle: "pointage",
+      prefix: "PT-",
+      padding: 6,
+    });
+
+    lignes.push({
+      id: newId(),
+      organizationId,
+      workerId: id,
+      quantite,
+      taux: intervenant.taux,
+      mode: intervenant.mode,
+      uniteLibelle: intervenant.uniteLibelle,
+      // Même calcul que la saisie réelle, et non un produit écrit à la main :
+      // un amorçage qui arrondit autrement que l'application produirait un
+      // reste dû faux dès la première correction de pointage.
+      montant: montantLigne(intervenant.taux, quantite),
+      affectation: intervenant.chantier,
+      piece,
+      motif: "Pointage de période, jeu de démonstration",
+      userId: userId ?? null,
+    });
+  }
+
+  if (lignes.length > 0) await tx.insert(pointages).values(lignes);
+
+  return {
+    salaries: SALARIES_DEMO.length,
+    intervenants: INTERVENANTS_DEMO.length,
+    pointages: lignes.length,
+  };
 }

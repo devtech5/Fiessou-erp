@@ -17,6 +17,7 @@ export type OrigineEcriture =
   | "achat"
   | "bon_caisse"
   | "vente_pos"
+  | "bon_paiement"
   | "saisie";
 
 export interface ContexteEcriture {

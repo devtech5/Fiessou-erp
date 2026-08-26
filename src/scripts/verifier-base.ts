@@ -27,11 +27,13 @@ if (!url) {
 const TABLES_ATTENDUES = [
   "articles",
   "audit_logs",
+  "bons_paiement",
   "change_log",
   "comptages_caisse",
   "depots",
   "document_sequences",
   "ecritures",
+  "employees",
   "entity_codes",
   "familles_article",
   "lignes_ecriture",
@@ -41,6 +43,7 @@ const TABLES_ATTENDUES = [
   "organization_modules",
   "organizations",
   "permissions",
+  "pointages",
   "postes_caisse",
   "reglements_vente",
   "role_permissions",
@@ -53,6 +56,7 @@ const TABLES_ATTENDUES = [
   "users",
   "ventes",
   "verification_codes",
+  "workers",
 ];
 
 const sql = postgres(url, { max: 1, prepare: false });

@@ -94,7 +94,11 @@ export const MODULES: ModuleDefinition[] = [
     key: "personnes",
     name: "Personnes & Rémunération",
     layer: "socle",
-    status: "planifie",
+    // En base : salariés et contrats, intervenants, pointages et bons de
+    // paiement — le versement à un intervenant pose son écriture en 637. Les
+    // bulletins se calculent depuis la base mais ne sont pas encore émis :
+    // restent le barème réel, les déclarations et l'écriture de paie.
+    status: "en_cours",
     requires: [],
     description:
       "Deux régimes : salariés (contrat, bulletin, CNPS, ITS) et intervenants " +

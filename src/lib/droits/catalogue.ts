@@ -126,11 +126,46 @@ export const DROITS = [
     description: "Comptabiliser une pièce, saisir une écriture au journal.",
   },
 
+  // ----------------------------------------------------------- personnes
+  {
+    cle: "personnes.consulter",
+    moduleKey: "personnes",
+    libelle: "Consulter le personnel",
+    description: "Voir les salariés, les intervenants et ce qui leur est dû.",
+  },
+  {
+    cle: "personnes.salarie.gerer",
+    moduleKey: "personnes",
+    libelle: "Gérer les salariés",
+    description: "Embaucher, modifier un contrat, sortir des effectifs.",
+  },
+  {
+    cle: "personnes.intervenant.gerer",
+    moduleKey: "personnes",
+    libelle: "Gérer les intervenants",
+    description: "Ouvrir la fiche d'un maçon, d'un extra, d'un chauffeur occasionnel.",
+  },
+  {
+    cle: "personnes.pointage.saisir",
+    moduleKey: "personnes",
+    libelle: "Pointer un intervenant",
+    description:
+      "Constater les journées, les tâches ou les unités d'œuvre réalisées. " +
+      "Le geste du chef d'équipe, sur le chantier.",
+  },
+  {
+    cle: "personnes.paiement.regler",
+    moduleKey: "personnes",
+    libelle: "Régler un intervenant",
+    description:
+      "Émettre un bon de paiement. Geste de décaissement : il sort de l'argent " +
+      "de la caisse, il est séparé du pointage à dessein.",
+  },
+
   // ------------------------------------------------- modules en préparation
   // Ces écrans montrent encore des données d'exemple ; le droit gouverne leur
   // accès dès maintenant, pour que l'ouverture du module ne soit pas le moment
   // où l'on découvre que tout le monde y entre.
-  { cle: "personnes.consulter", moduleKey: "personnes", libelle: "Consulter le personnel" },
   { cle: "documents.consulter", moduleKey: "documents", libelle: "Consulter les documents" },
   { cle: "actifs.consulter", moduleKey: "actifs", libelle: "Consulter les actifs" },
   { cle: "reservation.consulter", moduleKey: "reservation", libelle: "Consulter les réservations" },
