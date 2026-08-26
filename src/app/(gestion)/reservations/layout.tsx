@@ -1,6 +1,8 @@
 import { AccesRefuse } from "@/components/coque/acces-refuse";
+import { ModuleEnPreparation } from "@/components/coque/module-en-preparation";
 import { SousNavigation } from "@/components/coque/sous-navigation";
 import { peut } from "@/lib/droits/garde";
+import { moduleOuvert } from "@/lib/modules/garde";
 
 const SECTIONS = [
   { href: "/reservations", libelle: "Contrats" },
@@ -12,6 +14,8 @@ const SECTIONS = [
 export default async function LayoutReservations({
   children,
 }: LayoutProps<"/reservations">) {
+  if (!moduleOuvert("reservation")) return <ModuleEnPreparation cle="reservation" />;
+
   if (!(await peut("reservation.consulter"))) return <AccesRefuse droit="reservation.consulter" />;
 
   return (

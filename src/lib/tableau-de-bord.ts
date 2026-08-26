@@ -1,12 +1,12 @@
 import { ACTIFS, ECHEANCES, resteAvantEcheance } from "@/lib/fixtures/actifs";
 import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
-import { COMPTES_CLES } from "@/lib/fixtures/comptabilite";
 import { DOCUMENTS, comptabilisable, totalTTC } from "@/lib/fixtures/gestion";
 import { MISSIONS } from "@/lib/fixtures/missions";
-import { RESEAUX, SEUIL_FLOAT_BAS, totauxJournee } from "@/lib/fixtures/monnaie";
+import { RESEAUX, SEUIL_FLOAT_BAS } from "@/lib/fixtures/monnaie";
 import { CONTRATS } from "@/lib/fixtures/reservations";
 import { ABONNEMENTS, seancesRestantes } from "@/lib/fixtures/reservations";
 import { etatCourant } from "@/lib/approbation/circuit";
+import type { SoldeCompte } from "@/lib/comptabilite/etats";
 
 /**
  * Agrégation du tableau de bord.
@@ -24,6 +24,18 @@ export type Gravite = "critique" | "attention" | "information";
 export interface Alerte {
   id: string;
   gravite: Gravite;
+  /**
+   * D'où vient le chiffre.
+   *
+   * `fixture` marque une alerte encore calculée sur un jeu d'essai. Elle ne
+   * s'affiche que sur une instance d'aperçu : une alerte critique inventée sur
+   * l'écran d'accueil est le pire endroit où mettre une donnée fausse — c'est
+   * la première chose que l'exploitant lit le matin, et il agirait dessus.
+   *
+   * Le module ne suffit pas à trancher : le commercial lit la base pour ses
+   * tiers et une fixture pour ses factures. La source, elle, est exacte.
+   */
+  source: "base" | "fixture";
   /** Module concerné, pour que l'exploitant sache où il atterrit. */
   module: string;
   titre: string;
@@ -77,6 +89,7 @@ export function alertes(
     liste.push({
       id: "factures-retard",
       gravite: "critique",
+      source: "fixture",
       module: "Commercial",
       titre: "Factures impayées",
       detail: `${enRetard.reduce((s, f) => s + totalTTC(f), 0).toLocaleString("fr-FR")} FCFA en souffrance`,
@@ -92,6 +105,7 @@ export function alertes(
     liste.push({
       id: "a-comptabiliser",
       gravite: "attention",
+      source: "fixture",
       module: "Comptabilité",
       titre: "Pièces sans écriture",
       // C'est l'écart entre ce que le commerce a vendu et ce que la
@@ -107,6 +121,7 @@ export function alertes(
     liste.push({
       id: "ruptures",
       gravite: "critique",
+      source: "base",
       module: "Stock",
       titre: "Articles en rupture",
       // Un stock négatif compte ici aussi : il signale une sortie enregistrée
@@ -121,6 +136,7 @@ export function alertes(
     liste.push({
       id: "reappro",
       gravite: "attention",
+      source: "base",
       module: "Stock",
       titre: "À commander sous trois jours",
       detail: "Le délai fournisseur ne sera pas tenu au-delà",
@@ -135,6 +151,7 @@ export function alertes(
     liste.push({
       id: "float-bas",
       gravite: "critique",
+      source: "fixture",
       module: "Guichet",
       titre: "Float insuffisant",
       detail: floatBas.map((r) => r.nom).join(", "),
@@ -152,6 +169,7 @@ export function alertes(
     liste.push({
       id: "bons-attente",
       gravite: "attention",
+      source: "fixture",
       module: "Comptabilité",
       titre: "Bons de caisse à valider",
       detail: "Quelqu'un attend une signature pour être payé",
@@ -168,6 +186,7 @@ export function alertes(
     liste.push({
       id: "avances",
       gravite: "attention",
+      source: "fixture",
       module: "Comptabilité",
       titre: "Avances non soldées",
       detail: `${reliquats.reduce((s, r) => s + r, 0).toLocaleString("fr-FR")} FCFA à récupérer ou justifier`,
@@ -181,6 +200,7 @@ export function alertes(
     liste.push({
       id: "caisse-basse",
       gravite: "attention",
+      source: "fixture",
       module: "Comptabilité",
       titre: "Caisse à réalimenter",
       detail: caissesBasses.map((c) => c.nom).join(", "),
@@ -199,6 +219,7 @@ export function alertes(
     liste.push({
       id: "echeances",
       gravite: "critique",
+      source: "fixture",
       module: "Actifs",
       titre: "Échéances dépassées",
       // Rouler sans assurance ou sans visite valide n'est pas un retard
@@ -216,6 +237,7 @@ export function alertes(
     liste.push({
       id: "actifs-indisponibles",
       gravite: "information",
+      source: "fixture",
       module: "Actifs",
       titre: "Actifs indisponibles",
       detail: "En entretien ou immobilisés",
@@ -230,6 +252,7 @@ export function alertes(
     liste.push({
       id: "locations-retard",
       gravite: "critique",
+      source: "fixture",
       module: "Réservations",
       titre: "Matériel non restitué",
       detail: "Immobilisé chez un client, non louable",
@@ -246,6 +269,7 @@ export function alertes(
     liste.push({
       id: "abonnements",
       gravite: "information",
+      source: "fixture",
       module: "Réservations",
       titre: "Abonnements épuisés",
       detail: "Accès refusé à l'accueil, à renouveler",
@@ -260,6 +284,7 @@ export function alertes(
     liste.push({
       id: "missions-echouees",
       gravite: "attention",
+      source: "fixture",
       module: "Missions",
       titre: "Missions échouées",
       detail: "À reprogrammer",
@@ -273,6 +298,7 @@ export function alertes(
     liste.push({
       id: "synchro",
       gravite: "information",
+      source: "fixture",
       module: "Missions",
       titre: "Preuves non remontées",
       // Une mission paraît close alors que sa preuve dort sur un téléphone.
@@ -294,29 +320,38 @@ export interface Tresorerie {
 /**
  * Où se trouve l'argent, à l'instant.
  *
- * Le float du guichet y figure alors qu'il n'est pas de la trésorerie au sens
- * comptable : c'est de la valeur immobilisée chez un opérateur. L'exploitant,
- * lui, la compte — elle sort de sa poche et il ne peut pas en disposer.
+ * Déduit du grand livre et non d'un solde tenu à part : la trésorerie est la
+ * conséquence des écritures, donc elle est vraie par construction. Un montant
+ * stocké à côté finit toujours par diverger — il suffit d'un règlement saisi
+ * en comptabilité sans repasser par l'écran qui entretenait le chiffre.
+ *
+ * Les trois lignes couvrent exactement les comptes que `positionComptable`
+ * additionne — 52, 53, 57. Le total du tableau de bord et celui de l'écran de
+ * comptabilité doivent tomber sur le même franc : deux chiffres différents pour
+ * le même argent, et plus personne ne croit ni l'un ni l'autre.
+ *
+ * Le float du guichet et les caisses de dépenses reviendront ici quand leurs
+ * modules liront la base. D'ici là, ce qui n'est pas comptabilisé ne s'affiche
+ * pas — c'est écrit sous les cartes, parce qu'un exploitant qui compte son
+ * tiroir doit savoir pourquoi l'écran annonce autre chose.
  */
-export function tresorerie(): Tresorerie[] {
-  const banque = COMPTES_CLES.find((c) => c.numero === "521")!.solde;
-  const caisseVente = COMPTES_CLES.find((c) => c.numero === "571")!.solde;
-  const caissesDepenses = CAISSES.reduce((s, c) => s + c.solde, 0);
-  const float = RESEAUX.reduce((s, r) => s + r.float, 0);
+export function tresorerie(soldes: SoldeCompte[]): Tresorerie[] {
+  // Solde débiteur : une caisse qui doit plus qu'elle n'a reçu n'existe pas.
+  // Un négatif signale une erreur de saisie, et s'affiche tel quel plutôt que
+  // d'être ramené à zéro — le masquer laisserait l'erreur courir.
+  const cumul = (prefixe: string) =>
+    soldes
+      .filter((s) => s.compte.startsWith(prefixe))
+      .reduce((somme, s) => somme + s.debit - s.credit, 0);
 
   return [
-    { libelle: "Banque", montant: banque, detail: "Compte 521" },
-    { libelle: "Caisse de vente", montant: caisseVente, detail: "Compte 571" },
+    { libelle: "Banque", montant: cumul("52"), detail: "Comptes 52" },
     {
-      libelle: "Caisses de dépenses",
-      montant: caissesDepenses,
-      detail: `${CAISSES.length} réserves`,
+      libelle: "Mobile money",
+      montant: cumul("53"),
+      detail: "Comptes 53 · établissements financiers",
     },
-    {
-      libelle: "Float mobile money",
-      montant: float,
-      detail: `${RESEAUX.length} opérateurs`,
-    },
+    { libelle: "Caisse", montant: cumul("57"), detail: "Comptes 57" },
   ];
 }
 
@@ -328,24 +363,33 @@ export function tresorerie(): Tresorerie[] {
  * marge future comme si elle était déjà acquise, et gonflait le patrimoine de
  * l'entreprise d'un tiers.
  */
-export function activiteDuJour(valeurStock: number) {
-  const guichet = totauxJournee();
+export interface ActiviteDuJour {
+  /** Encaissé en caisse depuis l'ouverture de la journée. */
+  encaisse: number;
+  /** Nombre de tickets, pour situer le montant. */
+  tickets: number;
+  /** Créances clients ouvertes : lignes 41 non lettrées. */
+  creances: number;
+  /** Valeur du stock au coût moyen pondéré. */
+  valeurStock: number;
+}
 
-  const encaisse = DOCUMENTS.filter(
-    (d) => d.nature === "facture" && d.statut === "paye",
-  ).reduce((s, f) => s + totalTTC(f), 0);
-
-  const creances = DOCUMENTS.filter(
-    (d) =>
-      d.nature === "facture" &&
-      (d.statut === "envoye" || d.statut === "en_retard"),
-  ).reduce((s, f) => s + totalTTC(f), 0);
-
+/**
+ * De quoi juger la journée.
+ *
+ * Les quatre chiffres viennent de la base — caisse, grand livre, stock. Aucun
+ * n'est une projection ni une moyenne : ce sont des sommes d'écritures, à
+ * l'unité près, comme l'exige la règle de l'argent entier.
+ */
+export function activiteDuJour(
+  caisse: { chiffreAffaires: number; tickets: number },
+  creances: number,
+  valeurStock: number,
+): ActiviteDuJour {
   return {
-    encaisse,
+    encaisse: caisse.chiffreAffaires,
+    tickets: caisse.tickets,
     creances,
-    operationsGuichet: guichet.operations,
-    commissionsGuichet: guichet.commissions,
     valeurStock,
   };
 }

@@ -1,6 +1,8 @@
 import { AccesRefuse } from "@/components/coque/acces-refuse";
+import { ModuleEnPreparation } from "@/components/coque/module-en-preparation";
 import { SousNavigation } from "@/components/coque/sous-navigation";
 import { peut } from "@/lib/droits/garde";
+import { moduleOuvert } from "@/lib/modules/garde";
 
 /**
  * Le module s'appelle « Personnel », pas « RH & Paie » : il couvre deux
@@ -18,6 +20,8 @@ const SECTIONS = [
 export default async function LayoutRh({
   children,
 }: LayoutProps<"/rh">) {
+  if (!moduleOuvert("personnes")) return <ModuleEnPreparation cle="personnes" />;
+
   if (!(await peut("personnes.consulter"))) return <AccesRefuse droit="personnes.consulter" />;
 
   return (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ecritureSaisieGuidee } from "@/lib/comptabilite/ecritures";
+import { tresorerie } from "@/lib/tableau-de-bord";
 import {
   calculerSIG,
   elementsResultat,
@@ -293,5 +294,37 @@ describe("saisie guidée", () => {
         montant: 0,
       }),
     ).toThrow();
+  });
+});
+
+/**
+ * Trésorerie du tableau de bord.
+ *
+ * Le même argent est affiché à deux endroits : en tête du tableau de bord, et
+ * dans la position comptable. Les deux doivent tomber sur le même franc. Un
+ * écart n'apparaîtrait pas comme une erreur — il apparaîtrait comme deux
+ * chiffres, et l'exploitant cesserait de croire les deux.
+ */
+describe("trésorerie du tableau de bord", () => {
+  const COMPTES: SoldeCompte[] = [
+    solde("521", 4_500_000, 1_200_000),
+    solde("531", 800_000, 250_000),
+    solde("571", 2_000_000, 1_750_000),
+    // Valeurs mobilières de placement : classe 5 mais pas de la trésorerie
+    // disponible. Ni l'un ni l'autre écran ne doit les compter.
+    solde("501", 3_000_000, 0),
+    solde("411", 1_400_000, 0),
+  ];
+
+  it("totalise exactement ce que compte la position comptable", () => {
+    const total = tresorerie(COMPTES).reduce((s, ligne) => s + ligne.montant, 0);
+    expect(total).toBe(positionComptable(COMPTES).tresorerie);
+  });
+
+  it("garde le signe d'un solde créditeur au lieu de le masquer", () => {
+    // Une caisse créditrice est une erreur de saisie, pas un découvert. La
+    // ramener à zéro ferait disparaître le seul indice qu'il y a un problème.
+    const [, , caisse] = tresorerie([solde("571", 0, 150_000)]);
+    expect(caisse.montant).toBe(-150_000);
   });
 });

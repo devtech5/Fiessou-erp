@@ -15,6 +15,19 @@
 
 export type ModuleLayer = "socle" | "moteur" | "metier";
 
+/**
+ * Avancement du module, et il commande ce que l'application montre.
+ *
+ *   · planifie   — les écrans existent, mais ils lisent `src/lib/fixtures`.
+ *                  Des chiffres inventés dans une interface finie.
+ *   · en_cours   — les écrans lisent la base. Il manque des fonctions, pas des
+ *                  données.
+ *   · disponible — le périmètre annoncé est couvert.
+ *
+ * La frontière qui compte n'est pas entre `en_cours` et `disponible` : c'est
+ * entre `planifie` et le reste. Montrer à un commerçant un stock qui n'est pas
+ * le sien lui coûte sa confiance en une minute, et elle ne revient pas.
+ */
 export type ModuleStatus = "planifie" | "en_cours" | "disponible";
 
 export interface ModuleDefinition {
@@ -69,7 +82,10 @@ export const MODULES: ModuleDefinition[] = [
     key: "comptabilite",
     name: "Comptabilité",
     layer: "socle",
-    status: "planifie",
+    // En base : plan de comptes SYSCOHADA, journaux, écritures équilibrées et
+    // états financiers déduits du grand livre. Restent la clôture d'exercice,
+    // les déclarations fiscales et la caisse de dépenses.
+    status: "en_cours",
     requires: ["tiers"],
     description:
       "SYSCOHADA, journaux, états financiers, fiscalité. Consomme les écritures des autres modules.",
@@ -172,6 +188,23 @@ export function getModule(key: string): ModuleDefinition | undefined {
 export function modulesByLayer(layer: ModuleLayer): ModuleDefinition[] {
   return MODULES.filter((m) => m.layer === layer);
 }
+
+/**
+ * Vrai quand les écrans du module lisent la base et non un jeu d'essai.
+ *
+ * C'est la seule question que pose l'application avant d'ouvrir un module à un
+ * client. Un module inconnu du registre est fermé : mieux vaut une entrée
+ * manquante qu'une entrée qui ment.
+ */
+export function estLivre(key: string): boolean {
+  const definition = BY_KEY.get(key);
+  return definition !== undefined && definition.status !== "planifie";
+}
+
+/** Les clés des modules livrés, dans l'ordre du registre. */
+export const MODULES_LIVRES: string[] = MODULES.filter((m) =>
+  estLivre(m.key),
+).map((m) => m.key);
 
 /**
  * Développe la liste des modules à activer en y ajoutant leurs dépendances.

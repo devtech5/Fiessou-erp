@@ -3,7 +3,11 @@ import type { Metadata } from "next";
 import { CarteIndicateur, EnTetePage } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
+import { apercuActif } from "@/lib/modules/garde";
 import { piecesComptabilisees } from "@/modules/comptabilite/actions";
+import { soldesParCompte } from "@/modules/comptabilite/requetes";
+import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
+import { journeeCaisse } from "@/modules/ventes/requetes";
 import {
   alertesReapprovisionnement,
   joursRestants,
@@ -56,13 +60,22 @@ const DELAI_REACTION_JOURS = 3;
 export default async function PageTableauDeBord() {
   const session = await exigerEntreprise();
 
-  const [passees, resume, aCommander] = await Promise.all([
-    piecesComptabilisees(),
-    resumeStock(session.organizationId),
-    alertesReapprovisionnement(session.organizationId),
-  ]);
+  // Même borne que l'écran de ventes : la journée du commerce commence à
+  // minuit, et les deux écrans doivent annoncer le même encaissé.
+  const debutJournee = new Date();
+  debutJournee.setHours(0, 0, 0, 0);
 
-  const liste = alertes(passees, {
+  const [passees, resume, aCommander, soldesComptes, journee, auxiliaires] =
+    await Promise.all([
+      piecesComptabilisees(),
+      resumeStock(session.organizationId),
+      alertesReapprovisionnement(session.organizationId),
+      soldesParCompte(session.organizationId),
+      journeeCaisse(session.organizationId, debutJournee),
+      soldesParAuxiliaire(session.organizationId),
+    ]);
+
+  const toutesLesAlertes = alertes(passees, {
     ruptures: resume.ruptures,
     aCommanderVite: aCommander.filter(
       (alerte) => joursRestants(alerte) <= DELAI_REACTION_JOURS,
@@ -70,8 +83,21 @@ export default async function PageTableauDeBord() {
     valeur: resume.valeur,
   });
 
-  const activite = activiteDuJour(resume.valeur);
-  const soldes = tresorerie();
+  // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
+  // enverrait l'exploitant relancer une facture qui n'existe pas.
+  const liste = apercuActif()
+    ? toutesLesAlertes
+    : toutesLesAlertes.filter((alerte) => alerte.source === "base");
+
+  // Les créances sont la somme des encours non lettrés, tous clients
+  // confondus : ce que l'entreprise a facturé et n'a pas encore reçu.
+  const creances = [...auxiliaires.values()].reduce(
+    (somme, solde) => somme + solde.encoursClient,
+    0,
+  );
+
+  const activite = activiteDuJour(journee, creances, resume.valeur);
+  const soldes = tresorerie(soldesComptes);
 
   const critiques = liste.filter((a) => a.gravite === "critique");
   const total = soldes.reduce((somme, s) => somme + s.montant, 0);
@@ -112,9 +138,8 @@ export default async function PageTableauDeBord() {
         </div>
 
         <p className="mt-2 max-w-[70ch] text-xs text-[var(--encre-faible)]">
-          Le float du guichet figure ici bien qu&apos;il ne soit pas de la
-          trésorerie au sens comptable : c&apos;est de la valeur immobilisée chez
-          un opérateur, sortie de votre poche et dont vous ne disposez pas.
+          Ces montants sont la somme de vos écritures, pas un solde tenu à part.
+          Ce qui n&apos;est pas passé en comptabilité n&apos;y figure pas.
         </p>
       </section>
 
@@ -123,11 +148,11 @@ export default async function PageTableauDeBord() {
         <h2 className="mb-2.5 text-base font-semibold">Activité</h2>
         <div className={GRILLE}>
           <CarteIndicateur
-            libelle="Encaissé"
+            libelle="Encaissé aujourd'hui"
             valeur={fmtCompact(activite.encaisse)}
             unite="FCFA"
             ton="valide"
-            precision="Factures réglées"
+            precision={`${fmtEntier(activite.tickets)} ticket${activite.tickets > 1 ? "s" : ""} depuis minuit`}
           />
           <CarteIndicateur
             libelle="Créances clients"
@@ -135,12 +160,6 @@ export default async function PageTableauDeBord() {
             unite="FCFA"
             ton={activite.creances > 0 ? "alerte" : "valide"}
             precision="Facturé, pas encore encaissé"
-          />
-          <CarteIndicateur
-            libelle="Commissions guichet"
-            valeur={fmt(activite.commissionsGuichet)}
-            unite="FCFA"
-            precision={`${activite.operationsGuichet} opérations · la vraie recette`}
           />
           <CarteIndicateur
             libelle="Valeur du stock"

@@ -5,6 +5,7 @@ import type { OptionSelecteur } from "@/components/coque/selecteur";
 import { exigerSession } from "@/lib/auth/dal";
 import { entreprisesAccessibles } from "@/lib/auth/entreprises";
 import { droitsActifs } from "@/lib/droits/garde";
+import { modulesOuverts } from "@/lib/modules/garde";
 
 const ETIQUETTE_STATUT: Record<string, string> = {
   essai: "essai",
@@ -76,6 +77,7 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
           nomUtilisateur={session.nom}
           entrepriseActive={session.organizationNom}
           droits={droits}
+          modulesOuverts={modulesOuverts()}
         />
 
         {/*

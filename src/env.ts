@@ -25,6 +25,19 @@ const schema = z.object({
    * données réelles.
    */
   OTP_CHANNEL: z.enum(["console", "demo", "sms", "whatsapp"]).default("console"),
+  /**
+   * Modules à ouvrir malgré leurs écrans sur jeu d'essai.
+   *
+   * Clés du registre séparées par des virgules, ou `*` pour toutes. Renseignée,
+   * elle fait foi partout — c'est ainsi qu'on voit en développement ce que le
+   * client verra. Vide, le développement ouvre tout et la production ne s'ouvre
+   * à rien, quoi qu'en dise le rôle.
+   *
+   * Sert à l'instance de démonstration, où montrer la suite du périmètre est
+   * l'objet même de la visite — et nulle part ailleurs. Sur une instance qui
+   * porte de vraies recettes, cette variable reste vide.
+   */
+  MODULES_APERCU: z.string().default(""),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

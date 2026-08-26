@@ -48,3 +48,13 @@ services:
       # Ne jamais l'activer sur une instance contenant de vraies données.
       - key: OTP_CHANNEL
         value: demo
+
+      # Modules ouverts malgré des écrans sur jeu d'essai. Clés du registre
+      # séparées par des virgules, ou « * » pour toutes.
+      #
+      # « * » va de pair avec OTP_CHANNEL=demo : montrer le périmètre à venir
+      # est l'objet même d'une instance de présentation. Sur une instance qui
+      # porte de vraies recettes, cette valeur doit être VIDE — sans quoi le
+      # tableau de bord annonce des factures impayées qui n'existent pas.
+      - key: MODULES_APERCU
+        value: "*"

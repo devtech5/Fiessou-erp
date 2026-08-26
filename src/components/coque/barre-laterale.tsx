@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { seDeconnecter } from "@/lib/auth/actions";
-import type { Droit } from "@/lib/droits/catalogue";
+import { definitionDroit, type Droit } from "@/lib/droits/catalogue";
 
 export interface EntreeModule {
   href: string;
@@ -61,6 +61,18 @@ const GROUPES: GroupeModules[] = [
 ];
 
 /**
+ * Raccourcis personnels du menu de compte.
+ *
+ * Ils pointent vers des modules, et disparaissent donc avec eux : « Mes
+ * documents » sur un module fermé mène à un écran d'attente, ce qui est pire
+ * qu'une entrée absente.
+ */
+const RACCOURCIS_COMPTE: { href: string; libelle: string; module: string }[] = [
+  { href: "/documents", libelle: "Mes documents", module: "documents" },
+  { href: "/rh", libelle: "Mon équipe", module: "personnes" },
+];
+
+/**
  * Barre latérale de navigation.
  *
  * Reprend la disposition des tableaux de bord Vercel et Supabase : liste
@@ -75,6 +87,7 @@ export function BarreLaterale({
   nomUtilisateur,
   entrepriseActive,
   droits,
+  modulesOuverts,
 }: {
   nomUtilisateur: string;
   entrepriseActive: string | null;
@@ -87,10 +100,26 @@ export function BarreLaterale({
    * droit de son côté.
    */
   droits: Droit[];
+  /**
+   * Modules ouverts sur cette instance, calculés eux aussi sur le serveur.
+   *
+   * Un droit accordé ne suffit pas à afficher une entrée : le rôle de gérant
+   * porte « consulter les réservations » depuis le premier jour, bien avant
+   * que le module ne lise autre chose qu'un jeu d'essai. Sans ce second
+   * filtre, la barre annonce dix modules et le client en trouve quatre qui
+   * fonctionnent.
+   */
+  modulesOuverts: string[];
 }) {
   const chemin = usePathname();
   const [replies, setReplies] = useState<string[]>([]);
   const accordes = new Set(droits);
+  const ouverts = new Set(modulesOuverts);
+
+  /** Une entrée s'affiche si le rôle l'autorise ET si le module est ouvert. */
+  const affichable = (entree: EntreeModule) =>
+    accordes.has(entree.droit) &&
+    ouverts.has(definitionDroit(entree.droit).moduleKey);
 
   function basculerGroupe(titre: string) {
     setReplies((actuels) =>
@@ -118,7 +147,7 @@ export function BarreLaterale({
       </Link>
 
       {GROUPES.map((groupe) => {
-        const visibles = groupe.modules.filter((m) => accordes.has(m.droit));
+        const visibles = groupe.modules.filter(affichable);
         // Un groupe dont aucun module n'est accessible disparaît en entier :
         // un titre de section seul n'informe de rien.
         if (visibles.length === 0) return null;
@@ -179,6 +208,7 @@ export function BarreLaterale({
 
         <MenuCompte
           gereLesMembres={accordes.has("organisation.membre.gerer")}
+          raccourcis={RACCOURCIS_COMPTE.filter((r) => ouverts.has(r.module))}
           nomUtilisateur={nomUtilisateur}
           entrepriseActive={entrepriseActive}
         />
@@ -198,11 +228,14 @@ function MenuCompte({
   nomUtilisateur,
   entrepriseActive,
   gereLesMembres,
+  raccourcis,
 }: {
   nomUtilisateur: string;
   entrepriseActive: string | null;
   /** Ouvre l'entrée « Membres et accès ». Le droit se revérifie côté serveur. */
   gereLesMembres: boolean;
+  /** Raccourcis vers les modules ouverts, filtrés par l'appelant. */
+  raccourcis: { href: string; libelle: string }[];
 }) {
   const [ouvert, setOuvert] = useState(false);
   const conteneur = useRef<HTMLDivElement>(null);
@@ -299,8 +332,7 @@ function MenuCompte({
 
           <ul className="p-1">
             {[
-              { href: "/documents", libelle: "Mes documents" },
-              { href: "/rh", libelle: "Mon équipe" },
+              ...raccourcis,
               // Les accès se règlent depuis le compte, pas depuis un module :
               // ce n'est pas une activité de l'entreprise, c'est son
               // administration.
