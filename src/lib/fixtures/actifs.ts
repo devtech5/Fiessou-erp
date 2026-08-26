@@ -109,6 +109,12 @@ export interface ResultatParc {
   actifs: number;
   interventions: number;
   echeances: number;
+  /**
+   * Identifiants créés, par code. Les documents de démonstration s'y rattachent
+   * — une carte grise vise VEH-001 — sans avoir à relire la base juste après
+   * l'avoir écrite.
+   */
+  parCode: Map<string, string>;
 }
 
 /**
@@ -214,5 +220,6 @@ export async function amorcerParc(
     actifs: parCode.size,
     interventions: INTERVENTIONS_DEMO.length,
     echeances: echeancesPosees,
+    parCode,
   };
 }

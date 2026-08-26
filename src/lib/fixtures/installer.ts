@@ -9,7 +9,9 @@ import { rateOf } from "@/lib/money";
 import { versQuantite } from "@/lib/quantite";
 import { creerArticleDans, creerFamilleDans } from "@/modules/catalogue/creation";
 import { articles } from "@/modules/catalogue/schema";
+import { actifs } from "@/modules/actifs/schema";
 import { aUnActif } from "@/modules/actifs/requetes";
+import { aUnDocument } from "@/modules/documents/requetes";
 import { employees, workers } from "@/modules/personnes/schema";
 import { aUnIntervenant, aUnSalarie } from "@/modules/personnes/requetes";
 import { aUnDepot, listerDepots } from "@/modules/stock/requetes";
@@ -23,6 +25,7 @@ import { creerPosteCaisseDans } from "@/modules/ventes/creation";
 import { postesCaisse } from "@/modules/ventes/schema";
 
 import { amorcerParc } from "./actifs";
+import { amorcerDocuments } from "./documents";
 import { amorcerPersonnel } from "./rh";
 import { amorcerStock, type ArticleAAmorcer } from "./stock";
 
@@ -83,6 +86,8 @@ export interface ResultatInstallation {
   actifs: number;
   interventions: number;
   echeances: number;
+  documents: number;
+  signatures: number;
 }
 
 /** Code de famille sur trois lettres, désambiguïsé si deux catégories collent. */
@@ -115,6 +120,7 @@ export async function installerJeuDemonstration(
     const stock = await completerStock(organizationId, userId);
     const personnel = await completerPersonnel(organizationId, userId);
     const parc = await completerParc(organizationId, userId);
+    const pieces = await completerDocuments(organizationId, userId);
 
     return {
       deja: true,
@@ -125,6 +131,7 @@ export async function installerJeuDemonstration(
       ...stock,
       ...personnel,
       ...parc,
+      ...pieces,
     };
   }
 
@@ -292,6 +299,15 @@ export async function installerJeuDemonstration(
     // salarié, une bétonnière à un maçon, et les deux doivent exister.
     const parc = await amorcerParc(tx, organizationId, personnel.reperes, userId);
 
+    // Les documents viennent en dernier : ils se rattachent aux salariés, aux
+    // intervenants et aux actifs, qui doivent tous exister.
+    const pieces = await amorcerDocuments(
+      tx,
+      organizationId,
+      reperesDocuments(personnel.reperes, parc.parCode),
+      userId,
+    );
+
     return {
       deja: false,
       tiers: FOURNISSEURS.length + CLIENTS.length,
@@ -307,6 +323,8 @@ export async function installerJeuDemonstration(
       actifs: parc.actifs,
       interventions: parc.interventions,
       echeances: parc.echeances,
+      documents: pieces.documents,
+      signatures: pieces.signatures,
     };
   });
 }
@@ -491,7 +509,71 @@ async function completerParc(
     intervenants: new Map(intervenants.map((i) => [i.nom, i.id])),
   };
 
-  return db.transaction((tx) => amorcerParc(tx, organizationId, reperes, userId));
+  const { actifs: poses, interventions, echeances } = await db.transaction((tx) =>
+    amorcerParc(tx, organizationId, reperes, userId),
+  );
+
+  return { actifs: poses, interventions, echeances };
+}
+
+/**
+ * Rassemble en une seule table de correspondance ce à quoi un document peut se
+ * rattacher : salariés et intervenants par leur nom, actifs par leur code.
+ */
+function reperesDocuments(
+  personnel: { employes: Map<string, string>; intervenants: Map<string, string> },
+  parc: Map<string, string>,
+): Map<string, { id: string; libelle: string }> {
+  const reperes = new Map<string, { id: string; libelle: string }>();
+
+  for (const [nom, id] of personnel.employes) reperes.set(nom, { id, libelle: nom });
+  for (const [nom, id] of personnel.intervenants) reperes.set(nom, { id, libelle: nom });
+  for (const [code, id] of parc) reperes.set(code, { id, libelle: code });
+
+  return reperes;
+}
+
+/**
+ * Verse les documents dans une entreprise amorcée avant le module Documents.
+ *
+ * Les repères se relisent en base : le personnel et le parc sont déjà là, et
+ * le nom — le code pour un actif — est la seule clé commune entre le jeu de
+ * démonstration et ce qui a été enregistré.
+ */
+async function completerDocuments(
+  organizationId: string,
+  userId?: string,
+): Promise<{ documents: number; signatures: number }> {
+  if (await aUnDocument(organizationId)) {
+    return { documents: 0, signatures: 0 };
+  }
+
+  const [salaries, intervenants, parc] = await Promise.all([
+    db
+      .select({ id: employees.id, nom: employees.nom })
+      .from(employees)
+      .where(eq(employees.organizationId, organizationId)),
+    db
+      .select({ id: workers.id, nom: workers.nom })
+      .from(workers)
+      .where(eq(workers.organizationId, organizationId)),
+    db
+      .select({ id: actifs.id, code: actifs.code })
+      .from(actifs)
+      .where(eq(actifs.organizationId, organizationId)),
+  ]);
+
+  const reperes = reperesDocuments(
+    {
+      employes: new Map(salaries.map((s) => [s.nom, s.id])),
+      intervenants: new Map(intervenants.map((i) => [i.nom, i.id])),
+    },
+    new Map(parc.map((a) => [a.code, a.id])),
+  );
+
+  return db.transaction((tx) =>
+    amorcerDocuments(tx, organizationId, reperes, userId),
+  );
 }
 
 /**

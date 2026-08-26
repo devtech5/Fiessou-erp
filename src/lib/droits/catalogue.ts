@@ -189,11 +189,40 @@ export const DROITS = [
     description: "Assurance, visite technique, garantie, entretien périodique.",
   },
 
+  // ----------------------------------------------------------- documents
+  {
+    cle: "documents.consulter",
+    moduleKey: "documents",
+    libelle: "Consulter les documents",
+    description: "Voir la bibliothèque et ouvrir une pièce jointe.",
+  },
+  {
+    cle: "documents.gerer",
+    moduleKey: "documents",
+    libelle: "Déposer et retirer un document",
+    description:
+      "Joindre une pièce à un client, un salarié, un actif. Retirer un document " +
+      "efface son fichier pour de bon.",
+  },
+  {
+    cle: "documents.signature.demander",
+    moduleKey: "documents",
+    libelle: "Demander une signature",
+    description: "Ouvrir une demande et désigner ses signataires.",
+  },
+  {
+    cle: "documents.signature.signer",
+    moduleKey: "documents",
+    libelle: "Signer",
+    description:
+      "Apposer sa signature sur une demande. Distinct du droit de la demander : " +
+      "celui qui prépare le contrat n'est pas forcément celui qui l'engage.",
+  },
+
   // ------------------------------------------------- modules en préparation
   // Ces écrans montrent encore des données d'exemple ; le droit gouverne leur
   // accès dès maintenant, pour que l'ouverture du module ne soit pas le moment
   // où l'on découvre que tout le monde y entre.
-  { cle: "documents.consulter", moduleKey: "documents", libelle: "Consulter les documents" },
   { cle: "reservation.consulter", moduleKey: "reservation", libelle: "Consulter les réservations" },
   { cle: "missions.consulter", moduleKey: "missions", libelle: "Consulter les missions" },
   { cle: "billetterie.consulter", moduleKey: "billetterie", libelle: "Consulter la billetterie" },

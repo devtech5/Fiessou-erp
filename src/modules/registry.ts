@@ -108,7 +108,13 @@ export const MODULES: ModuleDefinition[] = [
     key: "documents",
     name: "Documents & Signature",
     layer: "socle",
-    status: "planifie",
+    // En base : bibliothèque, rattachement polymorphe, échéances de validité,
+    // demandes de signature et signataires. Le fichier vit dans un dépôt privé,
+    // lu par URL signée. Le module SUIT une signature, il ne la CERTIFIE pas :
+    // restent la page publique de signature pour les tiers extérieurs, le code
+    // à six chiffres réellement transmis, et tout ce qui ferait une signature
+    // qualifiée au sens réglementaire.
+    status: "en_cours",
     requires: [],
     description:
       "Pièces rattachées aux entités métier, permissions, signature électronique.",

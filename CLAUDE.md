@@ -182,6 +182,33 @@ pnpm db:studio                # inspecteur de base
 
 Copier `.env.example` vers `.env.local` avant le premier démarrage.
 
+## Les fichiers vivent dans un dépôt, pas dans la base
+
+Le module Documents joint des pièces aux entités métier. Le fichier ne va pas
+en base : il part dans Supabase Storage, et seule sa clé est stockée.
+
+Tout passe par `src/lib/stockage/` — une interface, un adaptateur derrière,
+comme `src/lib/auth/canaux/` pour l'envoi des codes. Le reste de l'application
+ne connaît que l'interface. C'est ce qui garde la base portable vers n'importe
+quel PostgreSQL malgré l'arrivée d'un SDK d'hébergeur.
+
+**La clé employée contourne RLS sur tout le projet.** `SUPABASE_SERVICE_ROLE_KEY`
+ne prend jamais de préfixe `NEXT_PUBLIC_` et ne se lit que dans un module
+marqué `import "server-only"`. Dans le navigateur, elle donnerait l'écriture
+sur toutes les entreprises.
+
+**Le bucket est PRIVÉ.** Aucun lien direct ne fonctionne : chaque ouverture
+passe par une URL signée valable cinq minutes, demandée au clic et jamais
+rendue dans le HTML — une adresse posée dans une page en cache resterait
+valable pour qui la retrouve.
+
+Le chemin d'un fichier commence par l'identifiant de l'entreprise
+(`<org>/<document>.<ext>`), pour qu'une policy de stockage puisse isoler sur le
+préfixe comme `organization_id` isole les lignes.
+
+Sans ces variables, le module reste utilisable : les fiches se créent, les
+échéances se suivent, et seul l'ajout de pièce refuse en disant pourquoi.
+
 ## La base est sur Supabase
 
 Le projet travaille directement sur Supabase, pas sur un PostgreSQL local. Le

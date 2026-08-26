@@ -1,175 +1,210 @@
+import "server-only";
+
+import { newId } from "@/lib/ids";
+import { prochainNumero, type Transaction } from "@/lib/sequences";
+import {
+  demandesSignature,
+  documents,
+  signataires,
+  type StatutSignature,
+  type TypeEntiteDocument,
+  type VisibiliteDocument,
+} from "@/modules/documents/schema";
+
 /**
- * Jeu de démonstration — documents et signature.
+ * Amorçage des documents de démonstration.
  *
- * Périmètre volontairement resserré. Le concurrent en fait un pilier de son
- * offre : son module contient 208 Ko et six fichiers en démonstration, et
- * embarque un tableur ainsi qu'un traitement de texte reconstruits à la main —
+ * Périmètre volontairement resserré. Le concurrent en fait un pilier : son
+ * module embarque un tableur et un traitement de texte reconstruits à la main,
  * des mois d'effort pour concurrencer un logiciel que le client possède déjà.
  *
- * Ici, ce n'est pas un module de stockage mais une PIÈCE JOINTE disponible
- * partout. Sa seule valeur propre est le rattachement : un contrat lié à son
- * client, une pièce justificative liée à son écriture, un permis lié à son
- * conducteur. Un fichier qui ne pointe vers rien n'est qu'un fichier.
+ * Ici, ce n'est pas un espace de stockage mais une PIÈCE JOINTE disponible
+ * partout. Sa seule valeur propre est le rattachement — un contrat lié à son
+ * client, un justificatif lié à son écriture, un permis lié à son conducteur.
+ *
+ * Ces fiches sont versées SANS FICHIER : un jeu de démonstration ne va pas
+ * téléverser douze pièces vers le dépôt à chaque installation, et une fiche
+ * sans pièce est un cas réel — l'original papier rangé dans un tiroir dont on
+ * suit seulement l'échéance.
  */
 
-/** Entités métier auxquelles un document peut se rattacher. */
-export type TypeEntite =
-  | "client"
-  | "fournisseur"
-  | "employe"
-  | "intervenant"
-  | "contrat"
-  | "facture"
-  | "actif"
-  | "mission"
-  | "ecriture";
-
-export const LIBELLE_ENTITE: Record<TypeEntite, string> = {
-  client: "Client",
-  fournisseur: "Fournisseur",
-  employe: "Salarié",
-  intervenant: "Intervenant",
-  contrat: "Contrat",
-  facture: "Facture",
-  actif: "Actif",
-  mission: "Mission",
-  ecriture: "Écriture",
-};
-
-export type Visibilite = "prive" | "restreint" | "equipe";
-
-export const LIBELLE_VISIBILITE: Record<Visibilite, string> = {
-  prive: "Privé",
-  restreint: "Restreint",
-  equipe: "Toute l'équipe",
-};
-
 export interface DocumentDemo {
-  id: string;
   nom: string;
-  format: "PDF" | "JPG" | "PNG" | "XLSX" | "DOCX";
-  tailleKo: number;
   categorie: string;
-  /** Le rattachement : c'est ce qui donne sa valeur au document. */
-  entite: TypeEntite;
-  entiteLibelle: string;
-  visibilite: Visibilite;
-  ajoutePar: string;
-  date: string;
-  /** Échéance propre au document — assurance, agrément, contrat. */
+  entiteType: TypeEntiteDocument;
+  /** Nom de l'objet visé, résolu par les repères passés à l'amorçage. */
+  entiteNom: string;
+  visibilite: VisibiliteDocument;
+  /** Échéance de validité, date nue ISO. */
   expireLe?: string;
-  joursAvantExpiration?: number;
 }
 
-export const DOCUMENTS: DocumentDemo[] = [
-  { id: "d1", nom: "Contrat de bail — Résidence Cocody 101", format: "PDF", tailleKo: 842, categorie: "Contrats", entite: "contrat", entiteLibelle: "SEJ-2026-0042", visibilite: "restreint", ajoutePar: "Traoré Fatou", date: "01/08/2026" },
-  { id: "d2", nom: "Attestation CNPS — Amani Tatiana", format: "PDF", tailleKo: 156, categorie: "Ressources humaines", entite: "employe", entiteLibelle: "S0002 · Amani Tatiana", visibilite: "prive", ajoutePar: "Traoré Fatou", date: "18/06/2026" },
-  { id: "d3", nom: "Carte grise — Toyota Hilux", format: "PDF", tailleKo: 320, categorie: "Parc", entite: "actif", entiteLibelle: "VEH-001", visibilite: "equipe", ajoutePar: "Koffi Bernard", date: "12/03/2023" },
-  { id: "d4", nom: "Police d'assurance — Yamaha AG100", format: "PDF", tailleKo: 284, categorie: "Parc", entite: "actif", entiteLibelle: "VEH-003", visibilite: "equipe", ajoutePar: "Koffi Bernard", date: "01/09/2025", expireLe: "31/08/2026", joursAvantExpiration: 6 },
-  { id: "d5", nom: "Facture fournisseur — Nestlé CI août", format: "PDF", tailleKo: 198, categorie: "Comptabilité", entite: "ecriture", entiteLibelle: "AC-2026-0186", visibilite: "restreint", ajoutePar: "Traoré Fatou", date: "20/08/2026" },
-  { id: "d6", nom: "Bon de livraison signé — Ets Sopé Naby", format: "JPG", tailleKo: 1_240, categorie: "Commercial", entite: "facture", entiteLibelle: "FAC-2026-0321", visibilite: "equipe", ajoutePar: "Konan Michel", date: "23/08/2026" },
-  { id: "d7", nom: "Photo de livraison — Cocody Angré", format: "JPG", tailleKo: 2_180, categorie: "Terrain", entite: "mission", entiteLibelle: "LIV-2026-0412", visibilite: "equipe", ajoutePar: "Touré Mamadou", date: "25/08/2026" },
-  { id: "d8", nom: "Pièce d'identité — Ouattara Ibrahim", format: "JPG", tailleKo: 680, categorie: "Ressources humaines", entite: "intervenant", entiteLibelle: "Ouattara Ibrahim · Maçon", visibilite: "prive", ajoutePar: "Koffi Bernard", date: "14/07/2026" },
-  { id: "d9", nom: "Registre de commerce — Pharmacie du Plateau", format: "PDF", tailleKo: 410, categorie: "Commercial", entite: "client", entiteLibelle: "Pharmacie du Plateau", visibilite: "restreint", ajoutePar: "Koffi Bernard", date: "05/02/2026" },
-  { id: "d10", nom: "Agrément fournisseur — Sivop", format: "PDF", tailleKo: 226, categorie: "Achats", entite: "fournisseur", entiteLibelle: "F003 · Sivop", visibilite: "equipe", ajoutePar: "Traoré Fatou", date: "10/01/2026", expireLe: "31/12/2026", joursAvantExpiration: 128 },
-  { id: "d11", nom: "Visite technique — Renault Kangoo", format: "PDF", tailleKo: 178, categorie: "Parc", entite: "actif", entiteLibelle: "VEH-002", visibilite: "equipe", ajoutePar: "Konan Michel", date: "12/09/2025", expireLe: "12/09/2026", joursAvantExpiration: 18 },
-  { id: "d12", nom: "État des lieux — Sonorisation restituée", format: "PDF", tailleKo: 512, categorie: "Locations", entite: "contrat", entiteLibelle: "LOC-2026-0084", visibilite: "equipe", ajoutePar: "Aya Danielle", date: "17/08/2026" },
+export const DOCUMENTS_DEMO: DocumentDemo[] = [
+  { nom: "Attestation CNPS — Amani Tatiana", categorie: "Ressources humaines", entiteType: "employe", entiteNom: "Amani Tatiana", visibilite: "prive" },
+  { nom: "Contrat de travail — Aya Danielle", categorie: "Ressources humaines", entiteType: "employe", entiteNom: "Aya Danielle", visibilite: "prive", expireLe: "2026-08-31" },
+  { nom: "Pièce d'identité — Ouattara Ibrahim", categorie: "Ressources humaines", entiteType: "intervenant", entiteNom: "Ouattara Ibrahim", visibilite: "prive" },
+  { nom: "Carte grise — Toyota Hilux", categorie: "Parc", entiteType: "actif", entiteNom: "VEH-001", visibilite: "equipe" },
+  { nom: "Police d'assurance — Yamaha AG100", categorie: "Parc", entiteType: "actif", entiteNom: "VEH-003", visibilite: "equipe", expireLe: "2026-08-31" },
+  { nom: "Visite technique — Renault Kangoo", categorie: "Parc", entiteType: "actif", entiteNom: "VEH-002", visibilite: "equipe", expireLe: "2026-09-12" },
+  { nom: "Facture d'achat — Bétonnière 350 L", categorie: "Parc", entiteType: "actif", entiteNom: "ENG-001", visibilite: "restreint" },
 ];
 
-// ------------------------------------------------------------- signatures
+/**
+ * Documents qui ne visent que l'entreprise elle-même.
+ *
+ * Ils n'ont pas de repère à résoudre : le registre de commerce ou l'agrément
+ * ne se rattachent à aucun client ni à aucun véhicule.
+ */
+export const DOCUMENTS_ORGANISATION: DocumentDemo[] = [
+  { nom: "Registre de commerce", categorie: "Administratif", entiteType: "organisation", entiteNom: "", visibilite: "restreint" },
+  { nom: "Déclaration fiscale d'existence", categorie: "Administratif", entiteType: "organisation", entiteNom: "", visibilite: "restreint" },
+];
 
-export type StatutSignature =
-  | "brouillon"
-  | "envoyee"
-  | "partielle"
-  | "signee"
-  | "expiree"
-  | "annulee";
-
-export const LIBELLE_SIGNATURE: Record<StatutSignature, string> = {
-  brouillon: "Brouillon",
-  envoyee: "Envoyée",
-  partielle: "Partiellement signée",
-  signee: "Signée",
-  expiree: "Expirée",
-  annulee: "Annulée",
-};
-
-export interface Signataire {
-  nom: string;
-  /** Interne à l'entreprise, ou tiers extérieur. */
-  interne: boolean;
-  signeLe?: string;
-}
-
-export interface DemandeSignature {
-  id: string;
-  reference: string;
+export interface SignatureDemo {
+  /** Nom du document à faire signer, tel qu'il figure plus haut. */
   document: string;
   statut: StatutSignature;
-  signataires: Signataire[];
-  cree: string;
-  expireLe: string;
-  /** Code à six chiffres transmis hors du canal d'envoi. */
   codeSecurite: boolean;
+  /** Validité restante, en jours. Négative pour une demande expirée. */
+  expireDansJours: number;
+  signataires: { nom: string; interne: boolean; signe: boolean }[];
 }
 
-export const SIGNATURES: DemandeSignature[] = [
+export const SIGNATURES_DEMO: SignatureDemo[] = [
   {
-    id: "s1",
-    reference: "SIG-2026-0057",
-    document: "Contrat de bail — Résidence Cocody 102",
+    document: "Contrat de travail — Aya Danielle",
     statut: "partielle",
-    cree: "24/08/2026",
-    expireLe: "31/08/2026",
     codeSecurite: true,
+    expireDansJours: 5,
     signataires: [
-      { nom: "Koffi Bernard", interne: true, signeLe: "24/08/2026" },
-      { nom: "Silué Fatoumata", interne: false },
+      { nom: "Koffi Bernard", interne: true, signe: true },
+      { nom: "Aya Danielle", interne: true, signe: false },
     ],
   },
   {
-    id: "s2",
-    reference: "SIG-2026-0056",
-    document: "Contrat de location — Échafaudage LOC-2026-0088",
+    document: "Facture d'achat — Bétonnière 350 L",
     statut: "signee",
-    cree: "22/08/2026",
-    expireLe: "29/08/2026",
     codeSecurite: false,
+    expireDansJours: 3,
     signataires: [
-      { nom: "Koffi Bernard", interne: true, signeLe: "22/08/2026" },
-      { nom: "Quincaillerie Adjamé", interne: false, signeLe: "23/08/2026" },
+      { nom: "Koffi Bernard", interne: true, signe: true },
+      { nom: "Quincaillerie Adjamé", interne: false, signe: true },
     ],
   },
   {
-    id: "s3",
-    reference: "SIG-2026-0055",
-    document: "Avenant au contrat de travail — Aya Danielle",
-    statut: "envoyee",
-    cree: "23/08/2026",
-    expireLe: "06/09/2026",
-    codeSecurite: true,
-    signataires: [
-      { nom: "Traoré Fatou", interne: true },
-      { nom: "Aya Danielle", interne: true },
-    ],
-  },
-  {
-    id: "s4",
-    reference: "SIG-2026-0052",
-    document: "Devis DEV-2026-0119 — Kouadio Yao",
+    document: "Police d'assurance — Yamaha AG100",
     statut: "expiree",
-    cree: "10/08/2026",
-    expireLe: "17/08/2026",
     codeSecurite: false,
+    expireDansJours: -9,
     signataires: [
-      { nom: "Koffi Bernard", interne: true, signeLe: "10/08/2026" },
-      { nom: "Kouadio Yao", interne: false },
+      { nom: "Koffi Bernard", interne: true, signe: true },
+      { nom: "Kouadio Yao", interne: false, signe: false },
     ],
   },
 ];
 
-/** Une demande est bloquée tant qu'il reste un signataire à relancer. */
-export function signatairesManquants(demande: DemandeSignature): number {
-  return demande.signataires.filter((s) => !s.signeLe).length;
+export interface ResultatDocuments {
+  documents: number;
+  signatures: number;
+}
+
+/**
+ * Verse les documents de démonstration dans une entreprise.
+ *
+ * `reperes` associe un nom à un identifiant déjà en base — salariés,
+ * intervenants, actifs. Un document dont la cible n'existe pas est versé SANS
+ * rattachement plutôt que d'être ignoré : la contrainte en base exige que le
+ * type et l'identifiant aillent ensemble, et une pièce sans lien reste une
+ * pièce.
+ *
+ * Les insertions sont GROUPÉES : sur le pooler en mode transaction, une
+ * insertion par ligne sérialise autant d'allers-retours vers Abidjan.
+ */
+export async function amorcerDocuments(
+  tx: Transaction,
+  organizationId: string,
+  reperes: Map<string, { id: string; libelle: string }>,
+  userId?: string,
+): Promise<ResultatDocuments> {
+  const lignes: (typeof documents.$inferInsert)[] = [];
+  const parNom = new Map<string, string>();
+
+  for (const doc of [...DOCUMENTS_DEMO, ...DOCUMENTS_ORGANISATION]) {
+    const id = newId();
+    parNom.set(doc.nom, id);
+
+    // L'entreprise se vise elle-même : pas de repère à chercher.
+    const cible =
+      doc.entiteType === "organisation"
+        ? { id: organizationId, libelle: "L'entreprise" }
+        : reperes.get(doc.entiteNom);
+
+    lignes.push({
+      id,
+      organizationId,
+      nom: doc.nom,
+      categorie: doc.categorie,
+      entiteType: cible ? doc.entiteType : null,
+      entiteId: cible?.id ?? null,
+      entiteLibelle: cible?.libelle ?? null,
+      visibilite: doc.visibilite,
+      expireLe: doc.expireLe ?? null,
+      notes: "Fiche de démonstration, sans pièce jointe.",
+      deposeParUserId: userId ?? null,
+    });
+  }
+
+  if (lignes.length > 0) await tx.insert(documents).values(lignes);
+
+  // ------------------------------------------------------------ signatures
+  const exercice = String(new Date().getFullYear());
+  const demandes: (typeof demandesSignature.$inferInsert)[] = [];
+  const equipes: (typeof signataires.$inferInsert)[] = [];
+
+  for (const demande of SIGNATURES_DEMO) {
+    const documentId = parNom.get(demande.document);
+    if (!documentId) continue;
+
+    const id = newId();
+    const reference = await prochainNumero(tx, organizationId, {
+      cle: "signature",
+      prefix: `SIG-${exercice}-`,
+      padding: 5,
+      periode: exercice,
+    });
+
+    const expireLe = new Date();
+    expireLe.setDate(expireLe.getDate() + demande.expireDansJours);
+
+    demandes.push({
+      id,
+      organizationId,
+      reference,
+      documentId,
+      statut: demande.statut,
+      codeSecurite: demande.codeSecurite,
+      expireLe,
+      signeeLe: demande.statut === "signee" ? new Date() : null,
+      userId: userId ?? null,
+    });
+
+    demande.signataires.forEach((signataire, index) => {
+      equipes.push({
+        id: newId(),
+        organizationId,
+        demandeId: id,
+        nom: signataire.nom,
+        interne: signataire.interne,
+        ordre: index,
+        signeLe: signataire.signe ? new Date() : null,
+      });
+    });
+  }
+
+  if (demandes.length > 0) {
+    await tx.insert(demandesSignature).values(demandes);
+    await tx.insert(signataires).values(equipes);
+  }
+
+  return { documents: lignes.length, signatures: demandes.length };
 }

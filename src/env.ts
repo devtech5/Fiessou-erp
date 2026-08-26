@@ -52,6 +52,23 @@ const schema = z.object({
   WHATSAPP_VERSION: z.string().default("v25.0"),
 
   /**
+   * Dépôt de fichiers — Supabase Storage.
+   *
+   * Facultatifs : sans eux, la bibliothèque de documents se lit toujours, et
+   * seul l'ajout de fichier refuse en disant pourquoi. Une variable oubliée ne
+   * doit pas fermer un module entier.
+   *
+   * `SUPABASE_SERVICE_ROLE_KEY` CONTOURNE RLS sur tout le projet. Aucun
+   * préfixe `NEXT_PUBLIC_`, aucune lecture hors d'un module `server-only` : une
+   * clé de ce niveau dans le navigateur donne l'écriture sur toutes les
+   * entreprises.
+   */
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  /** Bucket PRIVÉ. Public, il rendrait tout contrat lisible par qui devine l'URL. */
+  SUPABASE_BUCKET: z.string().default("documents"),
+
+  /**
    * Modules à ouvrir malgré leurs écrans sur jeu d'essai.
    *
    * Clés du registre séparées par des virgules, ou `*` pour toutes. Renseignée,
