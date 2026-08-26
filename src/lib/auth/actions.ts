@@ -7,9 +7,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { memberships, organizations, roles, users } from "@/db/schema";
+import { memberships, users } from "@/db/schema";
 import { env } from "@/env";
 import { newId } from "@/lib/ids";
+import { creerEntreprisePour } from "./creation-entreprise";
 import { emettreCode, normaliserTelephone, verifierCode } from "./otp";
 import {
   choisirEntreprise,
@@ -158,33 +159,15 @@ export async function finaliserInscription(
       phoneVerifiedAt: new Date(),
     });
 
-    const organizationId = newId();
-    await tx.insert(organizations).values({
-      id: organizationId,
-      name: entreprise,
-      slug: `${slug(entreprise)}-${organizationId.slice(0, 8)}`,
-      countryCode: env.DEFAULT_COUNTRY,
-      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-    });
-
-    const roleId = newId();
-    await tx.insert(roles).values({
-      id: roleId,
-      organizationId,
-      key: "proprietaire",
-      name: "Propriétaire",
-      description: "Tous les droits, y compris l'abonnement.",
-    });
-
-    await tx.insert(memberships).values({
-      id: newId(),
-      organizationId,
+    // L'entreprise, ses rôles et le rattachement du propriétaire naissent
+    // ensemble, dans la même transaction que l'utilisateur : celui qui
+    // s'inscrit doit se retrouver administrateur de sa boutique, ou pas
+    // d'inscription du tout.
+    await creerEntreprisePour(
       userId,
-      roleId,
-      status: "actif",
-      isOwner: true,
-      joinedAt: new Date(),
-    });
+      { nom: entreprise, pays: env.DEFAULT_COUNTRY },
+      tx,
+    );
   });
 
   await ouvrirSessionAvecContexte(userId);
@@ -257,16 +240,4 @@ async function ouvrirSessionAvecContexte(userId: string): Promise<void> {
       entetes.get("x-real-ip") ??
       undefined,
   });
-}
-
-function slug(valeur: string): string {
-  return valeur
-    .toLowerCase()
-    .normalize("NFD")
-    // Diacritiques décomposés par NFD, en notation échappée : des caractères
-    // combinants écrits littéralement sont invisibles à la relecture.
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40);
 }

@@ -6,7 +6,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { cookies } from "next/headers";
 
 import { db } from "@/db";
-import { memberships, organizations, sessions, users } from "@/db/schema";
+import { memberships, organizations, roles, sessions, users } from "@/db/schema";
 import { newId } from "@/lib/ids";
 
 export const COOKIE_SESSION = "fiessou_session";
@@ -37,6 +37,14 @@ export interface SessionActive {
   organizationId: string | null;
   organizationNom: string | null;
   roleId: string | null;
+  /**
+   * Clé du rôle dans l'entreprise active — `proprietaire`, `caissier`… C'est
+   * elle, et non l'identifiant, qui décide des droits quand le rôle est l'un
+   * de ceux que Fiessou fournit. Voir `src/lib/droits/catalogue.ts`.
+   */
+  roleCle: string | null;
+  /** Créateur de l'entreprise : tous les droits, sans condition. */
+  estProprietaire: boolean;
   /**
    * Appareil de cette session, tel qu'il s'est annoncé à l'ouverture.
    *
@@ -123,9 +131,12 @@ export async function lireSession(): Promise<SessionActive | null> {
       organizationId: memberships.organizationId,
       nom: organizations.name,
       roleId: memberships.roleId,
+      roleCle: roles.key,
+      estProprietaire: memberships.isOwner,
     })
     .from(memberships)
     .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+    .innerJoin(roles, eq(roles.id, memberships.roleId))
     .where(
       and(eq(memberships.userId, ligne.userId), eq(memberships.status, "actif")),
     );
@@ -161,6 +172,8 @@ export async function lireSession(): Promise<SessionActive | null> {
     organizationId: actif?.organizationId ?? null,
     organizationNom: actif?.nom ?? null,
     roleId: actif?.roleId ?? null,
+    roleCle: actif?.roleCle ?? null,
+    estProprietaire: actif?.estProprietaire ?? false,
     deviceId: ligne.deviceId,
   };
 }

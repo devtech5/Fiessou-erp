@@ -17,6 +17,8 @@
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
 
+import { PRESETS_ROLES } from "../lib/droits/catalogue";
+
 loadEnv({ path: ".env.local", quiet: true });
 
 const url = process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL;
@@ -51,12 +53,20 @@ async function main() {
       returning id
     `;
 
-    const [role] = await sql`
-      insert into roles (organization_id, key, name, description)
-      values (${entreprise.id}, 'proprietaire', 'Propriétaire',
-              'Tous les droits, y compris l''abonnement.')
-      on conflict (organization_id, key) do update set name = excluded.name
-      returning id
+    // L'entreprise de démonstration reçoit les mêmes rôles qu'une vraie : la
+    // démonstration sert aussi à montrer qu'un caissier ne voit pas la
+    // comptabilité.
+    for (const preset of PRESETS_ROLES) {
+      await sql`
+        insert into roles (organization_id, key, name, description, is_system)
+        values (${entreprise.id}, ${preset.cle}, ${preset.nom}, ${preset.description}, true)
+        on conflict (organization_id, key) do nothing
+      `;
+    }
+
+    const [role] = await sql<{ id: string }[]>`
+      select id from roles
+      where organization_id = ${entreprise.id} and key = 'proprietaire'
     `;
 
     await sql`

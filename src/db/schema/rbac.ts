@@ -4,9 +4,17 @@ import { boolean, pgTable, primaryKey, text, unique, uuid } from "drizzle-orm/pg
 import { primaryId, timestamps } from "./_shared";
 
 /**
- * Rôle. Un rôle système (organizationId nul) est fourni par Fiessou et
- * disponible pour toutes les entreprises. Une entreprise peut en créer
- * d'autres, qui n'appartiennent qu'à elle.
+ * Rôle.
+ *
+ * Un rôle marqué `isSystem` est fourni par Fiessou : il est copié dans chaque
+ * entreprise à sa création, et ses droits sont lus dans le code
+ * (`src/lib/droits/catalogue.ts`), jamais dans `role_permissions`. Copié
+ * plutôt que partagé, pour qu'un exploitant puisse appeler son caissier
+ * « guichetier » sans renommer celui du voisin — seule la `key` reste commune,
+ * et c'est elle qui décide des droits.
+ *
+ * Une entreprise peut en créer d'autres, qui n'appartiennent qu'à elle et
+ * tirent leurs droits de `role_permissions`.
  */
 export const roles = pgTable(
   "roles",
