@@ -80,6 +80,15 @@ export interface ResultatPersonnel {
   salaries: number;
   intervenants: number;
   pointages: number;
+  /**
+   * Identifiants créés, par nom. Le parc de démonstration en a besoin pour
+   * affecter un fourgon à un chauffeur salarié et une bétonnière à un maçon —
+   * sans quoi il faudrait relire la base juste après l'avoir écrite.
+   */
+  reperes: {
+    employes: Map<string, string>;
+    intervenants: Map<string, string>;
+  };
 }
 
 /**
@@ -101,8 +110,11 @@ export async function amorcerPersonnel(
   organizationId: string,
   userId?: string,
 ): Promise<ResultatPersonnel> {
+  const employes = new Map<string, string>();
+  const intervenantsCrees = new Map<string, string>();
+
   for (const salarie of SALARIES_DEMO) {
-    await creerSalarieDans(
+    const { id } = await creerSalarieDans(
       tx,
       organizationId,
       {
@@ -117,6 +129,8 @@ export async function amorcerPersonnel(
       },
       userId,
     );
+
+    employes.set(salarie.nom, id);
   }
 
   const lignes: (typeof pointages.$inferInsert)[] = [];
@@ -136,6 +150,8 @@ export async function amorcerPersonnel(
       },
       userId,
     );
+
+    intervenantsCrees.set(intervenant.nom, id);
 
     const quantite = versQuantite(intervenant.pointe);
     const piece = await prochainNumero(tx, organizationId, {
@@ -169,5 +185,6 @@ export async function amorcerPersonnel(
     salaries: SALARIES_DEMO.length,
     intervenants: INTERVENANTS_DEMO.length,
     pointages: lignes.length,
+    reperes: { employes, intervenants: intervenantsCrees },
   };
 }

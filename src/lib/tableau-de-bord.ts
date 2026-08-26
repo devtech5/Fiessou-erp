@@ -1,4 +1,3 @@
-import { ACTIFS, ECHEANCES, resteAvantEcheance } from "@/lib/fixtures/actifs";
 import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
 import { DOCUMENTS, comptabilisable, totalTTC } from "@/lib/fixtures/gestion";
 import { MISSIONS } from "@/lib/fixtures/missions";
@@ -58,6 +57,21 @@ const ORDRE: Record<Gravite, number> = {
  * une fonction de mise en forme, sans accès à la base, donc lisible et
  * testable. C'est l'écran qui interroge.
  */
+/**
+ * Ce que le parc a d'urgent, réduit à deux nombres.
+ *
+ * Comme pour le stock : le tableau de bord ne lit pas la base lui-même, il
+ * reçoit des faits déjà établis. C'est ce qui le garde testable sans
+ * PostgreSQL, et ce qui empêche une requête de se glisser dans un module de
+ * présentation.
+ */
+export interface EtatParc {
+  /** Échéances dont le terme ou le seuil de compteur est franchi. */
+  echeancesDepassees: number;
+  /** Actifs en entretien ou immobilisés : indisponibles à l'exploitation. */
+  indisponibles: number;
+}
+
 export interface EtatStock {
   ruptures: number;
   /** Articles dont l'autonomie tombe sous le délai de réaction habituel. */
@@ -78,6 +92,7 @@ export interface EtatStock {
 export function alertes(
   piecesPassees: Record<string, string>,
   stock: EtatStock,
+  parc: EtatParc,
 ): Alerte[] {
   const liste: Alerte[] = [];
 
@@ -210,39 +225,31 @@ export function alertes(
   }
 
   // -------------------------------------------------------------- actifs
-  const echeancesDepassees = ECHEANCES.filter((e) => {
-    if (e.joursRestants !== undefined) return e.joursRestants < 0;
-    const reste = resteAvantEcheance(e);
-    return reste !== null && reste <= 0;
-  });
-  if (echeancesDepassees.length > 0) {
+  if (parc.echeancesDepassees > 0) {
     liste.push({
       id: "echeances",
       gravite: "critique",
-      source: "fixture",
+      source: "base",
       module: "Actifs",
       titre: "Échéances dépassées",
       // Rouler sans assurance ou sans visite valide n'est pas un retard
       // administratif : c'est une immobilisation au premier contrôle.
-      detail: "Assurance ou visite technique expirée",
+      detail: "Assurance, visite technique ou entretien au compteur",
       href: "/actifs/echeances",
-      nombre: echeancesDepassees.length,
+      nombre: parc.echeancesDepassees,
     });
   }
 
-  const indisponibles = ACTIFS.filter(
-    (a) => a.statut === "entretien" || a.statut === "immobilise",
-  );
-  if (indisponibles.length > 0) {
+  if (parc.indisponibles > 0) {
     liste.push({
       id: "actifs-indisponibles",
       gravite: "information",
-      source: "fixture",
+      source: "base",
       module: "Actifs",
       titre: "Actifs indisponibles",
       detail: "En entretien ou immobilisés",
       href: "/actifs",
-      nombre: indisponibles.length,
+      nombre: parc.indisponibles,
     });
   }
 

@@ -4,6 +4,11 @@ import { CarteIndicateur, EnTetePage } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
 import { apercuActif } from "@/lib/modules/garde";
+import {
+  listerActifs,
+  listerEcheances,
+  resumeParc,
+} from "@/modules/actifs/requetes";
 import { piecesComptabilisees } from "@/modules/comptabilite/actions";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -65,15 +70,25 @@ export default async function PageTableauDeBord() {
   const debutJournee = new Date();
   debutJournee.setHours(0, 0, 0, 0);
 
-  const [passees, resume, aCommander, soldesComptes, journee, auxiliaires] =
-    await Promise.all([
-      piecesComptabilisees(),
-      resumeStock(session.organizationId),
-      alertesReapprovisionnement(session.organizationId),
-      soldesParCompte(session.organizationId),
-      journeeCaisse(session.organizationId, debutJournee),
-      soldesParAuxiliaire(session.organizationId),
-    ]);
+  const [
+    passees,
+    resume,
+    aCommander,
+    soldesComptes,
+    journee,
+    auxiliaires,
+    parc,
+    echeances,
+  ] = await Promise.all([
+    piecesComptabilisees(),
+    resumeStock(session.organizationId),
+    alertesReapprovisionnement(session.organizationId),
+    soldesParCompte(session.organizationId),
+    journeeCaisse(session.organizationId, debutJournee),
+    soldesParAuxiliaire(session.organizationId),
+    listerActifs(session.organizationId),
+    listerEcheances(session.organizationId),
+  ]);
 
   const toutesLesAlertes = alertes(passees, {
     ruptures: resume.ruptures,
@@ -81,6 +96,9 @@ export default async function PageTableauDeBord() {
       (alerte) => joursRestants(alerte) <= DELAI_REACTION_JOURS,
     ).length,
     valeur: resume.valeur,
+  }, {
+    echeancesDepassees: echeances.filter((e) => e.gravite === "depassee").length,
+    indisponibles: resumeParc(parc).indisponibles,
   });
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle

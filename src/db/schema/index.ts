@@ -24,3 +24,4 @@ export * from "@/modules/ventes/schema";
 export * from "@/modules/ventes/schema-session";
 export * from "@/modules/comptabilite/schema";
 export * from "@/modules/personnes/schema";
+export * from "@/modules/actifs/schema";

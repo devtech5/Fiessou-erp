@@ -119,7 +119,12 @@ export const MODULES: ModuleDefinition[] = [
     key: "actifs",
     name: "Actifs & Maintenance",
     layer: "moteur",
-    status: "planifie",
+    // En base : fiches d'actifs, interventions, relevés de compteur et
+    // échéances à double déclencheur. Le coût d'entretien est la somme des
+    // interventions, le compteur le dernier relevé. Restent l'amortissement,
+    // la facturation des interventions sur actif de client et la récurrence
+    // automatique des échéances honorées.
+    status: "en_cours",
     requires: ["personnes"],
     description:
       "Fiche actif, affectation, interventions, échéances, coût de revient. " +

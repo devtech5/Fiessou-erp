@@ -162,12 +162,38 @@ export const DROITS = [
       "de la caisse, il est séparé du pointage à dessein.",
   },
 
+  // -------------------------------------------------------------- actifs
+  {
+    cle: "actifs.consulter",
+    moduleKey: "actifs",
+    libelle: "Consulter les actifs",
+    description: "Voir le parc, son coût d'entretien et ses échéances.",
+  },
+  {
+    cle: "actifs.fiche.gerer",
+    moduleKey: "actifs",
+    libelle: "Gérer les actifs",
+    description:
+      "Ouvrir une fiche, l'affecter à quelqu'un, changer son état de service.",
+  },
+  {
+    cle: "actifs.intervention.saisir",
+    moduleKey: "actifs",
+    libelle: "Saisir une intervention",
+    description: "Entretien, réparation, contrôle, et le relevé de compteur qui va avec.",
+  },
+  {
+    cle: "actifs.echeance.gerer",
+    moduleKey: "actifs",
+    libelle: "Gérer les échéances",
+    description: "Assurance, visite technique, garantie, entretien périodique.",
+  },
+
   // ------------------------------------------------- modules en préparation
   // Ces écrans montrent encore des données d'exemple ; le droit gouverne leur
   // accès dès maintenant, pour que l'ouverture du module ne soit pas le moment
   // où l'on découvre que tout le monde y entre.
   { cle: "documents.consulter", moduleKey: "documents", libelle: "Consulter les documents" },
-  { cle: "actifs.consulter", moduleKey: "actifs", libelle: "Consulter les actifs" },
   { cle: "reservation.consulter", moduleKey: "reservation", libelle: "Consulter les réservations" },
   { cle: "missions.consulter", moduleKey: "missions", libelle: "Consulter les missions" },
   { cle: "billetterie.consulter", moduleKey: "billetterie", libelle: "Consulter la billetterie" },

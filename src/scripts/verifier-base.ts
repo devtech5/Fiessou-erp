@@ -25,6 +25,7 @@ if (!url) {
 }
 
 const TABLES_ATTENDUES = [
+  "actifs",
   "articles",
   "audit_logs",
   "bons_paiement",
@@ -32,10 +33,12 @@ const TABLES_ATTENDUES = [
   "comptages_caisse",
   "depots",
   "document_sequences",
+  "echeances",
   "ecritures",
   "employees",
   "entity_codes",
   "familles_article",
+  "interventions",
   "lignes_ecriture",
   "lignes_vente",
   "memberships",
@@ -46,6 +49,7 @@ const TABLES_ATTENDUES = [
   "pointages",
   "postes_caisse",
   "reglements_vente",
+  "releves_compteur",
   "role_permissions",
   "roles",
   "sessions",

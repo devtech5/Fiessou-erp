@@ -1,24 +1,40 @@
 import type { Metadata } from "next";
 
+import { BoutonDemonstration } from "@/components/bouton-demonstration";
 import {
-  BoutonPrincipal,
   CarteIndicateur,
   EnTetePage,
+  EtatVide,
   Pastille,
   Tableau,
   Td,
   Th,
   type TonPastille,
 } from "@/components/ui/primitives";
+import { exigerEntreprise } from "@/lib/auth/dal";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
-import {
-  ACTIFS,
-  LIBELLE_STATUT,
-  LIBELLE_TYPE,
-  type StatutActif,
-} from "@/lib/fixtures/actifs";
+import { listerActifs, resumeParc } from "@/modules/actifs/requetes";
+import type { StatutActif, TypeActif } from "@/modules/actifs/schema";
+import { listerSalaries, listerIntervenants } from "@/modules/personnes/requetes";
+import { listerTiers } from "@/modules/tiers/requetes";
+
+import { FormulaireActif, type OptionPersonne } from "./formulaire-actif";
 
 export const metadata: Metadata = { title: "Parc" };
+
+const LIBELLE_TYPE: Record<TypeActif, string> = {
+  vehicule: "Véhicule",
+  informatique: "Informatique",
+  engin: "Engin",
+  mobilier: "Mobilier",
+};
+
+const LIBELLE_STATUT: Record<StatutActif, string> = {
+  actif: "En service",
+  entretien: "En entretien",
+  immobilise: "Immobilisé",
+  cede: "Cédé",
+};
 
 const TON: Record<StatutActif, TonPastille> = {
   actif: "valide",
@@ -27,98 +43,153 @@ const TON: Record<StatutActif, TonPastille> = {
   cede: "neutre",
 };
 
-export default function PageParc() {
-  const valeur = ACTIFS.reduce((s, a) => s + a.valeurAcquisition, 0);
-  const maintenance = ACTIFS.reduce((s, a) => s + a.coutMaintenance, 0);
-  const indisponibles = ACTIFS.filter(
-    (a) => a.statut === "entretien" || a.statut === "immobilise",
-  ).length;
+export default async function PageParc() {
+  const session = await exigerEntreprise();
+
+  const [parc, salaries, intervenants, partenaires] = await Promise.all([
+    listerActifs(session.organizationId),
+    listerSalaries(session.organizationId),
+    listerIntervenants(session.organizationId),
+    listerTiers(session.organizationId, "client"),
+  ]);
+
+  const resume = resumeParc(parc);
+
+  const personnes: OptionPersonne[] = [
+    ...salaries.map((s) => ({ id: s.id, nom: s.nom, nature: "employe" as const })),
+    ...intervenants.map((i) => ({
+      id: i.id,
+      nom: i.nom,
+      nature: "intervenant" as const,
+    })),
+  ];
+
+  const clients = partenaires.map((tiers) => ({ id: tiers.id, nom: tiers.nom }));
 
   return (
     <>
       <EnTetePage
         titre="Parc"
         sousTitre="Véhicules, matériel informatique, engins et équipements"
-        actions={<BoutonPrincipal>Nouvel actif</BoutonPrincipal>}
+        actions={
+          <FormulaireActif
+            personnes={personnes}
+            clients={clients}
+            premier={parc.length === 0}
+          />
+        }
       />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <CarteIndicateur
-          libelle="Actifs suivis"
-          valeur={fmtEntier(ACTIFS.length)}
-          precision={`${ACTIFS.filter((a) => a.affecteA).length} affectés à une personne`}
+      {parc.length === 0 ? (
+        <EtatVide
+          titre="Aucun actif suivi"
+          message="Un actif est une chose qui coûte, s'use et s'entretient : un véhicule, un ordinateur, une bétonnière, une chambre froide. Le même écran suit le véhicule d'un client confié à l'atelier — c'est le propriétaire qui décide si l'intervention est une charge ou une facture."
+          actions={<BoutonDemonstration libelle="Installer le jeu de démonstration" />}
         />
-        <CarteIndicateur
-          libelle="Valeur d'acquisition"
-          valeur={fmtCompact(valeur)}
-          unite="FCFA"
-        />
-        <CarteIndicateur
-          libelle="Coût de maintenance"
-          valeur={fmtCompact(maintenance)}
-          unite="FCFA"
-          precision={`${Math.round((maintenance / valeur) * 100)} % de la valeur du parc`}
-        />
-        <CarteIndicateur
-          libelle="Indisponibles"
-          valeur={fmtEntier(indisponibles)}
-          ton={indisponibles > 0 ? "alerte" : "valide"}
-          precision="En entretien ou immobilisés"
-        />
-      </section>
+      ) : (
+        <>
+          <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <CarteIndicateur
+              libelle="Actifs suivis"
+              valeur={fmtEntier(resume.actifs)}
+              precision={`${resume.affectes} affectés à une personne`}
+            />
+            <CarteIndicateur
+              libelle="Valeur d'acquisition"
+              valeur={fmtCompact(resume.valeur)}
+              unite="FCFA"
+              precision="Actifs de clients exclus"
+            />
+            <CarteIndicateur
+              libelle="Coût de maintenance"
+              valeur={fmtCompact(resume.coutMaintenance)}
+              unite="FCFA"
+              precision={
+                resume.valeur > 0
+                  ? `${Math.round((resume.coutMaintenance / resume.valeur) * 100)} % de la valeur du parc`
+                  : "Somme des interventions"
+              }
+            />
+            <CarteIndicateur
+              libelle="Indisponibles"
+              valeur={fmtEntier(resume.indisponibles)}
+              ton={resume.indisponibles > 0 ? "alerte" : "valide"}
+              precision="En entretien ou immobilisés"
+            />
+          </section>
 
-      <Tableau>
-        <thead>
-          <tr>
-            <Th>Code</Th>
-            <Th>Désignation</Th>
-            <Th>Type</Th>
-            <Th>Affecté à</Th>
-            <Th>Site</Th>
-            <Th>Statut</Th>
-            <Th aligne="droite">Compteur</Th>
-            <Th aligne="droite">Maintenance</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {ACTIFS.map((actif) => (
-            <tr key={actif.id}>
-              <Td chiffres>{actif.code}</Td>
-              <Td fort>{actif.designation}</Td>
-              <Td>
-                <span className="text-xs text-[var(--encre-douce)]">
-                  {LIBELLE_TYPE[actif.type]}
-                </span>
-              </Td>
-              <Td>
-                {/* L'affectation pointe vers une personne du module Personnel,
-                    salariée ou intervenante. */}
-                {actif.affecteA ?? (
-                  <span className="text-xs text-[var(--encre-faible)]">
-                    Non affecté
-                  </span>
-                )}
-              </Td>
-              <Td>
-                <span className="text-xs text-[var(--encre-douce)]">{actif.site}</span>
-              </Td>
-              <Td>
-                <Pastille ton={TON[actif.statut]}>
-                  {LIBELLE_STATUT[actif.statut]}
-                </Pastille>
-              </Td>
-              <Td aligne="droite" chiffres>
-                {actif.compteur !== undefined
-                  ? `${fmtEntier(actif.compteur)} ${actif.uniteCompteur}`
-                  : "—"}
-              </Td>
-              <Td aligne="droite" chiffres>
-                {actif.coutMaintenance > 0 ? fmt(actif.coutMaintenance) : "—"}
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </Tableau>
+          <Tableau>
+            <thead>
+              <tr>
+                <Th>Code</Th>
+                <Th>Désignation</Th>
+                <Th>Type</Th>
+                <Th>Affecté à</Th>
+                <Th>Site</Th>
+                <Th>Statut</Th>
+                <Th aligne="droite">Compteur</Th>
+                <Th aligne="droite">Maintenance</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {parc.map((actif) => (
+                <tr key={actif.id}>
+                  <Td chiffres>{actif.code}</Td>
+                  <Td fort>
+                    {actif.designation}
+                    {/* Un actif de client se signale : sa valeur n'est pas au
+                        bilan, et ses interventions se facturent. */}
+                    {actif.proprietaire && (
+                      <span className="block text-xs font-normal text-[var(--encre-faible)]">
+                        Appartient à {actif.proprietaire}
+                      </span>
+                    )}
+                  </Td>
+                  <Td>
+                    <span className="text-xs text-[var(--encre-douce)]">
+                      {LIBELLE_TYPE[actif.type]}
+                    </span>
+                  </Td>
+                  <Td>
+                    {/* L'affectation pointe vers une personne du module
+                        Personnel, salariée ou intervenante. */}
+                    {actif.affecteA ?? (
+                      <span className="text-xs text-[var(--encre-faible)]">
+                        Non affecté
+                      </span>
+                    )}
+                  </Td>
+                  <Td>
+                    <span className="text-xs text-[var(--encre-douce)]">
+                      {actif.site ?? "—"}
+                    </span>
+                  </Td>
+                  <Td>
+                    <Pastille ton={TON[actif.statut]}>
+                      {LIBELLE_STATUT[actif.statut]}
+                    </Pastille>
+                  </Td>
+                  <Td aligne="droite" chiffres>
+                    {actif.compteur !== null
+                      ? `${fmtEntier(actif.compteur)} ${actif.uniteCompteur ?? ""}`
+                      : "—"}
+                  </Td>
+                  <Td aligne="droite" chiffres>
+                    {actif.coutMaintenance > 0 ? fmt(actif.coutMaintenance) : "—"}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Tableau>
+
+          <p className="mt-5 max-w-[70ch] text-xs text-[var(--encre-faible)]">
+            Ni le coût de maintenance ni le compteur ne sont stockés sur la
+            fiche : le premier est la somme des interventions, le second le
+            dernier relevé enregistré. Un compteur remplacé repart de zéro, et
+            c&apos;est le relevé le plus récent qui fait foi — pas le plus élevé.
+          </p>
+        </>
+      )}
     </>
   );
 }

@@ -9,6 +9,8 @@ import { rateOf } from "@/lib/money";
 import { versQuantite } from "@/lib/quantite";
 import { creerArticleDans, creerFamilleDans } from "@/modules/catalogue/creation";
 import { articles } from "@/modules/catalogue/schema";
+import { aUnActif } from "@/modules/actifs/requetes";
+import { employees, workers } from "@/modules/personnes/schema";
 import { aUnIntervenant, aUnSalarie } from "@/modules/personnes/requetes";
 import { aUnDepot, listerDepots } from "@/modules/stock/requetes";
 import { depots } from "@/modules/stock/schema";
@@ -20,6 +22,7 @@ import { ALERTES, CLIENTS, FOURNISSEURS } from "./gestion";
 import { creerPosteCaisseDans } from "@/modules/ventes/creation";
 import { postesCaisse } from "@/modules/ventes/schema";
 
+import { amorcerParc } from "./actifs";
 import { amorcerPersonnel } from "./rh";
 import { amorcerStock, type ArticleAAmorcer } from "./stock";
 
@@ -77,6 +80,9 @@ export interface ResultatInstallation {
   salaries: number;
   intervenants: number;
   pointages: number;
+  actifs: number;
+  interventions: number;
+  echeances: number;
 }
 
 /** Code de famille sur trois lettres, désambiguïsé si deux catégories collent. */
@@ -108,6 +114,7 @@ export async function installerJeuDemonstration(
     // de renvoyer « déjà installé » devant un stock vide.
     const stock = await completerStock(organizationId, userId);
     const personnel = await completerPersonnel(organizationId, userId);
+    const parc = await completerParc(organizationId, userId);
 
     return {
       deja: true,
@@ -117,6 +124,7 @@ export async function installerJeuDemonstration(
       codes: 0,
       ...stock,
       ...personnel,
+      ...parc,
     };
   }
 
@@ -280,6 +288,10 @@ export async function installerJeuDemonstration(
     // catalogue de trois cents articles reconstruit.
     const personnel = await amorcerPersonnel(tx, organizationId, userId);
 
+    // Le parc vient après le personnel : un fourgon se confie à un chauffeur
+    // salarié, une bétonnière à un maçon, et les deux doivent exister.
+    const parc = await amorcerParc(tx, organizationId, personnel.reperes, userId);
+
     return {
       deja: false,
       tiers: FOURNISSEURS.length + CLIENTS.length,
@@ -292,6 +304,9 @@ export async function installerJeuDemonstration(
       salaries: personnel.salaries,
       intervenants: personnel.intervenants,
       pointages: personnel.pointages,
+      actifs: parc.actifs,
+      interventions: parc.interventions,
+      echeances: parc.echeances,
     };
   });
 }
@@ -438,7 +453,45 @@ async function completerPersonnel(
     return { salaries: 0, intervenants: 0, pointages: 0 };
   }
 
-  return db.transaction((tx) => amorcerPersonnel(tx, organizationId, userId));
+  const { salaries, intervenants, pointages } = await db.transaction((tx) =>
+    amorcerPersonnel(tx, organizationId, userId),
+  );
+
+  return { salaries, intervenants, pointages };
+}
+
+/**
+ * Verse le parc dans une entreprise amorcée avant le module Actifs.
+ *
+ * Les repères d'affectation se relisent en base plutôt que de venir de
+ * l'amorçage : le personnel est déjà là, et le nom est la seule clé commune
+ * entre le jeu de démonstration et ce qui a été enregistré.
+ */
+async function completerParc(
+  organizationId: string,
+  userId?: string,
+): Promise<{ actifs: number; interventions: number; echeances: number }> {
+  if (await aUnActif(organizationId)) {
+    return { actifs: 0, interventions: 0, echeances: 0 };
+  }
+
+  const [salaries, intervenants] = await Promise.all([
+    db
+      .select({ id: employees.id, nom: employees.nom })
+      .from(employees)
+      .where(eq(employees.organizationId, organizationId)),
+    db
+      .select({ id: workers.id, nom: workers.nom })
+      .from(workers)
+      .where(eq(workers.organizationId, organizationId)),
+  ]);
+
+  const reperes = {
+    employes: new Map(salaries.map((s) => [s.nom, s.id])),
+    intervenants: new Map(intervenants.map((i) => [i.nom, i.id])),
+  };
+
+  return db.transaction((tx) => amorcerParc(tx, organizationId, reperes, userId));
 }
 
 /**
