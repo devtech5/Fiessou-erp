@@ -1,4 +1,6 @@
+import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { peut } from "@/lib/droits/garde";
 
 /**
  * Deux sections, et c'est délibéré.
@@ -12,7 +14,11 @@ const SECTIONS = [
   { href: "/documents/signatures", libelle: "Signatures" },
 ];
 
-export default function LayoutDocuments({ children }: LayoutProps<"/documents">) {
+export default async function LayoutDocuments({
+  children,
+}: LayoutProps<"/documents">) {
+  if (!(await peut("documents.consulter"))) return <AccesRefuse droit="documents.consulter" />;
+
   return (
     <>
       <SousNavigation entrees={SECTIONS} />

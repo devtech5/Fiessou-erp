@@ -1,4 +1,6 @@
+import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { peut } from "@/lib/droits/garde";
 
 const SECTIONS = [
   { href: "/stock", libelle: "Vue d'ensemble" },
@@ -7,7 +9,11 @@ const SECTIONS = [
   { href: "/stock/reapprovisionnement", libelle: "Réapprovisionnement" },
 ];
 
-export default function LayoutStock({ children }: LayoutProps<"/stock">) {
+export default async function LayoutStock({
+  children,
+}: LayoutProps<"/stock">) {
+  if (!(await peut("stock.article.consulter"))) return <AccesRefuse droit="stock.article.consulter" />;
+
   return (
     <>
       <SousNavigation entrees={SECTIONS} />

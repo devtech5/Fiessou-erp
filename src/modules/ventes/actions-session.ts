@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { refusDroit } from "@/lib/droits/garde";
 import {
   cloturerSessionDans,
   ouvrirSessionDans,
@@ -42,6 +43,9 @@ export async function ouvrirSessionCaisse(
   donnees: FormData,
 ): Promise<EtatSession> {
   const session = await exigerEntreprise();
+
+  const refus = await refusDroit("pos.session.ouvrir");
+  if (refus) return refus;
 
   const analyse = schemaOuverture.safeParse({
     caisseId: donnees.get("caisseId"),
@@ -103,6 +107,9 @@ export async function cloturerSessionCaisse(
   donnees: FormData,
 ): Promise<EtatCloture> {
   const session = await exigerEntreprise();
+
+  const refus = await refusDroit("pos.session.cloturer");
+  if (refus) return refus;
 
   const texte = (champ: string) => {
     const valeur = donnees.get(champ);

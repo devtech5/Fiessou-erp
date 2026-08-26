@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { ServiceWorkerCaisse } from "@/components/service-worker";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
 import { listerArticles } from "@/modules/catalogue/requetes";
 import { stocksParArticle } from "@/modules/stock/requetes";
 import { dernierRang, posteDeLAppareil } from "@/modules/ventes/requetes";
@@ -14,6 +15,26 @@ export const metadata: Metadata = { title: "Caisse" };
 
 export default async function PageCaisse() {
   const session = await exigerEntreprise();
+
+  // La caisse est le seul écran plein cadre : pas de coque où loger un refus,
+  // donc il occupe la page.
+  if (!(await peut("pos.vente.encaisser"))) {
+    return (
+      <main className="flex h-dvh flex-col items-center justify-center gap-4 bg-[var(--fond)] p-6 text-center">
+        <h1 className="text-xl font-semibold">Caisse réservée</h1>
+        <p className="max-w-[52ch] text-sm text-[var(--encre-douce)]">
+          Votre rôle ne permet pas d&apos;encaisser. Le responsable de
+          l&apos;entreprise peut vous accorder ce droit.
+        </p>
+        <Link
+          href="/"
+          className="h-cible rounded-lg bg-marque-600 px-4 text-sm font-semibold leading-[var(--h-cible)] text-white hover:bg-marque-700"
+        >
+          Revenir au tableau de bord
+        </Link>
+      </main>
+    );
+  }
 
   // Le poste est celui de l'appareil : c'est lui qui porte le compteur de
   // tickets, et donc la capacité à numéroter sans réseau.

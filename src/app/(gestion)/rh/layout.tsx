@@ -1,4 +1,6 @@
+import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { peut } from "@/lib/droits/garde";
 
 /**
  * Le module s'appelle « Personnel », pas « RH & Paie » : il couvre deux
@@ -13,7 +15,11 @@ const SECTIONS = [
   { href: "/rh/paie", libelle: "Paie" },
 ];
 
-export default function LayoutRh({ children }: LayoutProps<"/rh">) {
+export default async function LayoutRh({
+  children,
+}: LayoutProps<"/rh">) {
+  if (!(await peut("personnes.consulter"))) return <AccesRefuse droit="personnes.consulter" />;
+
   return (
     <>
       <SousNavigation entrees={SECTIONS} />

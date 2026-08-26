@@ -1,4 +1,6 @@
+import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { peut } from "@/lib/droits/garde";
 
 /**
  * Quatre sections. Le concurrent en aligne vingt-sept, sur quatre lignes.
@@ -16,9 +18,11 @@ const SECTIONS = [
   { href: "/comptabilite/fiscalite", libelle: "Fiscalité" },
 ];
 
-export default function LayoutComptabilite({
+export default async function LayoutComptabilite({
   children,
 }: LayoutProps<"/comptabilite">) {
+  if (!(await peut("comptabilite.ecriture.consulter"))) return <AccesRefuse droit="comptabilite.ecriture.consulter" />;
+
   return (
     <>
       <SousNavigation entrees={SECTIONS} />

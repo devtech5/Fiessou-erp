@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { exigerDroit, messageRefus, peut, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
 import { creerPosteCaisseDans, enregistrerVenteDans } from "./creation";
 import { postesCaisse, ventes } from "./schema";
@@ -74,6 +75,10 @@ export async function encaisserTicket(
   ticket: TicketEntrant,
 ): Promise<ResultatEncaissement> {
   const session = await exigerEntreprise();
+
+  if (!(await peut("pos.vente.encaisser"))) {
+    return { ok: false, message: messageRefus("pos.vente.encaisser") };
+  }
 
   const analyse = schemaVente.safeParse(ticket);
   if (!analyse.success) {
@@ -155,7 +160,7 @@ export async function encaisserTicket(
  * Faire disparaître l'écriture serait pire que de la laisser.
  */
 export async function annulerTicket(donnees: FormData): Promise<void> {
-  const session = await exigerEntreprise();
+  const session = await exigerDroit("pos.vente.annuler");
   const id = String(donnees.get("id") ?? "");
   const motif = String(donnees.get("motif") ?? "").trim();
 
@@ -218,6 +223,9 @@ export async function creerPosteCaisse(
 ): Promise<EtatPoste> {
   const session = await exigerEntreprise();
 
+  const refus = await refusDroit("pos.poste.gerer");
+  if (refus) return refus;
+
   const analyse = schemaPoste.safeParse({
     code: donnees.get("code"),
     nom: donnees.get("nom"),
@@ -257,7 +265,7 @@ export async function rattacherPoste(
   posteId: string,
   deviceId: string,
 ): Promise<void> {
-  const session = await exigerEntreprise();
+  const session = await exigerDroit("pos.poste.gerer");
   if (!UUID.test(posteId) || deviceId.length === 0) return;
 
   await db

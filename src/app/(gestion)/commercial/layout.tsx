@@ -1,4 +1,6 @@
+import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { peut } from "@/lib/droits/garde";
 
 /**
  * Trois sections, pas dix.
@@ -14,7 +16,11 @@ const SECTIONS = [
   { href: "/commercial/fournisseurs", libelle: "Fournisseurs" },
 ];
 
-export default function LayoutCommercial({ children }: LayoutProps<"/commercial">) {
+export default async function LayoutCommercial({
+  children,
+}: LayoutProps<"/commercial">) {
+  if (!(await peut("tiers.fiche.consulter"))) return <AccesRefuse droit="tiers.fiche.consulter" />;
+
   return (
     <>
       <SousNavigation entrees={SECTIONS} />

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
 import { UNITES, versQuantite } from "@/lib/quantite";
 import { creerArticlePour } from "./creation";
@@ -62,6 +63,9 @@ export async function creerArticle(
   donnees: FormData,
 ): Promise<EtatArticle> {
   const session = await exigerEntreprise();
+
+  const refus = await refusDroit("stock.article.gerer");
+  if (refus) return refus;
 
   const analyse = schema.safeParse({
     designation: donnees.get("designation"),
@@ -125,7 +129,7 @@ export async function creerArticle(
  * citent : un ticket réimprimé six mois plus tard doit dire ce qui a été vendu.
  */
 export async function archiverArticle(donnees: FormData): Promise<void> {
-  const session = await exigerEntreprise();
+  const session = await exigerDroit("stock.article.gerer");
   const id = String(donnees.get("id") ?? "");
 
   const [modifie] = await db

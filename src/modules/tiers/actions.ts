@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
 import { creerTiersPour } from "./creation";
 import { tiers } from "./schema";
@@ -65,6 +66,9 @@ export async function creerTiers(
 ): Promise<EtatTiers> {
   const session = await exigerEntreprise();
 
+  const refus = await refusDroit("tiers.fiche.gerer");
+  if (refus) return refus;
+
   const analyse = schema.safeParse({
     nom: donnees.get("nom"),
     nature: donnees.get("nature") ?? "entreprise",
@@ -121,7 +125,7 @@ export async function creerTiers(
  * factures, et une créance sans débiteur n'est plus recouvrable.
  */
 export async function archiverTiers(donnees: FormData): Promise<void> {
-  const session = await exigerEntreprise();
+  const session = await exigerDroit("tiers.fiche.gerer");
   const id = String(donnees.get("id") ?? "");
 
   const [modifie] = await db

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
 import { formaterQuantite, quantiteValide, UNITES, versQuantite } from "@/lib/quantite";
 import { articles } from "@/modules/catalogue/schema";
@@ -64,6 +65,9 @@ export async function creerDepot(
 ): Promise<EtatDepot> {
   const session = await exigerEntreprise();
 
+  const refus = await refusDroit("stock.depot.gerer");
+  if (refus) return refus;
+
   const analyse = schemaDepot.safeParse({
     nom: donnees.get("nom"),
     code: texte(donnees, "code"),
@@ -112,7 +116,7 @@ export async function creerDepot(
  * laisserait l'autre moitié pointer dans le vide.
  */
 export async function fermerDepot(donnees: FormData): Promise<void> {
-  const session = await exigerEntreprise();
+  const session = await exigerDroit("stock.depot.gerer");
   const id = String(donnees.get("id") ?? "");
 
   const [ferme] = await db
@@ -177,6 +181,9 @@ export async function enregistrerMouvement(
   donnees: FormData,
 ): Promise<EtatMouvement> {
   const session = await exigerEntreprise();
+
+  const refus = await refusDroit("stock.mouvement.saisir");
+  if (refus) return refus;
 
   const analyse = schemaMouvement.safeParse({
     type: donnees.get("type") ?? "reception",

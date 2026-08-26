@@ -1,4 +1,6 @@
+import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { peut } from "@/lib/droits/garde";
 
 const SECTIONS = [
   { href: "/actifs", libelle: "Parc" },
@@ -6,7 +8,9 @@ const SECTIONS = [
   { href: "/actifs/echeances", libelle: "Échéances" },
 ];
 
-export default function LayoutActifs({ children }: LayoutProps<"/actifs">) {
+export default async function LayoutActifs({ children }: LayoutProps<"/actifs">) {
+  if (!(await peut("actifs.consulter"))) return <AccesRefuse droit="actifs.consulter" />;
+
   return (
     <>
       <SousNavigation entrees={SECTIONS} />
