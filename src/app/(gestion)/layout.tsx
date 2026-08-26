@@ -4,6 +4,7 @@ import { FilAriane } from "@/components/coque/fil-ariane";
 import type { OptionSelecteur } from "@/components/coque/selecteur";
 import { exigerSession } from "@/lib/auth/dal";
 import { entreprisesAccessibles } from "@/lib/auth/entreprises";
+import { droitsActifs } from "@/lib/droits/garde";
 
 const ETIQUETTE_STATUT: Record<string, string> = {
   essai: "essai",
@@ -29,6 +30,11 @@ const ETIQUETTE_STATUT: Record<string, string> = {
 export default async function LayoutGestion({ children }: LayoutProps<"/">) {
   const session = await exigerSession();
   const entreprises = await entreprisesAccessibles(session.userId);
+
+  // Sans entreprise active il n'y a pas de rôle, donc aucun droit : la barre
+  // s'affiche vide plutôt que de rediriger, le sélecteur d'entreprise reste
+  // atteignable.
+  const droits = session.organizationId ? [...(await droitsActifs())] : [];
 
   const options: OptionSelecteur[] = entreprises.map((entreprise) => ({
     id: entreprise.id,
@@ -69,6 +75,7 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
         <BarreLaterale
           nomUtilisateur={session.nom}
           entrepriseActive={session.organizationNom}
+          droits={droits}
         />
 
         {/*

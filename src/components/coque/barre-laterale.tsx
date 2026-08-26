@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { seDeconnecter } from "@/lib/auth/actions";
+import type { Droit } from "@/lib/droits/catalogue";
 
 export interface EntreeModule {
   href: string;
   racine: string;
   libelle: string;
+  /** Droit sans lequel l'entrée ne s'affiche pas. */
+  droit: Droit;
 }
 
 export interface GroupeModules {
@@ -18,7 +21,7 @@ export interface GroupeModules {
 }
 
 /** Le tableau de bord n'appartient à aucun groupe : il les traverse tous. */
-const ACCUEIL: EntreeModule = {
+const ACCUEIL: Omit<EntreeModule, "droit"> = {
   href: "/",
   racine: "/",
   libelle: "Tableau de bord",
@@ -28,31 +31,31 @@ const GROUPES: GroupeModules[] = [
   {
     titre: "Commerce",
     modules: [
-      { href: "/commercial", racine: "/commercial", libelle: "Commercial" },
-      { href: "/stock", racine: "/stock", libelle: "Stock" },
-      { href: "/reservations", racine: "/reservations", libelle: "Réservations" },
+      { href: "/commercial", racine: "/commercial", libelle: "Commercial", droit: "tiers.fiche.consulter" },
+      { href: "/stock", racine: "/stock", libelle: "Stock", droit: "stock.article.consulter" },
+      { href: "/reservations", racine: "/reservations", libelle: "Réservations", droit: "reservation.consulter" },
     ],
   },
   {
     titre: "Terrain",
     modules: [
-      { href: "/missions", racine: "/missions", libelle: "Missions" },
-      { href: "/actifs", racine: "/actifs", libelle: "Actifs" },
-      { href: "/billetterie", racine: "/billetterie", libelle: "Billetterie" },
+      { href: "/missions", racine: "/missions", libelle: "Missions", droit: "missions.consulter" },
+      { href: "/actifs", racine: "/actifs", libelle: "Actifs", droit: "actifs.consulter" },
+      { href: "/billetterie", racine: "/billetterie", libelle: "Billetterie", droit: "billetterie.consulter" },
     ],
   },
   {
     titre: "Finance",
     modules: [
-      { href: "/comptabilite", racine: "/comptabilite", libelle: "Comptabilité" },
-      { href: "/monnaie", racine: "/monnaie", libelle: "Guichet" },
+      { href: "/comptabilite", racine: "/comptabilite", libelle: "Comptabilité", droit: "comptabilite.ecriture.consulter" },
+      { href: "/monnaie", racine: "/monnaie", libelle: "Guichet", droit: "valeur_electronique.consulter" },
     ],
   },
   {
     titre: "Équipe",
     modules: [
-      { href: "/rh", racine: "/rh", libelle: "Personnel" },
-      { href: "/documents", racine: "/documents", libelle: "Documents" },
+      { href: "/rh", racine: "/rh", libelle: "Personnel", droit: "personnes.consulter" },
+      { href: "/documents", racine: "/documents", libelle: "Documents", droit: "documents.consulter" },
     ],
   },
 ];
@@ -71,12 +74,23 @@ const GROUPES: GroupeModules[] = [
 export function BarreLaterale({
   nomUtilisateur,
   entrepriseActive,
+  droits,
 }: {
   nomUtilisateur: string;
   entrepriseActive: string | null;
+  /**
+   * Droits de la session, calculés sur le serveur. La barre ne montre que ce
+   * qui s'ouvre : proposer une entrée qui refuse ensuite l'entrée est une
+   * promesse rompue à chaque clic.
+   *
+   * Ce filtrage est du confort, pas une protection — chaque module vérifie son
+   * droit de son côté.
+   */
+  droits: Droit[];
 }) {
   const chemin = usePathname();
   const [replies, setReplies] = useState<string[]>([]);
+  const accordes = new Set(droits);
 
   function basculerGroupe(titre: string) {
     setReplies((actuels) =>
@@ -104,10 +118,15 @@ export function BarreLaterale({
       </Link>
 
       {GROUPES.map((groupe) => {
+        const visibles = groupe.modules.filter((m) => accordes.has(m.droit));
+        // Un groupe dont aucun module n'est accessible disparaît en entier :
+        // un titre de section seul n'informe de rien.
+        if (visibles.length === 0) return null;
+
         const replie = replies.includes(groupe.titre);
         // Un groupe qui contient la page courante ne se laisse pas replier :
         // masquer l'entrée active laisserait l'utilisateur sans repère.
-        const contientActif = groupe.modules.some((m) => chemin.startsWith(m.racine));
+        const contientActif = visibles.some((m) => chemin.startsWith(m.racine));
 
         return (
           <div key={groupe.titre} className="contents lg:mb-2 lg:block">
@@ -127,7 +146,7 @@ export function BarreLaterale({
             </button>
 
             {(!replie || contientActif) &&
-              groupe.modules.map((module) => {
+              visibles.map((module) => {
                 const actif = chemin.startsWith(module.racine);
                 return (
                   <Link
@@ -149,14 +168,17 @@ export function BarreLaterale({
       })}
 
       <div className="ml-auto flex items-center gap-1 lg:ml-0 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-2 lg:pt-3">
-        <Link
-          href="/caisse"
-          className="h-cible flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-marque-600 px-3 text-sm font-semibold text-marque-600 hover:bg-marque-600 hover:text-white lg:w-full"
-        >
-          Ouvrir la caisse
-        </Link>
+        {accordes.has("pos.vente.encaisser") && (
+          <Link
+            href="/caisse"
+            className="h-cible flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-marque-600 px-3 text-sm font-semibold text-marque-600 hover:bg-marque-600 hover:text-white lg:w-full"
+          >
+            Ouvrir la caisse
+          </Link>
+        )}
 
         <MenuCompte
+          gereLesMembres={accordes.has("organisation.membre.gerer")}
           nomUtilisateur={nomUtilisateur}
           entrepriseActive={entrepriseActive}
         />
@@ -175,9 +197,12 @@ export function BarreLaterale({
 function MenuCompte({
   nomUtilisateur,
   entrepriseActive,
+  gereLesMembres,
 }: {
   nomUtilisateur: string;
   entrepriseActive: string | null;
+  /** Ouvre l'entrée « Membres et accès ». Le droit se revérifie côté serveur. */
+  gereLesMembres: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const conteneur = useRef<HTMLDivElement>(null);
@@ -276,6 +301,12 @@ function MenuCompte({
             {[
               { href: "/documents", libelle: "Mes documents" },
               { href: "/rh", libelle: "Mon équipe" },
+              // Les accès se règlent depuis le compte, pas depuis un module :
+              // ce n'est pas une activité de l'entreprise, c'est son
+              // administration.
+              ...(gereLesMembres
+                ? [{ href: "/membres", libelle: "Membres et accès" }]
+                : []),
             ].map((entree) => (
               <li key={entree.href}>
                 <Link
