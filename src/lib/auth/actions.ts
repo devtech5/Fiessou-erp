@@ -53,6 +53,19 @@ export async function demanderCode(
   const envoi = await emettreCode(telephone, "connexion");
 
   if (!envoi.ok) {
+    // Deux échecs, deux conduites à tenir. « Patientez » invite à attendre ;
+    // sur un envoi qui n'est pas parti, attendre ne sert à rien et la personne
+    // resterait devant un écran de saisie pour un code qui n'arrivera jamais.
+    // On la renvoie donc à l'étape du numéro, où le bouton est réarmé.
+    if (envoi.raison === "envoi_impossible") {
+      return {
+        etape: "telephone",
+        telephone,
+        erreur:
+          "Le code n'a pas pu être envoyé. Vérifiez le numéro et réessayez ; si cela se répète, prévenez le support.",
+      };
+    }
+
     return {
       etape: "code",
       telephone,

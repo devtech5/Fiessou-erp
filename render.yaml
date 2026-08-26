@@ -46,7 +46,9 @@ services:
       #   console — écrit dans les journaux (développement)
       #   demo    — affiche le code à l'écran, pour une instance de
       #             démonstration SANS données réelles
-      #   sms / whatsapp — non implémentés, en attente d'un opérateur
+      #   whatsapp — WhatsApp Cloud API, canal réel. Exige WHATSAPP_TOKEN et
+      #              WHATSAPP_PHONE_ID, à renseigner dans les réglages Render.
+      #   sms      — non branché, aucun agrégateur retenu
       #
       # ⚠️ « demo » rend l'application ouverte à quiconque connaît un numéro.
       # Ne jamais l'activer sur une instance contenant de vraies données.
@@ -62,3 +64,11 @@ services:
       # tableau de bord annonce des factures impayées qui n'existent pas.
       - key: MODULES_APERCU
         value: "*"
+
+      # Identifiants WhatsApp, requis le jour où OTP_CHANNEL passe à
+      # « whatsapp ». Sans valeur ici : ils ne transitent pas par le dépôt.
+      - key: WHATSAPP_TOKEN
+        sync: false
+
+      - key: WHATSAPP_PHONE_ID
+        sync: false

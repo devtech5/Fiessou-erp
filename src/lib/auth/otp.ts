@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { verificationCodes } from "@/db/schema";
 import { env } from "@/env";
 import { newId } from "@/lib/ids";
+import { acheminer } from "./canaux";
 
 /** Durée de vie d'un code. Assez pour recevoir un SMS, pas plus. */
 const VALIDITE_MINUTES = 10;
@@ -64,7 +65,7 @@ export async function emettreCode(
   purpose: "connexion" | "inscription" | "reinitialisation" | "verification_telephone",
 ): Promise<
   | { ok: true; codeAffiche?: string }
-  | { ok: false; raison: "trop_frequent" }
+  | { ok: false; raison: "trop_frequent" | "envoi_impossible" }
 > {
   // Le délai de renvoi protège d'un pilonnage de SMS. En démonstration aucun
   // message ne part, et un exposant bloqué soixante secondes devant son public
@@ -100,9 +101,10 @@ export async function emettreCode(
     );
 
   const code = genererCode();
+  const identifiant = newId();
 
   await db.insert(verificationCodes).values({
-    id: newId(),
+    id: identifiant,
     destination,
     // `console` et `demo` ne sont pas des canaux d'acheminement mais des modes
     // de développement : la colonne enregistre le canal qu'ils remplacent.
@@ -116,37 +118,36 @@ export async function emettreCode(
     expiresAt: new Date(Date.now() + VALIDITE_MINUTES * 60 * 1000),
   });
 
-  return { ok: true, codeAffiche: await remettreCode(destination, code) };
-}
+  const envoi = await acheminer(destination, code);
 
-/**
- * Achemine le code vers le destinataire.
- *
- * Aucun canal réel n'est implémenté : SMS et WhatsApp attendent le choix d'un
- * opérateur — ce choix a un coût par message et engage la marge du produit, il
- * ne se tranche pas dans un fichier.
- *
- * Retourne le code lorsqu'il doit être AFFICHÉ à l'appelant plutôt qu'envoyé,
- * et `undefined` sinon.
- */
-async function remettreCode(
-  destination: string,
-  code: string,
-): Promise<string | undefined> {
-  if (env.OTP_CHANNEL === "console") {
-    console.info(`\n  Code de connexion pour ${destination} : ${code}\n`);
-    return undefined;
+  if (!envoi.ok) {
+    // Le code est consommé sur-le-champ. Il est déjà en base alors que
+    // personne ne l'a reçu : le laisser vivant bloquerait le renvoi pendant
+    // une minute, et laisserait dix minutes durant un code valide que
+    // l'opérateur a peut-être livré en double plus tard.
+    await db
+      .update(verificationCodes)
+      .set({ consumedAt: new Date() })
+      .where(eq(verificationCodes.id, identifiant));
+
+    // Même forme que le journal des erreurs de requête, pour se filtrer avec
+    // lui. Ni le code ni le jeton n'y figurent — la destination si, sans quoi
+    // on ne sait pas distinguer une panne générale d'un numéro en cause.
+    console.error(
+      JSON.stringify({
+        evenement: "envoi_code_echoue",
+        horodatage: new Date().toISOString(),
+        canal: env.OTP_CHANNEL,
+        destination,
+        objet: purpose,
+        raison: envoi.raison,
+      }),
+    );
+
+    return { ok: false, raison: "envoi_impossible" };
   }
 
-  // Mode démonstration : le code revient à l'écran. Rien n'est envoyé, donc
-  // rien à recevoir — quiconque atteint l'instance peut entrer avec n'importe
-  // quel numéro. C'est le prix d'une démo sans opérateur, et la raison pour
-  // laquelle ce mode ne doit jamais côtoyer de vraies données.
-  if (env.OTP_CHANNEL === "demo") return code;
-
-  throw new Error(
-    `Canal « ${env.OTP_CHANNEL} » non implémenté. Aucun opérateur n'est encore branché.`,
-  );
+  return { ok: true, codeAffiche: envoi.codeAffiche };
 }
 
 /**
