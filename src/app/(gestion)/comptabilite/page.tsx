@@ -1,63 +1,101 @@
 import type { Metadata } from "next";
 
 import {
-  BoutonPrincipal,
   CarteIndicateur,
   EnTetePage,
+  EtatVide,
   Pastille,
 } from "@/components/ui/primitives";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import { JOURNAUX } from "@/lib/comptabilite/ecritures";
+import {
+  calculerSIG,
+  elementsResultat,
+  positionComptable,
+} from "@/lib/comptabilite/etats";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
 import {
-  COMPTES_CLES,
-  ETAPES_CLOTURE,
-  JOURNAUX,
-  LETTRAGE,
-  calculerSIG,
-} from "@/lib/fixtures/comptabilite";
+  activiteParJournal,
+  etatLettrage,
+  exercicesEcrits,
+  soldesParCompte,
+} from "@/modules/comptabilite/requetes";
 
 export const metadata: Metadata = { title: "Comptabilité" };
 
-export default function PageComptabilite() {
-  const sig = calculerSIG();
+export default async function PageComptabilite() {
+  const session = await exigerEntreprise();
+
+  // L'exercice affiché est le dernier écrit. Une entreprise qui n'a jamais
+  // comptabilisé n'en a aucun : on prend l'année civile plutôt que de laisser
+  // l'écran sans repère.
+  const exercices = await exercicesEcrits(session.organizationId);
+  const exercice = exercices[0] ?? String(new Date().getFullYear());
+
+  const [soldes, journaux, lettrage] = await Promise.all([
+    soldesParCompte(session.organizationId, exercice),
+    activiteParJournal(session.organizationId, exercice),
+    etatLettrage(session.organizationId),
+  ]);
+
+  const position = positionComptable(soldes);
+  const sig = calculerSIG(elementsResultat(soldes));
   const resultatNet = sig.find((s) => s.code === "XI")!.montant;
 
-  const tresorerie = COMPTES_CLES.filter((c) => c.numero.startsWith("5")).reduce(
-    (somme, c) => somme + c.solde,
-    0,
+  const comptesTresorerie = soldes.filter((s) =>
+    ["52", "53", "57"].some((prefixe) => s.compte.startsWith(prefixe)),
   );
-  const clients = COMPTES_CLES.find((c) => c.numero === "411")!.solde;
-  const fournisseurs = COMPTES_CLES.find((c) => c.numero === "401")!.solde;
 
-  const faites = ETAPES_CLOTURE.filter((e) => e.fait).length;
+  // Le contrôle qui précède tous les autres : une balance qui ne tombe pas
+  // juste rend faux tout ce qui en découle.
+  const totalDebit = soldes.reduce((somme, s) => somme + s.debit, 0);
+  const totalCredit = soldes.reduce((somme, s) => somme + s.credit, 0);
+  const ecartBalance = totalDebit - totalCredit;
+
+  const parJournal = new Map(journaux.map((j) => [j.journal, j]));
+  const ecrituresTotal = journaux.reduce((somme, j) => somme + j.ecritures, 0);
+
+  if (soldes.length === 0) {
+    return (
+      <>
+        <EnTetePage titre="Comptabilité" sousTitre={`Exercice ${exercice}`} />
+        <EtatVide
+          titre="Aucune écriture pour cet exercice"
+          message="La comptabilité se remplit toute seule : un ticket encaissé pose son écriture dans la même transaction que la vente. Encaissez en caisse, et le journal se garnit."
+        />
+      </>
+    );
+  }
 
   return (
     <>
       <EnTetePage
         titre="Comptabilité"
-        sousTitre="Exercice 2026 · du 01/01/2026 au 31/12/2026"
-        actions={<BoutonPrincipal>Nouvelle écriture</BoutonPrincipal>}
+        sousTitre={`Exercice ${exercice} · ${fmtEntier(ecrituresTotal)} écriture${ecrituresTotal > 1 ? "s" : ""}`}
       />
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CarteIndicateur
           libelle="Trésorerie"
-          valeur={fmtCompact(tresorerie)}
+          valeur={fmtCompact(position.tresorerie)}
           unite="FCFA"
           ton="valide"
           precision="Banque, caisse et mobile money"
         />
         <CarteIndicateur
           libelle="Créances clients"
-          valeur={fmtCompact(clients)}
+          valeur={fmtCompact(position.creancesClients)}
           unite="FCFA"
-          precision="Compte 411"
+          precision="Compte 41"
+          href="/commercial"
         />
         <CarteIndicateur
           libelle="Dettes fournisseurs"
-          valeur={fmtCompact(fournisseurs)}
+          valeur={fmtCompact(position.dettesFournisseurs)}
           unite="FCFA"
           ton="alerte"
-          precision="Compte 401"
+          precision="Compte 40"
+          href="/commercial/fournisseurs"
         />
         <CarteIndicateur
           libelle="Résultat net"
@@ -65,6 +103,7 @@ export default function PageComptabilite() {
           unite="FCFA"
           ton={resultatNet >= 0 ? "valide" : "danger"}
           precision={resultatNet >= 0 ? "Bénéfice" : "Perte"}
+          href="/comptabilite/etats"
         />
       </section>
 
@@ -72,52 +111,66 @@ export default function PageComptabilite() {
         {/* ------------------------------------------------- trésorerie */}
         <section>
           <h2 className="mb-2.5 text-base font-semibold">Comptes de trésorerie</h2>
-          <ul className="divide-y divide-[var(--filet)] overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
-            {COMPTES_CLES.filter((c) => c.numero.startsWith("5")).map((compte) => (
-              <li
-                key={compte.numero}
-                className="flex items-center justify-between gap-3 px-4 py-3"
-              >
-                <span className="min-w-0">
-                  <span className="chiffres block text-xs text-[var(--encre-faible)]">
-                    {compte.numero}
+          {comptesTresorerie.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-[var(--filet)] bg-[var(--surface)] px-4 py-6 text-center text-sm text-[var(--encre-douce)]">
+              Aucun mouvement de trésorerie sur l&apos;exercice.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[var(--filet)] overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
+              {comptesTresorerie.map((compte) => (
+                <li
+                  key={compte.compte}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
+                  <span className="min-w-0">
+                    <span className="chiffres block text-xs text-[var(--encre-faible)]">
+                      {compte.compte}
+                    </span>
+                    <span className="block truncate text-sm font-medium">
+                      {compte.libelle}
+                    </span>
                   </span>
-                  <span className="block truncate text-sm font-medium">
-                    {compte.intitule}
+                  <span className="chiffres shrink-0 text-sm font-bold">
+                    {fmt(compte.debit - compte.credit)}
                   </span>
-                </span>
-                <span className="chiffres shrink-0 text-sm font-bold">
-                  {fmt(compte.solde)}
-                </span>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         {/* ---------------------------------------------------- journaux */}
         <section>
           <h2 className="mb-2.5 text-base font-semibold">Journaux</h2>
           <ul className="divide-y divide-[var(--filet)] overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
-            {JOURNAUX.map((journal) => (
-              <li
-                key={journal.code}
-                className="flex items-center justify-between gap-3 px-4 py-3"
-              >
-                <span className="min-w-0">
-                  <span className="text-sm font-semibold">
-                    {journal.code} — {journal.libelle}
+            {JOURNAUX.map((journal) => {
+              const activite = parJournal.get(journal.code);
+
+              return (
+                <li
+                  key={journal.code}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
+                  <span className="min-w-0">
+                    <span className="text-sm font-semibold">
+                      {journal.code} — {journal.libelle}
+                    </span>
+                    <span className="block truncate text-xs text-[var(--encre-faible)]">
+                      {journal.contrepartie
+                        ? `Contrepartie ${journal.contrepartie}`
+                        : "Les deux côtés se saisissent"}
+                    </span>
                   </span>
-                  {/* La contrepartie est déduite du journal : c'est ce qui
-                      permet à un non-comptable de ne saisir qu'un seul compte. */}
-                  <span className="block truncate text-xs text-[var(--encre-faible)]">
-                    Contrepartie {journal.contrepartie}
+                  <span
+                    className={`chiffres shrink-0 text-xs ${
+                      activite ? "text-[var(--encre-douce)]" : "text-[var(--encre-faible)]"
+                    }`}
+                  >
+                    {activite ? fmtEntier(activite.ecritures) : "—"}
                   </span>
-                </span>
-                <span className="chiffres shrink-0 text-xs text-[var(--encre-faible)]">
-                  {fmtEntier(journal.ecritures)}
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </section>
 
@@ -125,89 +178,65 @@ export default function PageComptabilite() {
         <section>
           <h2 className="mb-2.5 text-base font-semibold">Lettrage</h2>
           <div className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
-            <p className="text-sm font-medium">{LETTRAGE.compte}</p>
+            <p className="text-sm font-medium">41 — Clients</p>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <p className="text-xs text-[var(--encre-faible)]">Lettrées</p>
                 <p className="chiffres text-xl font-bold text-valide-600">
-                  {fmtEntier(LETTRAGE.lettrees)}
+                  {fmtEntier(lettrage.lettrees)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-[var(--encre-faible)]">Non lettrées</p>
                 <p className="chiffres text-xl font-bold text-alerte-600">
-                  {fmtEntier(LETTRAGE.nonLettrees)}
+                  {fmtEntier(lettrage.nonLettrees)}
                 </p>
               </div>
             </div>
 
             <p className="chiffres mt-3 text-xs text-[var(--encre-faible)]">
-              Solde débit non lettré {fmt(LETTRAGE.soldeDebitNonLettre)} FCFA
+              Solde ouvert {fmt(lettrage.soldeOuvert)} FCFA
             </p>
 
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-[var(--surface-creuse)] px-3 py-2.5">
-              <span className="text-sm">
-                {LETTRAGE.suggestions} rapprochements proposés
-              </span>
-              <span className="text-sm font-semibold text-marque-600">Vérifier</span>
-            </div>
+            <p className="mt-3 rounded-lg bg-[var(--surface-creuse)] px-3 py-2.5 text-sm text-[var(--encre-douce)]">
+              Une ligne lettrée est rapprochée de son règlement, donc soldée. Ce
+              qui reste ouvert est ce que les clients doivent encore.
+            </p>
           </div>
         </section>
 
-        {/* ------------------------------------------------------ clôture */}
+        {/* ------------------------------------------------------ balance */}
         <section>
-          <h2 className="mb-2.5 text-base font-semibold">Clôture de l&apos;exercice</h2>
+          <h2 className="mb-2.5 text-base font-semibold">Contrôle de la balance</h2>
           <div className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
             <div className="mb-3 flex items-baseline justify-between gap-3">
               <p className="text-sm text-[var(--encre-douce)]">
-                {faites} étape{faites > 1 ? "s" : ""} sur {ETAPES_CLOTURE.length}
+                {fmtEntier(soldes.length)} comptes mouvementés
               </p>
-              <Pastille ton="alerte">En cours</Pastille>
+              {ecartBalance === 0 ? (
+                <Pastille ton="valide">Équilibrée</Pastille>
+              ) : (
+                <Pastille ton="danger">Écart</Pastille>
+              )}
             </div>
 
-            <div
-              className="mb-4 h-1.5 overflow-hidden rounded-full bg-[var(--surface-creuse)]"
-              role="progressbar"
-              aria-valuenow={faites}
-              aria-valuemin={0}
-              aria-valuemax={ETAPES_CLOTURE.length}
-              aria-label="Avancement de la clôture"
-            >
-              <div
-                className="h-full rounded-full bg-marque-600"
-                style={{ width: `${(faites / ETAPES_CLOTURE.length) * 100}%` }}
-              />
-            </div>
+            <dl className="space-y-2 text-sm">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-[var(--encre-douce)]">Total des débits</dt>
+                <dd className="chiffres font-semibold">{fmt(totalDebit)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-[var(--encre-douce)]">Total des crédits</dt>
+                <dd className="chiffres font-semibold">{fmt(totalCredit)}</dd>
+              </div>
+            </dl>
 
-            <ul className="space-y-1.5">
-              {ETAPES_CLOTURE.slice(0, 5).map((etape) => (
-                <li key={etape.numero} className="flex items-center gap-2.5 text-sm">
-                  <span
-                    className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                      etape.fait
-                        ? "bg-valide-500 text-white"
-                        : "bg-[var(--surface-creuse)] text-[var(--encre-faible)]"
-                    }`}
-                    aria-hidden
-                  >
-                    {etape.fait ? "✓" : etape.numero}
-                  </span>
-                  <span
-                    className={
-                      etape.fait ? "text-[var(--encre-faible)] line-through" : ""
-                    }
-                  >
-                    {etape.libelle}
-                  </span>
-                  {!etape.fait && etape.bloquant && (
-                    <span className="ml-auto shrink-0">
-                      <Pastille ton="danger">Bloquant</Pastille>
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <p className="mt-3 text-sm text-[var(--encre-douce)]">
+              {ecartBalance === 0
+                ? "Chaque écriture pèse autant au débit qu'au crédit. C'est le contrôle qui précède tous les autres : une balance qui ne tombe pas juste rend faux tout ce qui en découle."
+                : `Écart de ${fmt(Math.abs(ecartBalance))} FCFA. Une écriture a été posée hors du moteur, ou une ligne a été modifiée en base.`}
+            </p>
           </div>
         </section>
       </div>

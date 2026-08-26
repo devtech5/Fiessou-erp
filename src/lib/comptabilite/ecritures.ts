@@ -19,6 +19,28 @@ import { allocateByWeights, percentOf } from "@/lib/money";
 
 export type CodeJournal = "VE" | "AC" | "CA" | "BQ" | "OD";
 
+/**
+ * Les cinq journaux, avec le compte que la saisie déduit toute seule.
+ *
+ * C'est ce qui permet à un non-comptable de ne saisir qu'un seul compte : dans
+ * le journal de caisse, la contrepartie est la caisse, et il ne reste à
+ * désigner que la nature de la dépense.
+ */
+export const JOURNAUX: readonly {
+  code: CodeJournal;
+  libelle: string;
+  contrepartie: string | null;
+}[] = [
+  { code: "VE", libelle: "Ventes", contrepartie: "411 — Clients" },
+  { code: "AC", libelle: "Achats", contrepartie: "401 — Fournisseurs" },
+  { code: "CA", libelle: "Caisse", contrepartie: "571 — Caisse" },
+  { code: "BQ", libelle: "Banque", contrepartie: "521 — Banques" },
+  // Les opérations diverses n'ont pas de contrepartie déduite : c'est là que
+  // se passent la paie, les amortissements et les corrections, dont les deux
+  // côtés se saisissent.
+  { code: "OD", libelle: "Opérations diverses", contrepartie: null },
+];
+
 export interface LigneEcriture {
   compte: string;
   libelleCompte: string;
@@ -624,6 +646,115 @@ export function ecritureEcartCaisse(cloture: {
     date: cloture.date,
     piece: cloture.numero,
     libelle: `Écart de caisse ${cloture.numero} — ${cloture.caissier}`,
+    lignes,
+  });
+}
+
+// ------------------------------------------------------------ saisie guidée
+
+/**
+ * Contrepartie déduite du journal.
+ *
+ * `OD` n'y figure pas : c'est là que se passent la paie, les amortissements et
+ * les corrections, dont les deux côtés se saisissent. Un journal sans
+ * contrepartie évidente n'en reçoit pas une par défaut — ce serait le meilleur
+ * moyen d'imputer un salaire à la caisse.
+ */
+const CONTREPARTIE_JOURNAL: Partial<
+  Record<CodeJournal, { numero: string; libelle: string }>
+> = {
+  VE: COMPTES.clients,
+  AC: COMPTES.fournisseurs,
+  CA: COMPTES.caisse,
+  BQ: COMPTES.banque,
+};
+
+export function contrepartieDe(journal: CodeJournal) {
+  return CONTREPARTIE_JOURNAL[journal];
+}
+
+export interface SaisieGuidee {
+  journal: CodeJournal;
+  date: string;
+  piece: string;
+  libelle: string;
+  /** Compte de charge ou de produit choisi par l'exploitant. */
+  compte: string;
+  libelleCompte: string;
+  /** `charge` se débite, `produit` se crédite. */
+  sens: "charge" | "produit";
+  /** Montant tel qu'il figure sur la pièce : TTC si un taux est donné. */
+  montant: number;
+  /** Taux de TVA en points de base — 1800 pour 18 %. Absent : pas de TVA. */
+  tauxTvaBp?: number;
+}
+
+/**
+ * Écriture à un seul compte saisi.
+ *
+ * L'exploitant choisit un journal et un compte de charge ou de produit ; la
+ * contrepartie et le sens se déduisent. C'est la seule abstraction qui rende
+ * la comptabilité tenable pour un commerçant qui n'est pas comptable — et la
+ * partie double reste affichée, on ne la cache pas.
+ *
+ * La TVA est isolée quand un taux est donné : le montant de la pièce est alors
+ * TTC, la charge ou le produit prend le HT, et la différence va au compte de
+ * taxe. Sans cette ventilation, la TVA récupérable resterait noyée dans la
+ * charge — l'entreprise paierait deux fois.
+ */
+export function ecritureSaisieGuidee(saisie: SaisieGuidee): Ecriture {
+  const contrepartie = contrepartieDe(saisie.journal);
+
+  if (!contrepartie) {
+    throw new Error(
+      `Le journal ${saisie.journal} n'a pas de contrepartie déduite : les deux comptes doivent être saisis.`,
+    );
+  }
+
+  if (saisie.montant <= 0) {
+    throw new Error("Une écriture sans montant n'a rien à enregistrer.");
+  }
+
+  const taux = saisie.tauxTvaBp ? saisie.tauxTvaBp / 100 : 0;
+  const { ht, tva } = taux > 0
+    ? decomposerTTC(saisie.montant, taux)
+    : { ht: saisie.montant, tva: 0 };
+
+  const estCharge = saisie.sens === "charge";
+  const compteTaxe = estCharge ? COMPTES.tvaRecuperable : COMPTES.tvaFacturee;
+
+  const lignes: LigneEcriture[] = [
+    {
+      compte: saisie.compte,
+      libelleCompte: saisie.libelleCompte,
+      debit: estCharge ? ht : 0,
+      credit: estCharge ? 0 : ht,
+    },
+  ];
+
+  if (tva > 0) {
+    lignes.push({
+      compte: compteTaxe.numero,
+      libelleCompte: compteTaxe.libelle,
+      // La TVA suit le sens du compte qu'elle accompagne : récupérable au
+      // débit avec la charge, facturée au crédit avec le produit.
+      debit: estCharge ? tva : 0,
+      credit: estCharge ? 0 : tva,
+    });
+  }
+
+  lignes.push({
+    compte: contrepartie.numero,
+    libelleCompte: contrepartie.libelle,
+    debit: estCharge ? 0 : saisie.montant,
+    credit: estCharge ? saisie.montant : 0,
+  });
+
+  return exigerEquilibre({
+    journal: saisie.journal,
+    date: saisie.date,
+    piece: saisie.piece,
+    libelle: saisie.libelle,
     lignes,
   });
 }
