@@ -130,3 +130,46 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/**
+ * Impression du ticket de caisse.
+ *
+ * Hors impression le ticket n'existe pas à l'écran ; à l'impression il est la
+ * seule chose qui reste. Largeur en caractères réglée par `composerTicket` :
+ * 32 colonnes sur 58 mm, 48 sur 80 mm.
+ */
+#ticket-imprimable {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #ticket-imprimable,
+  #ticket-imprimable * {
+    visibility: visible;
+  }
+  #ticket-imprimable {
+    display: block;
+    position: absolute;
+    inset: 0 auto auto 0;
+    background: #fff;
+    color: #000;
+  }
+  #ticket-imprimable[data-largeur="58"] {
+    width: 58mm;
+  }
+  #ticket-imprimable[data-largeur="80"] {
+    width: 80mm;
+  }
+  #ticket-imprimable pre {
+    margin: 0;
+    padding: 2mm;
+    font-family: "Courier New", ui-monospace, monospace;
+    font-size: 10pt;
+    line-height: 1.25;
+    white-space: pre;
+  }
+}

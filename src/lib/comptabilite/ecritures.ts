@@ -743,6 +743,32 @@ const CONTREPARTIE_JOURNAL: Partial<
   BQ: COMPTES.banque,
 };
 
+/**
+ * Contrepasse une écriture : mêmes comptes, sens inversé.
+ *
+ * Une écriture validée ne s'efface pas, elle se corrige par son contraire. Le
+ * chiffre d'affaires annulé disparaît ainsi des états sans qu'aucune ligne
+ * d'origine ne soit touchée, et la balance reste juste à chaque instant.
+ */
+export function contrepasser(
+  origine: Ecriture,
+  piece: string,
+  libelle: string,
+  date: string = origine.date,
+): Ecriture {
+  return {
+    journal: origine.journal,
+    date,
+    piece,
+    libelle,
+    lignes: origine.lignes.map((ligne) => ({
+      ...ligne,
+      debit: ligne.credit,
+      credit: ligne.debit,
+    })),
+  };
+}
+
 export function contrepartieDe(journal: CodeJournal) {
   return CONTREPARTIE_JOURNAL[journal];
 }

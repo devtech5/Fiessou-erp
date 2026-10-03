@@ -5,12 +5,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { auditLogs } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { exigerDroit, messageRefus, peut, refusDroit } from "@/lib/droits/garde";
-import { newId } from "@/lib/ids";
+import { annulerVenteDans } from "./annulation";
 import { creerPosteCaisseDans, enregistrerVenteDans } from "./creation";
-import { postesCaisse, ventes } from "./schema";
+import { postesCaisse } from "./schema";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -155,9 +154,9 @@ export async function encaisserTicket(
  * Le ticket reste, son statut change : une vente encaissée puis annulée est un
  * fait, et l'effacer priverait la caisse de son explication au comptage du soir.
  *
- * Ni le stock ni la comptabilité ne sont repris ici : la contrepassation
- * demande une pièce à elle, un avoir, qui viendra avec le module Commercial.
- * Faire disparaître l'écriture serait pire que de la laisser.
+ * L'avoir est posé dans la même transaction : le stock revient au dépôt et
+ * l'écriture est contrepassée. Annuler sans reprendre l'un ni l'autre laisserait
+ * la marchandise sortie et le chiffre d'affaires compté.
  */
 export async function annulerTicket(donnees: FormData): Promise<void> {
   const session = await exigerDroit("pos.vente.annuler");
@@ -166,37 +165,17 @@ export async function annulerTicket(donnees: FormData): Promise<void> {
 
   if (!UUID.test(id) || motif.length < 3) return;
 
-  const [annulee] = await db
-    .update(ventes)
-    .set({
-      statut: "annulee",
-      motifAnnulation: motif,
-      updatedAt: new Date(),
-      version: sql`${ventes.version} + 1`,
-    })
-    .where(
-      and(
-        eq(ventes.id, id),
-        eq(ventes.organizationId, session.organizationId),
-        eq(ventes.statut, "encaissee"),
-      ),
-    )
-    .returning({ id: ventes.id, numero: ventes.numero, total: ventes.totalTtc });
+  const annulee = await db.transaction((tx) =>
+    annulerVenteDans(tx, session.organizationId, id, motif, session.userId),
+  );
 
   if (!annulee) return;
 
-  await db.insert(auditLogs).values({
-    id: newId(),
-    organizationId: session.organizationId,
-    userId: session.userId,
-    action: "vente.annuler",
-    entityType: "vente",
-    entityId: annulee.id,
-    after: { numero: annulee.numero, montant: annulee.total, motif },
-  });
-
   revalidatePath("/caisse");
   revalidatePath("/commercial/ventes");
+  revalidatePath("/stock", "layout");
+  revalidatePath("/comptabilite");
+  revalidatePath("/");
 }
 
 // ------------------------------------------------------------------ postes

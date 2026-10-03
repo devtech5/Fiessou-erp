@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  contrepasser,
   decomposerTTC,
   ecritureVenteComptoir,
   estEquilibree,
@@ -184,5 +185,41 @@ describe("ecritureVenteComptoir", () => {
       expect(estEquilibree(ecriture)).toBe(true);
       expect(totalDebit(ecriture)).toBe(montant);
     }
+  });
+});
+
+describe("contrepasser", () => {
+  it("inverse chaque ligne et reste équilibrée", () => {
+    const origine = ecritureVenteComptoir(
+      ticket({
+        lignes: [
+          { montantTTC: 900, tauxTvaBp: 1800, compte: "701", libelleCompte: "Ventes de marchandises" },
+          { montantTTC: 500, tauxTvaBp: 1800, compte: "706", libelleCompte: "Services vendus" },
+        ],
+        reglements: [
+          { moyen: "especes", montant: 400 },
+          { moyen: "mobile_money", montant: 1000 },
+        ],
+      }),
+    );
+    const contre = contrepasser(origine, "AVO-C01-000042", "Annulation", "2026-08-26");
+
+    expect(estEquilibree(contre)).toBe(true);
+    expect(totalDebit(contre)).toBe(totalCredit(origine));
+    expect(totalCredit(contre)).toBe(totalDebit(origine));
+    contre.lignes.forEach((ligne, i) => {
+      expect(ligne.compte).toBe(origine.lignes[i].compte);
+      expect(ligne.debit).toBe(origine.lignes[i].credit);
+      expect(ligne.credit).toBe(origine.lignes[i].debit);
+    });
+    expect(contre.piece).toBe("AVO-C01-000042");
+    expect(contre.date).toBe("2026-08-26");
+  });
+
+  it("ne touche pas à l'écriture d'origine", () => {
+    const origine = ecritureVenteComptoir(ticket());
+    const avant = JSON.stringify(origine);
+    contrepasser(origine, "AVO-X", "Annulation");
+    expect(JSON.stringify(origine)).toBe(avant);
   });
 });

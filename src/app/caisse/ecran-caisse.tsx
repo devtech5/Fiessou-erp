@@ -18,6 +18,7 @@ import {
   poserTicket,
   reserverRang,
 } from "@/lib/caisse/file-locale";
+import type { DonneesTicket } from "@/lib/caisse/ticket";
 import { fmt } from "@/lib/format";
 import { ECHELLE_QUANTITE, UNITES, formaterQuantite, versQuantite } from "@/lib/quantite";
 import { encaisserTicket, type TicketEntrant } from "@/modules/ventes/actions";
@@ -28,6 +29,7 @@ import {
   type SessionVue,
 } from "./panneau-session";
 import { SaisieQuantite } from "./saisie-quantite";
+import { TicketImprimable, useReglagesTicket } from "./ticket-imprimable";
 import type { ArticleCaisse, PosteCaisseVue, ReglementSaisi } from "./types";
 
 /**
@@ -38,6 +40,14 @@ import type { ArticleCaisse, PosteCaisseVue, ReglementSaisi } from "./types";
  * pile. Dix unités suffisent à colorer une vignette.
  */
 const SEUIL_RAYON = versQuantite(10);
+
+const LIBELLE_MOYEN: Record<string, string> = {
+  especes: "Espèces",
+  mobile_money: "Mobile money",
+  carte: "Carte bancaire",
+  banque: "Virement",
+  credit: "À crédit",
+};
 
 interface Props {
   articles: ArticleCaisse[];
@@ -73,6 +83,10 @@ export function EcranCaisse({
   // permanence : le caissier doit savoir ce qui n'est pas encore remonté.
   const [enFile, setEnFile] = useState(0);
   const [dernierTicket, setDernierTicket] = useState<string | null>(null);
+  // Dernier ticket encaissé, gardé pour la réimpression : le client qui
+  // réclame son reçu une minute plus tard ne doit pas obliger à tout refaire.
+  const [aImprimer, setAImprimer] = useState<DonneesTicket | null>(null);
+  const reglagesTicket = useReglagesTicket();
   const champRecherche = useRef<HTMLInputElement>(null);
   const routeur = useRouter();
 
@@ -226,6 +240,23 @@ export function EcranCaisse({
       tentatives: 0,
     });
 
+    setAImprimer({
+      boutique: nomBoutique,
+      poste: poste.nom,
+      caissier,
+      numero,
+      encaisseeLe,
+      lignes: lignes.map((ligne) => ({ ...ligne })),
+      totaux,
+      reglements: reglements.map((reglement) => ({
+        libelle: LIBELLE_MOYEN[reglement.moyen] ?? reglement.moyen,
+        montant: reglement.montant,
+        reference: reglement.reference ?? null,
+      })),
+      especesRecues: especes,
+    });
+    if (reglagesTicket.auto) declencherImpression();
+
     setDernierTicket(numero);
     setLignes([]);
     setPaiementOuvert(false);
@@ -234,6 +265,14 @@ export function EcranCaisse({
     // L'envoi part après avoir rendu la main : le caissier enchaîne, la file
     // se vide toute seule.
     void viderFile();
+  }
+
+  /**
+   * Lance l'impression au prochain rendu : le ticket doit être dans le DOM
+   * avant que le navigateur ouvre sa boîte d'impression.
+   */
+  function declencherImpression() {
+    setTimeout(() => window.print(), 50);
   }
 
   const viderFile = useCallback(async () => {
@@ -270,6 +309,9 @@ export function EcranCaisse({
         session={session}
         attendu={attendu}
         poste={poste}
+        reglagesTicket={reglagesTicket}
+        peutImprimer={aImprimer !== null}
+        onImprimer={declencherImpression}
       />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(340px,380px)_1fr]">
@@ -297,6 +339,10 @@ export function EcranCaisse({
           categories={categories}
         />
       </div>
+
+      {aImprimer && (
+        <TicketImprimable donnees={aImprimer} largeur={reglagesTicket.largeur} />
+      )}
 
       {aPeser && (
         <SaisieQuantite
@@ -335,7 +381,13 @@ function EnTete({
   session,
   attendu,
   poste,
+  reglagesTicket,
+  peutImprimer,
+  onImprimer,
 }: {
+  reglagesTicket: ReturnType<typeof useReglagesTicket>;
+  peutImprimer: boolean;
+  onImprimer: () => void;
   nomBoutique: string;
   nomCaisse: string;
   caissier: string;
@@ -394,6 +446,33 @@ function EnTete({
       />
 
       <div className="ml-auto flex items-center gap-4 text-xs text-[var(--encre-douce)]">
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={reglagesTicket.auto}
+            onChange={(e) => reglagesTicket.changerAuto(e.target.checked)}
+          />
+          Imprimer à l&apos;encaissement
+        </label>
+        <select
+          aria-label="Largeur du papier"
+          value={reglagesTicket.largeur}
+          onChange={(e) =>
+            reglagesTicket.changerLargeur(e.target.value === "58" ? 58 : 80)
+          }
+          className="rounded border border-[var(--filet)] bg-[var(--surface)] px-1.5 py-1"
+        >
+          <option value={80}>80 mm</option>
+          <option value={58}>58 mm</option>
+        </select>
+        <button
+          type="button"
+          onClick={onImprimer}
+          disabled={!peutImprimer}
+          className="rounded border border-[var(--filet)] px-2.5 py-1 font-medium text-[var(--encre)] disabled:opacity-40"
+        >
+          Réimprimer
+        </button>
         {dernierTicket && (
           <span className="chiffres text-valide-600">{dernierTicket}</span>
         )}
