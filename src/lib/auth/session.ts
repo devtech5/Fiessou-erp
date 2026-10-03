@@ -33,7 +33,13 @@ export interface SessionActive {
   sessionId: string;
   userId: string;
   nom: string;
-  telephone: string;
+  /** Identifiant de connexion. Nul pour un compte antérieur au passage à l'e-mail. */
+  email: string | null;
+  /**
+   * Mot de passe provisoire à remplacer. Tant qu'il l'est, `exigerSession`
+   * ne laisse ouvrir que l'écran de changement.
+   */
+  doitChangerMotDePasse: boolean;
   organizationId: string | null;
   organizationNom: string | null;
   roleId: string | null;
@@ -106,7 +112,8 @@ export async function lireSession(): Promise<SessionActive | null> {
       sessionId: sessions.id,
       userId: users.id,
       nom: users.fullName,
-      telephone: users.phone,
+      email: users.email,
+      doitChangerMotDePasse: users.mustChangePassword,
       statut: users.status,
       organizationId: sessions.organizationId,
       deviceId: sessions.deviceId,
@@ -168,7 +175,8 @@ export async function lireSession(): Promise<SessionActive | null> {
     sessionId: ligne.sessionId,
     userId: ligne.userId,
     nom: ligne.nom,
-    telephone: ligne.telephone,
+    email: ligne.email,
+    doitChangerMotDePasse: ligne.doitChangerMotDePasse,
     organizationId: actif?.organizationId ?? null,
     organizationNom: actif?.nom ?? null,
     roleId: actif?.roleId ?? null,

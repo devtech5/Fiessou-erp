@@ -17,39 +17,11 @@ const schema = z.object({
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET doit faire au moins 32 caractères"),
   DEFAULT_COUNTRY: z.string().length(2).default("CI"),
   /**
-   * Acheminement des codes de connexion.
-   *
-   * `demo` affiche le code À L'ÉCRAN au lieu de l'envoyer. C'est ce qui rend une
-   * instance de démonstration utilisable sans opérateur SMS — et c'est aussi ce
-   * qui l'ouvre à quiconque connaît un numéro. Réservé aux instances sans
-   * données réelles.
+   * Instance de démonstration : affiche un bandeau « données fictives » sur
+   * toutes les pages. Un prospect qui prend un jeu d'essai pour un vrai bilan
+   * repart avec une idée fausse de ce qu'il a vu.
    */
-  OTP_CHANNEL: z.enum(["console", "demo", "sms", "whatsapp"]).default("console"),
-
-  /**
-   * Identifiants WhatsApp Cloud API, requis quand `OTP_CHANNEL=whatsapp`.
-   *
-   * Facultatifs dans le schéma, exigés par `verifierCanal` : une instance de
-   * démonstration n'a pas de compte Meta, et lui imposer ces variables la
-   * rendrait indémarrable.
-   *
-   * `WHATSAPP_TOKEN` est un jeton permanent d'utilisateur système, pas le
-   * jeton de test de la console — ce dernier expire au bout de vingt-quatre
-   * heures, et la connexion tomberait un matin sans que rien n'ait changé.
-   */
-  WHATSAPP_TOKEN: z.string().optional(),
-  /** Identifiant du numéro expéditeur, pas le numéro lui-même. */
-  WHATSAPP_PHONE_ID: z.string().optional(),
-  /** Nom du gabarit d'authentification approuvé par Meta. */
-  WHATSAPP_TEMPLATE: z.string().default("fiessou_code"),
-  /** Langue du gabarit. Doit correspondre EXACTEMENT à celle approuvée. */
-  WHATSAPP_LANGUE: z.string().default("fr"),
-  /**
-   * Version de l'API Graph. Épinglée : Meta retire les anciennes versions au
-   * bout de deux ans, et une montée de version doit être un geste, pas une
-   * surprise un lundi matin.
-   */
-  WHATSAPP_VERSION: z.string().default("v25.0"),
+  INSTANCE_DEMO: z.enum(["0", "1"]).default("0"),
 
   /**
    * Dépôt de fichiers — Supabase Storage.

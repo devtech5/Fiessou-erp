@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   pgEnum,
@@ -42,20 +43,34 @@ export const otpPurpose = pgEnum("otp_purpose", [
  * de paie : il n'a donc ni ligne ici, ni ligne dans `employees`. Les tables 2
  * et 3 vivent dans le module RH et pointent vers `users` de façon optionnelle.
  *
- * L'identification se fait par téléphone : sur le marché visé, beaucoup
- * d'exploitants n'ont pas d'adresse e-mail active. L'e-mail reste facultatif.
+ * L'identification se fait par ADRESSE E-MAIL ET MOT DE PASSE. Le téléphone,
+ * qui servait d'identifiant à l'origine (code à usage unique), n'est plus
+ * qu'un contact facultatif. `email` reste nullable en base pour les comptes
+ * créés avant ce changement ; le code exige l'adresse pour tout compte neuf,
+ * et un compte sans adresse ni mot de passe ne peut tout simplement pas entrer.
  */
 export const users = pgTable(
   "users",
   {
     id: primaryId(),
-    /** Format E.164, indicatif compris : +2250700000000 */
-    phone: text("phone").notNull(),
+    /** Contact facultatif, format E.164 : +2250700000000. N'identifie plus. */
+    phone: text("phone"),
+    /** Identifiant de connexion, toujours en minuscules. */
     email: text("email"),
     fullName: text("full_name").notNull(),
 
-    /** Nul tant que le compte n'utilise que le code à usage unique. */
+    /** Empreinte Argon2id. Nulle : le compte ne peut pas se connecter. */
     passwordHash: text("password_hash"),
+    /**
+     * Mot de passe provisoire, donné par un responsable : il doit être changé
+     * à la première connexion. Un mot de passe que deux personnes connaissent
+     * n'authentifie plus personne.
+     */
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
+    /** Échecs consécutifs. Remis à zéro par une connexion réussie. */
+    failedLogins: integer("failed_logins").notNull().default(0),
+    /** Verrou temporaire après trop d'échecs : freine la force brute. */
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
 
     phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),

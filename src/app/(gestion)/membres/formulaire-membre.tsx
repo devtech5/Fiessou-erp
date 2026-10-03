@@ -5,11 +5,12 @@ import { useActionState, useState } from "react";
 import { Champ, CLASSE_CHAMP } from "@/components/ui/primitives";
 import type { RoleAttribuable } from "@/lib/auth/membres";
 import { ajouterMembre, type EtatMembre } from "./actions";
+import { MotDePasseRemis } from "./mot-de-passe-remis";
 
 /**
  * Ouverture d'un accès.
  *
- * Trois champs, pas davantage : le nom, le numéro, le rôle. Tout le reste —
+ * Trois champs, pas davantage : le nom, l'adresse e-mail, le rôle. Tout le reste —
  * poste, contrat, salaire — relève du personnel, pas du compte de connexion,
  * et le demander ici laisserait croire que créer un accès, c'est embaucher.
  */
@@ -24,10 +25,14 @@ export function FormulaireMembre({ roles }: { roles: RoleAttribuable[] }) {
   // « Caissier » ou « Magasinier » ne dit pas ce que le rôle ouvre, et c'est
   // pourtant la seule chose que le gérant a besoin de savoir à cet instant.
   const [choisi, setChoisi] = useState<string | undefined>(undefined);
-  const [dernierAjout, setDernierAjout] = useState(etat.ajoute);
-  if (etat.ajoute !== dernierAjout) {
-    setDernierAjout(etat.ajoute);
-    if (etat.ajoute) setOuvert(false);
+  const [dernierAjout, setDernierAjout] = useState(etat);
+  const [remis, setRemis] = useState<EtatMembre | null>(null);
+  if (etat !== dernierAjout) {
+    setDernierAjout(etat);
+    if (etat.ajoute) {
+      setOuvert(false);
+      if (etat.motDePasse) setRemis(etat);
+    }
   }
 
   // Sans rôle à donner, il n'y a pas d'accès à ouvrir : un compte sans rôle
@@ -47,6 +52,17 @@ export function FormulaireMembre({ roles }: { roles: RoleAttribuable[] }) {
   // suivants et finirait par annoncer « peut désormais se connecter » à côté
   // d'une ligne qu'on vient de suspendre.
   if (!ouvert) {
+    if (remis?.motDePasse && remis.email && remis.ajoute) {
+      return (
+        <MotDePasseRemis
+          nom={remis.ajoute}
+          email={remis.email}
+          motDePasse={remis.motDePasse}
+          onFermer={() => setRemis(null)}
+        />
+      );
+    }
+
     return (
       <button
         type="button"
@@ -92,15 +108,18 @@ export function FormulaireMembre({ roles }: { roles: RoleAttribuable[] }) {
         </Champ>
 
         <Champ
-          libelle="Téléphone"
-          precision="C'est avec ce numéro qu'elle se connectera."
+          libelle="Adresse e-mail"
+          precision="C'est avec elle qu'elle se connectera."
         >
           <input
-            name="telephone"
+            name="email"
+            type="email"
             required
-            inputMode="tel"
-            placeholder="07 00 00 00 00"
-            className={`${CLASSE_CHAMP} chiffres`}
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="awa.kone@boutique.ci"
+            className={CLASSE_CHAMP}
           />
         </Champ>
 

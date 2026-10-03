@@ -28,6 +28,9 @@ export const session = cache(lireSession);
 export async function exigerSession(): Promise<SessionActive> {
   const active = await session();
   if (!active) redirect("/connexion");
+  // Un mot de passe provisoire est connu de celui qui l'a donné : tant qu'il
+  // n'est pas remplacé, le compte n'ouvre que l'écran de changement.
+  if (active.doitChangerMotDePasse) redirect("/mot-de-passe");
   return active;
 }
 

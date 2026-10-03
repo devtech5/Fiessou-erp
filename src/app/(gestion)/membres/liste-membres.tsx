@@ -1,16 +1,22 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { Pastille, Tableau, Td, Th } from "@/components/ui/primitives";
 import type { RoleAttribuable } from "@/lib/auth/membres";
-import { changerRoleMembre, changerStatutMembre } from "./actions";
+import {
+  changerRoleMembre,
+  changerStatutMembre,
+  reinitialiserMotDePasse,
+  type ResultatReinitialisation,
+} from "./actions";
+import { MotDePasseRemis } from "./mot-de-passe-remis";
 
 export interface LigneMembre {
   membershipId: string;
   userId: string;
   nom: string;
-  telephone: string;
+  email: string | null;
   roleId: string;
   roleNom: string;
   statut: "invite" | "actif" | "suspendu";
@@ -48,78 +54,128 @@ export function ListeMembres({
   roles: RoleAttribuable[];
   moiId: string;
 }) {
+  const [remis, setRemis] = useState<{
+    nom: string;
+    email: string;
+    motDePasse: string;
+  } | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, demarrer] = useTransition();
+
+  function reinitialiser(membre: LigneMembre) {
+    setErreur(null);
+    demarrer(async () => {
+      const resultat: ResultatReinitialisation = await reinitialiserMotDePasse(
+        membre.membershipId,
+      );
+      if (resultat.ok) {
+        setRemis({ nom: membre.nom, email: resultat.email, motDePasse: resultat.motDePasse });
+      } else {
+        setErreur(resultat.message);
+      }
+    });
+  }
+
   return (
-    <Tableau>
-      <thead>
-        <tr>
-          <Th>Personne</Th>
-          <Th>Rôle</Th>
-          <Th>Statut</Th>
-          <Th aligne="droite">Accès</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {membres.map((membre) => {
-          const fige = membre.proprietaire || membre.userId === moiId;
+    <>
+      {remis && (
+        <MotDePasseRemis
+          nom={remis.nom}
+          email={remis.email}
+          motDePasse={remis.motDePasse}
+          onFermer={() => setRemis(null)}
+        />
+      )}
+      {erreur && (
+        <p
+          role="alert"
+          className="mb-4 rounded-lg bg-danger-50 px-3 py-2.5 text-sm font-medium text-danger-600"
+        >
+          {erreur}
+        </p>
+      )}
+      <Tableau>
+        <thead>
+          <tr>
+            <Th>Personne</Th>
+            <Th>Rôle</Th>
+            <Th>Statut</Th>
+            <Th aligne="droite">Accès</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {membres.map((membre) => {
+            const fige = membre.proprietaire || membre.userId === moiId;
 
-          return (
-            <tr key={membre.membershipId}>
-              <Td>
-                <span className="block font-medium">{membre.nom}</span>
-                <span className="chiffres block text-xs text-[var(--encre-faible)]">
-                  {membre.telephone}
-                  {membre.depuis && ` · depuis le ${membre.depuis}`}
-                </span>
-              </Td>
-
-              <Td>
-                {fige ? (
-                  <span className="flex items-center gap-2">
-                    {membre.roleNom}
-                    {membre.proprietaire && <Pastille ton="marque">Propriétaire</Pastille>}
+            return (
+              <tr key={membre.membershipId}>
+                <Td>
+                  <span className="block font-medium">{membre.nom}</span>
+                  <span className="block text-xs text-[var(--encre-faible)]">
+                    {membre.email ?? "Sans adresse — ne peut pas se connecter"}
+                    {membre.depuis && ` · depuis le ${membre.depuis}`}
                   </span>
-                ) : (
-                  <SelecteurRole membre={membre} roles={roles} />
-                )}
-              </Td>
+                </Td>
 
-              <Td>
-                <Pastille ton={TONS[membre.statut]}>
-                  {ETIQUETTES[membre.statut]}
-                </Pastille>
-              </Td>
+                <Td>
+                  {fige ? (
+                    <span className="flex items-center gap-2">
+                      {membre.roleNom}
+                      {membre.proprietaire && <Pastille ton="marque">Propriétaire</Pastille>}
+                    </span>
+                  ) : (
+                    <SelecteurRole membre={membre} roles={roles} />
+                  )}
+                </Td>
 
-              <Td aligne="droite">
-                {fige ? (
-                  <span className="text-xs text-[var(--encre-faible)]">
-                    {membre.proprietaire ? "Ne se coupe pas" : "Vous"}
-                  </span>
-                ) : (
-                  <form action={changerStatutMembre} className="inline">
-                    <input type="hidden" name="membershipId" value={membre.membershipId} />
-                    <input
-                      type="hidden"
-                      name="suspendre"
-                      value={membre.statut === "suspendu" ? "0" : "1"}
-                    />
-                    <button
-                      type="submit"
-                      className={`rounded-lg px-2.5 py-1.5 text-sm font-medium hover:bg-[var(--surface-creuse)] ${
-                        membre.statut === "suspendu"
-                          ? "text-valide-600"
-                          : "text-danger-600"
-                      }`}
-                    >
-                      {membre.statut === "suspendu" ? "Rétablir" : "Suspendre"}
-                    </button>
-                  </form>
-                )}
-              </Td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </Tableau>
+                <Td>
+                  <Pastille ton={TONS[membre.statut]}>
+                    {ETIQUETTES[membre.statut]}
+                  </Pastille>
+                </Td>
+
+                <Td aligne="droite">
+                  {fige ? (
+                    <span className="text-xs text-[var(--encre-faible)]">
+                      {membre.proprietaire ? "Ne se coupe pas" : "Vous"}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={enCours || !membre.email}
+                        onClick={() => reinitialiser(membre)}
+                        className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)] disabled:opacity-40"
+                      >
+                        Nouveau mot de passe
+                      </button>
+                      <form action={changerStatutMembre} className="inline">
+                        <input type="hidden" name="membershipId" value={membre.membershipId} />
+                        <input
+                          type="hidden"
+                          name="suspendre"
+                          value={membre.statut === "suspendu" ? "0" : "1"}
+                        />
+                        <button
+                          type="submit"
+                          className={`rounded-lg px-2.5 py-1.5 text-sm font-medium hover:bg-[var(--surface-creuse)] ${
+                            membre.statut === "suspendu"
+                              ? "text-valide-600"
+                              : "text-danger-600"
+                          }`}
+                        >
+                          {membre.statut === "suspendu" ? "Rétablir" : "Suspendre"}
+                        </button>
+                      </form>
+                    </span>
+                  )}
+                </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Tableau>
+    </>
   );
 }
 

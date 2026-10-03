@@ -1,14 +1,15 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { auditLogs, memberships, roles, users } from "@/db/schema";
+import { auditLogs, memberships, roles, sessions, users } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
-import { rattachementDe } from "@/lib/auth/membres";
-import { normaliserTelephone } from "@/lib/auth/otp";
+import { normaliserEmail } from "@/lib/auth/identifiants";
+import { compteExclusifA, rattachementDe } from "@/lib/auth/membres";
+import { genererMotDePasseProvisoire, hacherMotDePasse } from "@/lib/auth/mot-de-passe";
 import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
 
@@ -16,25 +17,30 @@ export interface EtatMembre {
   erreur?: string;
   /** Nom du membre ajouté — sert à confirmer sans recharger la liste. */
   ajoute?: string;
+  /**
+   * Mot de passe provisoire, montré UNE fois au responsable pour qu'il le
+   * remette à la personne. Il n'est stocké nulle part en clair.
+   */
+  motDePasse?: string;
+  email?: string;
 }
 
 const schemaAjout = z.object({
   nom: z.string().trim().min(2, "Indiquez le nom de la personne."),
-  telephone: z.string().trim().min(1, "Indiquez un numéro de téléphone."),
+  email: z.string().trim().min(1, "Indiquez une adresse e-mail."),
   roleId: z.uuid("Choisissez un rôle."),
 });
 
 /**
  * Donne accès au logiciel à quelqu'un.
  *
- * L'accès est ouvert tout de suite, pas mis en attente d'acceptation : le
- * gérant crée le compte de son caissier devant lui, et celui-ci se connecte
- * avec son numéro dans la minute. Une invitation à accepter par courriel
- * suppose une adresse relevée, ce qui n'est pas l'usage sur ce marché — le
- * téléphone l'est.
+ * L'accès est ouvert tout de suite : le gérant crée le compte de son caissier
+ * devant lui. Un compte neuf reçoit un mot de passe PROVISOIRE, affiché une
+ * fois au gérant, que la personne doit remplacer à sa première connexion.
  *
- * Le code à usage unique reste la barrière : le rattachement n'ouvre rien tant
- * que la personne n'a pas prouvé qu'elle tient le numéro.
+ * Une adresse déjà connue est simplement rattachée : son mot de passe ne
+ * change pas, et rien n'est affiché. Sans cette règle, donner un accès à
+ * quelqu'un qui a déjà un compte reviendrait à en prendre le contrôle.
  */
 export async function ajouterMembre(
   _precedent: EtatMembre,
@@ -47,16 +53,14 @@ export async function ajouterMembre(
 
   const analyse = schemaAjout.safeParse({
     nom: donnees.get("nom"),
-    telephone: donnees.get("telephone"),
+    email: donnees.get("email"),
     roleId: donnees.get("roleId"),
   });
 
   if (!analyse.success) return { erreur: analyse.error.issues[0].message };
 
-  const telephone = normaliserTelephone(analyse.data.telephone);
-  if (!telephone) {
-    return { erreur: "Numéro invalide. Dix chiffres, ou indicatif compris." };
-  }
+  const email = normaliserEmail(analyse.data.email);
+  if (!email) return { erreur: "Adresse e-mail invalide." };
 
   // Le rôle vient du navigateur : il doit appartenir à cette entreprise, sinon
   // un identifiant deviné donnerait les droits d'un rôle d'ailleurs.
@@ -75,23 +79,33 @@ export async function ajouterMembre(
     return { erreur: "Le rôle de propriétaire ne s'attribue pas." };
   }
 
-  try {
-    await db.transaction(async (tx) => {
-      const [existant] = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.phone, telephone));
+  let provisoire: string | undefined;
 
+  try {
+    const [existant] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email));
+
+    // Le hachage se fait hors transaction : Argon2 prend ses cinquante
+    // millisecondes, une connexion du pooler n'a pas à les attendre.
+    let empreinte: string | undefined;
+    if (!existant) {
+      provisoire = genererMotDePasseProvisoire();
+      empreinte = await hacherMotDePasse(provisoire);
+    }
+
+    await db.transaction(async (tx) => {
       let userId = existant?.id;
 
       if (!userId) {
-        // Le compte naît sans numéro vérifié : c'est la connexion qui le
-        // vérifiera. Le nom vient du gérant, la personne pourra le corriger.
         userId = newId();
         await tx.insert(users).values({
           id: userId,
-          phone: telephone,
+          email,
           fullName: analyse.data.nom,
+          passwordHash: empreinte,
+          mustChangePassword: true,
         });
       }
 
@@ -112,7 +126,7 @@ export async function ajouterMembre(
         action: "membre.ajouter",
         entityType: "membership",
         entityId: userId,
-        after: { telephone, nom: analyse.data.nom, role: role.nom },
+        after: { email, nom: analyse.data.nom, role: role.nom, compteCree: !existant },
       });
     });
   } catch (erreur) {
@@ -125,7 +139,89 @@ export async function ajouterMembre(
   }
 
   revalidatePath("/membres");
-  return { ajoute: analyse.data.nom };
+  return { ajoute: analyse.data.nom, email, motDePasse: provisoire };
+}
+
+export type ResultatReinitialisation =
+  | { ok: true; email: string; motDePasse: string }
+  | { ok: false; message: string };
+
+/**
+ * Redonne un mot de passe provisoire à un membre qui a oublié le sien.
+ *
+ * Refusé pour le propriétaire, pour soi-même (l'écran « Mot de passe » sert à
+ * cela) et pour un compte qui a un accès dans une AUTRE entreprise : le
+ * responsable d'ici n'a pas à pouvoir entrer chez le voisin.
+ *
+ * Les sessions ouvertes du membre sont fermées : un mot de passe réinitialisé
+ * l'est souvent parce qu'un appareil a changé de mains.
+ */
+export async function reinitialiserMotDePasse(
+  membershipId: string,
+): Promise<ResultatReinitialisation> {
+  const session = await exigerEntreprise();
+
+  const refus = await refusDroit("organisation.membre.gerer");
+  if (refus) return { ok: false, message: refus.erreur };
+
+  const rattachement = await rattachementDe(session.organizationId, membershipId);
+  if (!rattachement) return { ok: false, message: "Membre introuvable." };
+
+  if (rattachement.proprietaire) {
+    return { ok: false, message: "Le mot de passe du propriétaire ne se réinitialise pas ici." };
+  }
+  if (rattachement.userId === session.userId) {
+    return { ok: false, message: "Changez votre propre mot de passe depuis l'écran « Mot de passe »." };
+  }
+  if (!(await compteExclusifA(session.organizationId, rattachement.userId))) {
+    return {
+      ok: false,
+      message:
+        "Ce compte a aussi un accès dans une autre entreprise : seule la personne peut changer son mot de passe.",
+    };
+  }
+
+  const [compte] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, rattachement.userId));
+
+  if (!compte?.email) {
+    return { ok: false, message: "Ce compte n'a pas d'adresse e-mail : il ne peut pas se connecter." };
+  }
+
+  const provisoire = genererMotDePasseProvisoire();
+  const empreinte = await hacherMotDePasse(provisoire);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({
+        passwordHash: empreinte,
+        mustChangePassword: true,
+        failedLogins: 0,
+        lockedUntil: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, rattachement.userId));
+
+    await tx
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(sessions.userId, rattachement.userId), isNull(sessions.revokedAt)));
+
+    await tx.insert(auditLogs).values({
+      id: newId(),
+      organizationId: session.organizationId,
+      userId: session.userId,
+      action: "membre.mot_de_passe",
+      entityType: "membership",
+      entityId: rattachement.userId,
+      after: { email: compte.email },
+    });
+  });
+
+  return { ok: true, email: compte.email, motDePasse: provisoire };
 }
 
 /**

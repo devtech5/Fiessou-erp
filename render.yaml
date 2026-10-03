@@ -41,34 +41,19 @@ services:
       - key: DEFAULT_COUNTRY
         value: CI
 
-      # Canal d'envoi des codes de connexion.
-      #
-      #   console — écrit dans les journaux (développement)
-      #   demo    — affiche le code à l'écran, pour une instance de
-      #             démonstration SANS données réelles
-      #   whatsapp — WhatsApp Cloud API, canal réel. Exige WHATSAPP_TOKEN et
-      #              WHATSAPP_PHONE_ID, à renseigner dans les réglages Render.
-      #   sms      — non branché, aucun agrégateur retenu
-      #
-      # ⚠️ « demo » rend l'application ouverte à quiconque connaît un numéro.
-      # Ne jamais l'activer sur une instance contenant de vraies données.
-      - key: OTP_CHANNEL
-        value: demo
+      # Bandeau « données fictives » sur toutes les pages. La connexion se
+      # fait par e-mail et mot de passe : le compte de démonstration se crée
+      # avec `pnpm demo:compte`, son mot de passe n'est connu que de celui
+      # qui l'a lancé.
+      - key: INSTANCE_DEMO
+        value: "1"
 
       # Modules ouverts malgré des écrans sur jeu d'essai. Clés du registre
       # séparées par des virgules, ou « * » pour toutes.
       #
-      # « * » va de pair avec OTP_CHANNEL=demo : montrer le périmètre à venir
+      # « * » va de pair avec INSTANCE_DEMO=1 : montrer le périmètre à venir
       # est l'objet même d'une instance de présentation. Sur une instance qui
       # porte de vraies recettes, cette valeur doit être VIDE — sans quoi le
       # tableau de bord annonce des factures impayées qui n'existent pas.
       - key: MODULES_APERCU
         value: "*"
-
-      # Identifiants WhatsApp, requis le jour où OTP_CHANNEL passe à
-      # « whatsapp ». Sans valeur ici : ils ne transitent pas par le dépôt.
-      - key: WHATSAPP_TOKEN
-        sync: false
-
-      - key: WHATSAPP_PHONE_ID
-        sync: false

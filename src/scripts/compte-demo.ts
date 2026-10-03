@@ -3,17 +3,25 @@
  *
  *   pnpm demo:compte
  *
- * Le but est d'éviter de dérouler une inscription devant un public : le numéro
- * est connu d'avance, la connexion mène directement au tableau de bord.
+ * Le but est d'éviter de dérouler une inscription devant un public :
+ * l'adresse est connue d'avance, la connexion mène directement au tableau de
+ * bord.
  *
- * Le script est idempotent — le relancer ne duplique rien et ne casse rien.
- * Il n'écrit aucun code de connexion : ceux-ci restent générés à la demande,
- * et `OTP_CHANNEL=demo` les affiche à l'écran.
+ * Le mot de passe vient de `DEMO_MOT_DE_PASSE` s'il est fourni ; sinon il est
+ * tiré au hasard et affiché UNE fois dans ce terminal. Relancer le script le
+ * remplace : c'est aussi la façon de le retrouver.
+ *
+ * Le script est idempotent — le relancer ne duplique rien. Un compte de
+ * démonstration créé du temps de la connexion par téléphone est repris et
+ * reçoit l'adresse ci-dessous.
  *
  * SQL brut plutôt que Drizzle, comme `verifier-base.ts` : `tsx` ne résout pas
  * les alias de chemins du tsconfig, et un script d'exploitation n'a pas à
  * dépendre de la couche applicative.
  */
+import { randomInt } from "node:crypto";
+
+import { hash } from "@node-rs/argon2";
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
 
@@ -28,8 +36,10 @@ if (!url) {
   process.exit(1);
 }
 
-/** Numéro de démonstration. Dix chiffres, format ivoirien depuis 2021. */
-const TELEPHONE = "+2250700000000";
+/** Adresse de démonstration. */
+const EMAIL = "demo@fiessou.ci";
+/** Numéro de l'ancien compte de démonstration, repris s'il existe. */
+const ANCIEN_TELEPHONE = "+2250700000000";
 const NOM = "Compte de démonstration";
 const ENTREPRISE = "Quincaillerie Akwaba";
 
@@ -37,10 +47,30 @@ async function main() {
   const sql = postgres(url!, { max: 1, connect_timeout: 15 });
 
   try {
+    const motDePasse =
+      process.env.DEMO_MOT_DE_PASSE ??
+      Array.from({ length: 4 }, () =>
+        Array.from({ length: 4 }, () => "abcdefghjkmnpqrstuvwxyz23456789"[randomInt(0, 31)]).join(""),
+      ).join("-");
+    const empreinte = await hash(motDePasse);
+
+    // L'ancien compte (connexion par téléphone) reçoit l'adresse, s'il n'y a
+    // pas déjà un compte qui la porte.
+    await sql`
+      update users set email = ${EMAIL}
+      where phone = ${ANCIEN_TELEPHONE} and email is null
+        and not exists (select 1 from users where email = ${EMAIL})
+    `;
+
     const [utilisateur] = await sql`
-      insert into users (phone, full_name, phone_verified_at)
-      values (${TELEPHONE}, ${NOM}, now())
-      on conflict (phone) do update set full_name = excluded.full_name
+      insert into users (email, full_name, password_hash, must_change_password)
+      values (${EMAIL}, ${NOM}, ${empreinte}, false)
+      on conflict (email) do update set
+        full_name = excluded.full_name,
+        password_hash = excluded.password_hash,
+        must_change_password = false,
+        failed_logins = 0,
+        locked_until = null
       returning id
     `;
 
@@ -78,11 +108,11 @@ async function main() {
     console.info(`
   Compte de démonstration prêt.
 
-    Numéro    ${TELEPHONE}
-    Entreprise ${ENTREPRISE}
+    Adresse       ${EMAIL}
+    Mot de passe  ${motDePasse}
+    Entreprise    ${ENTREPRISE}
 
-  Sur l'écran de connexion, saisissez 07 00 00 00 00 : le code
-  s'affiche à l'écran si OTP_CHANNEL=demo.
+  Le mot de passe n'est affiché qu'ici. Relancer le script en tire un autre.
 `);
   } finally {
     await sql.end();

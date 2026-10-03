@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { FormulaireConnexion } from "./formulaire";
 
@@ -20,9 +21,15 @@ export default function PageConnexion() {
           <FormulaireConnexion />
         </div>
 
-        <p className="mt-4 text-center text-xs text-[var(--encre-faible)]">
-          Pas encore de compte ? Saisissez votre numéro : il sera créé à la
-          première connexion.
+        <p className="mt-4 text-center text-sm text-[var(--encre-douce)]">
+          Pas encore de compte ?{" "}
+          <Link href="/inscription" className="font-semibold text-marque-600 hover:underline">
+            Créer votre espace
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-xs text-[var(--encre-faible)]">
+          Mot de passe oublié ? Le responsable de votre entreprise peut vous en
+          donner un nouveau depuis l&apos;écran des membres.
         </p>
       </div>
     </main>

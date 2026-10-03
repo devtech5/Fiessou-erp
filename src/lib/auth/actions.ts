@@ -1,17 +1,24 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { memberships, users } from "@/db/schema";
+import { memberships, sessions, users } from "@/db/schema";
 import { env } from "@/env";
 import { newId } from "@/lib/ids";
 import { creerEntreprisePour } from "./creation-entreprise";
-import { emettreCode, normaliserTelephone, verifierCode } from "./otp";
+import {
+  DUREE_VERROU_MINUTES,
+  apresEchec,
+  estVerrouille,
+  motifRefusMotDePasse,
+  normaliserEmail,
+} from "./identifiants";
+import { hacherMotDePasse, verifierMotDePasse } from "./mot-de-passe";
 import {
   choisirEntreprise,
   fermerSession,
@@ -20,113 +27,88 @@ import {
 } from "./session";
 
 export interface EtatConnexion {
-  etape: "telephone" | "code" | "inscription";
-  telephone?: string;
   erreur?: string;
-  message?: string;
-  /** Code affiché à l'écran, en mode démonstration uniquement. */
-  codeDemo?: string;
+  /** Adresse saisie, rendue au formulaire après un refus. */
+  email?: string;
 }
 
+/** Même message pour une adresse inconnue et un mot de passe faux. */
+const REFUS_CONNEXION = "Adresse e-mail ou mot de passe incorrect.";
+
 /**
- * Étape 1 — le numéro.
+ * Connexion par adresse e-mail et mot de passe.
  *
- * La réponse ne dit jamais si le numéro est connu. Un formulaire qui répond
- * « ce compte n'existe pas » offre à qui le veut la liste de vos clients : il
- * suffit d'essayer des numéros. Connu ou non, un code part et l'écran passe à
- * l'étape suivante.
+ * La réponse ne dit jamais si l'adresse est connue : un formulaire qui répond
+ * « ce compte n'existe pas » offre à qui le veut la liste de vos clients. Une
+ * adresse inconnue fait même travailler Argon2 sur un leurre, pour répondre
+ * dans le même temps qu'une adresse connue.
+ *
+ * Cinq échecs consécutifs verrouillent le compte quinze minutes. Le verrou se
+ * dit, lui : il ne révèle rien qu'un essai de plus n'aurait appris.
  */
-export async function demanderCode(
+export async function seConnecter(
   _precedent: EtatConnexion,
   donnees: FormData,
 ): Promise<EtatConnexion> {
-  const saisie = String(donnees.get("telephone") ?? "");
-  const telephone = normaliserTelephone(saisie);
+  const saisie = String(donnees.get("email") ?? "");
+  const motDePasse = String(donnees.get("motDePasse") ?? "");
+  const email = normaliserEmail(saisie);
 
-  if (!telephone) {
-    return {
-      etape: "telephone",
-      erreur: "Numéro invalide. Exemple : 07 08 12 34 56",
-    };
+  if (!email || motDePasse.length === 0) {
+    return { email: saisie, erreur: "Indiquez votre adresse e-mail et votre mot de passe." };
   }
 
-  const envoi = await emettreCode(telephone, "connexion");
-
-  if (!envoi.ok) {
-    // Deux échecs, deux conduites à tenir. « Patientez » invite à attendre ;
-    // sur un envoi qui n'est pas parti, attendre ne sert à rien et la personne
-    // resterait devant un écran de saisie pour un code qui n'arrivera jamais.
-    // On la renvoie donc à l'étape du numéro, où le bouton est réarmé.
-    if (envoi.raison === "envoi_impossible") {
-      return {
-        etape: "telephone",
-        telephone,
-        erreur:
-          "Le code n'a pas pu être envoyé. Vérifiez le numéro et réessayez ; si cela se répète, prévenez le support.",
-      };
-    }
-
-    return {
-      etape: "code",
-      telephone,
-      erreur: "Un code vient d'être envoyé. Patientez une minute avant d'en redemander un.",
-    };
-  }
-
-  return {
-    etape: "code",
-    telephone,
-    codeDemo: envoi.codeAffiche,
-    message:
-      env.OTP_CHANNEL === "console"
-        ? "Code écrit dans les journaux du serveur (mode développement)."
-        : env.OTP_CHANNEL === "demo"
-          ? undefined
-          : `Code envoyé au ${telephone}.`,
-  };
-}
-
-/**
- * Étape 2 — le code.
- *
- * Un numéro inconnu qui présente un code valide n'est pas une erreur : c'est
- * une inscription. On bascule alors sur l'étape d'identité plutôt que de
- * refuser quelqu'un qui vient de prouver qu'il détient ce numéro.
- */
-export async function verifierCodeConnexion(
-  precedent: EtatConnexion,
-  donnees: FormData,
-): Promise<EtatConnexion> {
-  const telephone = String(donnees.get("telephone") ?? precedent.telephone ?? "");
-  const code = String(donnees.get("code") ?? "").trim();
-
-  if (!/^\d{6}$/.test(code)) {
-    return { etape: "code", telephone, erreur: "Le code comporte six chiffres." };
-  }
-
-  const resultat = await verifierCode(telephone, "connexion", code);
-
-  if (!resultat.ok) {
-    const messages = {
-      invalide: "Code incorrect.",
-      expire: "Ce code a expiré. Demandez-en un nouveau.",
-      trop_de_tentatives: "Trop de tentatives. Demandez un nouveau code.",
-    } as const;
-    return { etape: "code", telephone, erreur: messages[resultat.raison] };
-  }
-
-  const existants = await db
-    .select({ id: users.id })
+  const [compte] = await db
+    .select({
+      id: users.id,
+      passwordHash: users.passwordHash,
+      status: users.status,
+      failedLogins: users.failedLogins,
+      lockedUntil: users.lockedUntil,
+    })
     .from(users)
-    .where(eq(users.phone, telephone))
+    .where(eq(users.email, email))
     .limit(1);
 
-  if (existants.length === 0) {
-    return { etape: "inscription", telephone };
+  if (compte && estVerrouille(compte.lockedUntil)) {
+    return {
+      email,
+      erreur: `Trop d'essais infructueux. Réessayez dans ${DUREE_VERROU_MINUTES} minutes.`,
+    };
   }
 
-  await ouvrirSessionAvecContexte(existants[0].id);
+  const valide = await verifierMotDePasse(compte?.passwordHash ?? null, motDePasse);
+
+  if (!compte || !valide) {
+    if (compte) {
+      const suite = apresEchec(compte.failedLogins);
+      await db
+        .update(users)
+        .set({ ...suite, updatedAt: new Date() })
+        .where(eq(users.id, compte.id));
+    }
+    return { email, erreur: REFUS_CONNEXION };
+  }
+
+  if (compte.status !== "actif") {
+    return {
+      email,
+      erreur: "Ce compte est suspendu. Adressez-vous au responsable de votre entreprise.",
+    };
+  }
+
+  await db
+    .update(users)
+    .set({ failedLogins: 0, lockedUntil: null, lastLoginAt: new Date(), updatedAt: new Date() })
+    .where(eq(users.id, compte.id));
+
+  await ouvrirSessionAvecContexte(compte.id);
   redirect("/");
+}
+
+export interface EtatInscription {
+  erreur?: string;
+  valeurs?: { nom?: string; entreprise?: string; email?: string };
 }
 
 const schemaInscription = z.object({
@@ -135,56 +117,147 @@ const schemaInscription = z.object({
 });
 
 /**
- * Étape 3 — première connexion.
+ * Création d'un compte et de son entreprise.
  *
- * Crée l'utilisateur, son entreprise, le rôle de propriétaire et le
- * rattachement, en une seule transaction. Un compte sans entreprise, ou une
+ * L'utilisateur, son entreprise, le rôle de propriétaire et le rattachement
+ * naissent dans une seule transaction. Un compte sans entreprise, ou une
  * entreprise sans propriétaire, laisserait quelqu'un connecté devant une
  * application vide sans moyen d'en sortir.
+ *
+ * Une adresse déjà prise est signalée : la contrainte d'unicité le dirait de
+ * toute façon, et la personne doit savoir qu'elle a déjà un compte plutôt que
+ * d'en chercher un second.
  */
-export async function finaliserInscription(
-  precedent: EtatConnexion,
+export async function sInscrire(
+  _precedent: EtatInscription,
   donnees: FormData,
-): Promise<EtatConnexion> {
-  const telephone = String(donnees.get("telephone") ?? precedent.telephone ?? "");
+): Promise<EtatInscription> {
+  const valeurs = {
+    nom: String(donnees.get("nom") ?? ""),
+    entreprise: String(donnees.get("entreprise") ?? ""),
+    email: String(donnees.get("email") ?? ""),
+  };
+  const motDePasse = String(donnees.get("motDePasse") ?? "");
+  const confirmation = String(donnees.get("confirmation") ?? "");
 
-  const analyse = schemaInscription.safeParse({
-    nom: donnees.get("nom"),
-    entreprise: donnees.get("entreprise"),
-  });
+  const analyse = schemaInscription.safeParse(valeurs);
+  if (!analyse.success) return { valeurs, erreur: analyse.error.issues[0].message };
 
-  if (!analyse.success) {
-    return {
-      etape: "inscription",
-      telephone,
-      erreur: analyse.error.issues[0].message,
-    };
+  const email = normaliserEmail(valeurs.email);
+  if (!email) return { valeurs, erreur: "Adresse e-mail invalide." };
+
+  const refus = motifRefusMotDePasse(motDePasse, { email });
+  if (refus) return { valeurs, erreur: refus };
+  if (motDePasse !== confirmation) {
+    return { valeurs, erreur: "Les deux mots de passe ne correspondent pas." };
   }
 
-  const { nom, entreprise } = analyse.data;
   const userId = newId();
+  const empreinte = await hacherMotDePasse(motDePasse);
 
-  await db.transaction(async (tx) => {
-    await tx.insert(users).values({
-      id: userId,
-      phone: telephone,
-      fullName: nom,
-      phoneVerifiedAt: new Date(),
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(users).values({
+        id: userId,
+        email,
+        fullName: analyse.data.nom,
+        passwordHash: empreinte,
+        lastLoginAt: new Date(),
+      });
+
+      // L'entreprise, ses rôles et le rattachement du propriétaire naissent
+      // ensemble : celui qui s'inscrit se retrouve administrateur de sa
+      // boutique, ou il n'y a pas d'inscription du tout.
+      await creerEntreprisePour(
+        userId,
+        { nom: analyse.data.entreprise, pays: env.DEFAULT_COUNTRY },
+        tx,
+      );
     });
-
-    // L'entreprise, ses rôles et le rattachement du propriétaire naissent
-    // ensemble, dans la même transaction que l'utilisateur : celui qui
-    // s'inscrit doit se retrouver administrateur de sa boutique, ou pas
-    // d'inscription du tout.
-    await creerEntreprisePour(
-      userId,
-      { nom: entreprise, pays: env.DEFAULT_COUNTRY },
-      tx,
-    );
-  });
+  } catch (erreur) {
+    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+      return {
+        valeurs,
+        erreur: "Un compte existe déjà avec cette adresse. Connectez-vous.",
+      };
+    }
+    throw erreur;
+  }
 
   await ouvrirSessionAvecContexte(userId);
   redirect("/");
+}
+
+export interface EtatMotDePasse {
+  erreur?: string;
+  change?: boolean;
+}
+
+/**
+ * Change le mot de passe de la personne connectée.
+ *
+ * L'actuel est exigé, même provisoire : une session laissée ouverte sur la
+ * caisse ne doit pas suffire à s'approprier le compte. Les autres sessions
+ * sont fermées — un changement de mot de passe sert souvent à couper un
+ * appareil perdu.
+ */
+export async function changerMotDePasse(
+  _precedent: EtatMotDePasse,
+  donnees: FormData,
+): Promise<EtatMotDePasse> {
+  const active = await lireSession();
+  if (!active) redirect("/connexion");
+
+  const actuel = String(donnees.get("actuel") ?? "");
+  const nouveau = String(donnees.get("nouveau") ?? "");
+  const confirmation = String(donnees.get("confirmation") ?? "");
+
+  const [compte] = await db
+    .select({ passwordHash: users.passwordHash, email: users.email })
+    .from(users)
+    .where(eq(users.id, active.userId));
+
+  if (!compte || !(await verifierMotDePasse(compte.passwordHash, actuel))) {
+    return { erreur: "Le mot de passe actuel est incorrect." };
+  }
+
+  const refus = motifRefusMotDePasse(nouveau, { email: compte.email });
+  if (refus) return { erreur: refus };
+  if (nouveau === actuel) {
+    return { erreur: "Le nouveau mot de passe doit différer de l'actuel." };
+  }
+  if (nouveau !== confirmation) {
+    return { erreur: "Les deux mots de passe ne correspondent pas." };
+  }
+
+  const empreinte = await hacherMotDePasse(nouveau);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({
+        passwordHash: empreinte,
+        mustChangePassword: false,
+        failedLogins: 0,
+        lockedUntil: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, active.userId));
+
+    await tx
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(sessions.userId, active.userId),
+          ne(sessions.id, active.sessionId),
+          isNull(sessions.revokedAt),
+        ),
+      );
+  });
+
+  if (active.doitChangerMotDePasse) redirect("/");
+  return { change: true };
 }
 
 export async function seDeconnecter(): Promise<void> {

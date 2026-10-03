@@ -26,7 +26,7 @@ export default async function PageMembres() {
     membershipId: membre.membershipId,
     userId: membre.userId,
     nom: membre.nom,
-    telephone: membre.telephone,
+    email: membre.email,
     roleId: membre.roleId,
     roleNom: membre.roleNom,
     statut: membre.statut,

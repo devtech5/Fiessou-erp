@@ -19,7 +19,7 @@ import { COOKIE_SESSION } from "@/lib/auth/session";
  * manifestement pas de session.
  */
 
-const ROUTES_PUBLIQUES = ["/connexion"];
+const ROUTES_PUBLIQUES = ["/connexion", "/inscription"];
 
 export default function proxy(requete: NextRequest) {
   const chemin = requete.nextUrl.pathname;

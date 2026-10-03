@@ -9,8 +9,8 @@ export interface Membre {
   membershipId: string;
   userId: string;
   nom: string;
-  /** Format E.164. C'est l'identifiant de connexion, pas un simple contact. */
-  telephone: string;
+  /** Identifiant de connexion. Nul pour un compte antérieur au passage à l'e-mail. */
+  email: string | null;
   roleId: string;
   roleCle: string;
   roleNom: string;
@@ -36,7 +36,7 @@ export async function listerMembres(organizationId: string): Promise<Membre[]> {
       membershipId: memberships.id,
       userId: users.id,
       nom: users.fullName,
-      telephone: users.phone,
+      email: users.email,
       roleId: roles.id,
       roleCle: roles.key,
       roleNom: roles.name,
@@ -124,4 +124,26 @@ export async function rattachementDe(
     );
 
   return ligne ?? null;
+}
+
+/**
+ * Le compte n'appartient-il qu'à cette entreprise ?
+ *
+ * Condition pour qu'un responsable puisse lui redonner un mot de passe. Sans
+ * elle, le gérant d'une boutique pourrait réinitialiser le mot de passe d'une
+ * personne qui possède par ailleurs sa propre entreprise — et entrer chez elle.
+ */
+export async function compteExclusifA(
+  organizationId: string,
+  userId: string,
+): Promise<boolean> {
+  const [ailleurs] = await db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(
+      and(eq(memberships.userId, userId), ne(memberships.organizationId, organizationId)),
+    )
+    .limit(1);
+
+  return !ailleurs;
 }
