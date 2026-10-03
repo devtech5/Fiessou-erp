@@ -150,7 +150,11 @@ export const MODULES: ModuleDefinition[] = [
     key: "missions",
     name: "Missions & Terrain",
     layer: "moteur",
-    status: "planifie",
+    // En base : missions, étapes validées dans l'ordre, preuves horodatées sur
+    // l'appareil (photo, position, signature, note), formulaires de collecte.
+    // Restent la file hors connexion de l'appareil du livreur, le téléversement
+    // des photos hors réseau et la facturation des missions.
+    status: "en_cours",
     requires: ["personnes"],
     description:
       "Mission assignée, étapes, preuves horodatées et géolocalisées, formulaires. " +

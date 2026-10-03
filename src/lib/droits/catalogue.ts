@@ -189,6 +189,36 @@ export const DROITS = [
     description: "Assurance, visite technique, garantie, entretien périodique.",
   },
 
+  // ------------------------------------------------------------- missions
+  {
+    cle: "missions.consulter",
+    moduleKey: "missions",
+    libelle: "Consulter les missions",
+    description: "Voir les missions, leurs étapes et les preuves rapportées.",
+  },
+  {
+    cle: "missions.mission.gerer",
+    moduleKey: "missions",
+    libelle: "Gérer les missions",
+    description:
+      "Ouvrir une mission, l'attribuer, la déclarer échouée ou l'annuler. " +
+      "Séparé de la saisie terrain : celui qui planifie n'est pas celui qui rapporte.",
+  },
+  {
+    cle: "missions.terrain.saisir",
+    moduleKey: "missions",
+    libelle: "Rapporter du terrain",
+    description:
+      "Valider une étape, joindre une photo, une position, une signature, une note, " +
+      "répondre à un formulaire. Le geste du chef d'équipe ou du livreur.",
+  },
+  {
+    cle: "missions.formulaire.gerer",
+    moduleKey: "missions",
+    libelle: "Composer les formulaires",
+    description: "Créer un formulaire de collecte et choisir ses champs.",
+  },
+
   // ----------------------------------------------------------- documents
   {
     cle: "documents.consulter",
@@ -224,7 +254,6 @@ export const DROITS = [
   // accès dès maintenant, pour que l'ouverture du module ne soit pas le moment
   // où l'on découvre que tout le monde y entre.
   { cle: "reservation.consulter", moduleKey: "reservation", libelle: "Consulter les réservations" },
-  { cle: "missions.consulter", moduleKey: "missions", libelle: "Consulter les missions" },
   { cle: "billetterie.consulter", moduleKey: "billetterie", libelle: "Consulter la billetterie" },
   {
     cle: "valeur_electronique.consulter",

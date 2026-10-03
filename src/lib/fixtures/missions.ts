@@ -1,301 +1,338 @@
+import "server-only";
+
+import { asc, eq } from "drizzle-orm";
+
+import { newId } from "@/lib/ids";
+import type { Transaction } from "@/lib/sequences";
+import {
+  cloreMissionDans,
+  creerFormulaireDans,
+  creerMissionDans,
+  enregistrerPreuveDans,
+  validerEtapeDans,
+} from "@/modules/missions/creation";
+import { etapesMission, type NatureMission, type TypePreuve } from "@/modules/missions/schema";
+import { versMicroDegres } from "@/modules/missions/suivi";
+
 /**
- * Jeu de démonstration — missions et travail de terrain.
+ * Amorçage des missions de démonstration.
  *
  * Un seul moteur porte six entrées du périmètre : livraison, BTP, gestion de
- * projet, collecte de données terrain, exploitation agricole et ONG. Le modèle
- * commun est toujours le même — un travail confié à quelqu'un, découpé en
- * étapes, dont on rapporte la preuve depuis le terrain.
+ * projet, collecte de terrain, exploitation agricole et ONG. Le jeu passe par
+ * les VRAIES fonctions du module — création, preuve, validation d'étape,
+ * clôture — et non par des insertions directes : il prouve au passage que les
+ * règles (ordre des étapes, preuves exigées) laissent bien passer un parcours
+ * réel.
  *
- * C'est le module qui exige le plus le fonctionnement hors connexion : un
- * livreur à Bingerville, un enquêteur en zone rurale ou un chef de chantier
- * dans un sous-sol travaillent sans réseau. Les preuves sont horodatées sur
- * l'appareil et remontent au retour de la couverture.
+ * Aucune étape de démonstration n'exige de photo : une photo est un fichier du
+ * dépôt, et en fabriquer un faux donnerait un lien mort derrière « Ouvrir la
+ * photo ». Les étapes à photo se testent en vrai, sur un téléphone.
  */
 
-export type NatureMission =
-  | "livraison"
-  | "chantier"
-  | "collecte"
-  | "projet"
-  | "intervention";
-
-export type StatutMission =
-  | "planifiee"
-  | "en_cours"
-  | "terminee"
-  | "echouee"
-  | "annulee";
-
-export type TypePreuve = "photo" | "position" | "signature" | "note" | "formulaire";
-
-export interface EtapeMission {
+interface EtapeDemo {
   libelle: string;
-  faite: boolean;
-  heure?: string;
   preuves: TypePreuve[];
+  /** Heures écoulées depuis la validation, quand l'étape est faite. */
+  ilYaHeures?: number;
+  note?: string;
+  signataire?: string;
 }
 
-export interface MissionDemo {
-  id: string;
-  reference: string;
+interface MissionDemo {
   nature: NatureMission;
   titre: string;
-  /** Salarié ou intervenant en charge. */
-  assigneA: string;
+  executant?: string;
   lieu: string;
-  statut: StatutMission;
-  echeance: string;
-  etapes: EtapeMission[];
-  /** Preuves déjà collectées mais pas encore remontées au serveur. */
-  enAttenteSynchro: number;
-  /** Client facturé, quand la mission en a un. */
   client?: string;
   montant?: number;
+  /** Décalage de l'échéance en heures depuis maintenant (négatif : passée). */
+  echeanceHeures: number;
+  /** Repère GPS approximatif du lieu, en degrés décimaux. */
+  position: [number, number];
+  etapes: EtapeDemo[];
+  issue?: { type: "echouee" | "annulee"; motif: string };
 }
 
-export const LIBELLE_NATURE: Record<NatureMission, string> = {
-  livraison: "Livraison",
-  chantier: "Chantier",
-  collecte: "Collecte",
-  projet: "Projet",
-  intervention: "Intervention",
-};
-
-export const LIBELLE_STATUT: Record<StatutMission, string> = {
-  planifiee: "Planifiée",
-  en_cours: "En cours",
-  terminee: "Terminée",
-  echouee: "Échouée",
-  annulee: "Annulée",
-};
-
-export const LIBELLE_PREUVE: Record<TypePreuve, string> = {
-  photo: "Photo",
-  position: "Position",
-  signature: "Signature",
-  note: "Note",
-  formulaire: "Formulaire",
-};
-
-export const MISSIONS: MissionDemo[] = [
+const MISSIONS_DEMO: MissionDemo[] = [
   {
-    id: "m1",
-    reference: "LIV-2026-0412",
     nature: "livraison",
     titre: "Colis — 3 cartons électroménager",
-    assigneA: "Touré Mamadou",
+    executant: "Touré Mamadou",
     lieu: "Cocody Angré, Abidjan",
-    statut: "en_cours",
-    echeance: "Aujourd'hui · 16:00",
     client: "Restaurant Akwaba",
     montant: 15_000,
-    enAttenteSynchro: 2,
+    echeanceHeures: 6,
+    position: [5.4041, -3.9931],
     etapes: [
-      { libelle: "Colis collecté au dépôt", faite: true, heure: "09:12", preuves: ["photo", "position"] },
-      { libelle: "En transit", faite: true, heure: "09:40", preuves: ["position"] },
-      { libelle: "Remis au destinataire", faite: false, preuves: ["photo", "signature", "position"] },
+      { libelle: "Colis collecté au dépôt", preuves: ["position", "note"], ilYaHeures: 5, note: "3 cartons, scellés intacts" },
+      { libelle: "En transit", preuves: ["position"], ilYaHeures: 4 },
+      { libelle: "Remis au destinataire", preuves: ["signature", "position"] },
     ],
   },
   {
-    id: "m2",
-    reference: "LIV-2026-0411",
     nature: "livraison",
     titre: "Déménagement — studio meublé",
-    assigneA: "Konan Michel",
+    executant: "Konan Michel",
     lieu: "Marcory Zone 4, Abidjan",
-    statut: "terminee",
-    echeance: "Hier · 14:00",
     client: "Kouadio Yao",
     montant: 85_000,
-    enAttenteSynchro: 0,
+    echeanceHeures: -30,
+    position: [5.3009, -3.9997],
     etapes: [
-      { libelle: "Chargement", faite: true, heure: "08:05", preuves: ["photo", "position"] },
-      { libelle: "En transit", faite: true, heure: "09:30", preuves: ["position"] },
-      { libelle: "Déchargement et remise", faite: true, heure: "11:48", preuves: ["photo", "signature"] },
+      { libelle: "Chargement", preuves: ["position", "note"], ilYaHeures: 32, note: "Mobilier complet, 2 matelas" },
+      { libelle: "En transit", preuves: ["position"], ilYaHeures: 31 },
+      { libelle: "Déchargement et remise", preuves: ["signature", "position"], ilYaHeures: 29, signataire: "Kouadio Yao" },
     ],
   },
   {
-    id: "m3",
-    reference: "LIV-2026-0410",
     nature: "livraison",
     titre: "Colis — pièces détachées",
-    assigneA: "Touré Mamadou",
+    executant: "Touré Mamadou",
     lieu: "Bingerville",
-    statut: "echouee",
-    echeance: "Hier · 17:00",
     client: "Quincaillerie Adjamé",
     montant: 12_000,
-    enAttenteSynchro: 0,
+    echeanceHeures: -28,
+    position: [5.3558, -3.8847],
     etapes: [
-      { libelle: "Colis collecté au dépôt", faite: true, heure: "13:20", preuves: ["photo"] },
-      { libelle: "En transit", faite: true, heure: "14:05", preuves: ["position"] },
-      { libelle: "Destinataire absent", faite: true, heure: "16:42", preuves: ["photo", "note", "position"] },
+      { libelle: "Colis collecté au dépôt", preuves: ["position"], ilYaHeures: 30 },
+      { libelle: "En transit", preuves: ["position"], ilYaHeures: 29 },
+      { libelle: "Remis au destinataire", preuves: ["signature", "position"] },
     ],
+    issue: { type: "echouee", motif: "Destinataire absent, boutique fermée à 16 h 42" },
   },
   {
-    id: "m4",
-    reference: "CHT-2026-0027",
     nature: "chantier",
     titre: "Élévation murs — niveau R+1",
-    assigneA: "Ouattara Ibrahim",
+    executant: "Ouattara Ibrahim",
     lieu: "Villa Riviera 3, Abidjan",
-    statut: "en_cours",
-    echeance: "31/08/2026",
-    enAttenteSynchro: 5,
+    echeanceHeures: 96,
+    position: [5.3664, -3.9788],
     etapes: [
-      { libelle: "Matériaux réceptionnés", faite: true, heure: "18/08", preuves: ["photo", "note"] },
-      { libelle: "Ferraillage posé", faite: true, heure: "20/08", preuves: ["photo"] },
-      { libelle: "Élévation en cours", faite: false, preuves: ["photo"] },
-      { libelle: "Réception du lot", faite: false, preuves: ["photo", "signature"] },
+      { libelle: "Matériaux réceptionnés", preuves: ["note", "position"], ilYaHeures: 190, note: "120 agglos, 14 sacs de ciment" },
+      { libelle: "Ferraillage posé", preuves: ["note"], ilYaHeures: 140, note: "Chaînage conforme au plan" },
+      { libelle: "Élévation en cours", preuves: ["position"] },
+      { libelle: "Réception du lot", preuves: ["signature", "note"] },
     ],
   },
   {
-    id: "m5",
-    reference: "CHT-2026-0026",
     nature: "chantier",
     titre: "Coffrage dalle — niveau RDC",
-    assigneA: "Coulibaly Yaya",
+    executant: "Coulibaly Yaya",
     lieu: "Immeuble Cocody, Abidjan",
-    statut: "terminee",
-    echeance: "20/08/2026",
-    enAttenteSynchro: 0,
+    echeanceHeures: -170,
+    position: [5.3599, -3.9917],
     etapes: [
-      { libelle: "Coffrage monté", faite: true, heure: "17/08", preuves: ["photo"] },
-      { libelle: "Contrôle avant coulage", faite: true, heure: "19/08", preuves: ["photo", "signature"] },
-      { libelle: "Réception du lot", faite: true, heure: "20/08", preuves: ["signature"] },
+      { libelle: "Coffrage monté", preuves: ["note"], ilYaHeures: 240, note: "Étais tous les 80 cm" },
+      { libelle: "Contrôle avant coulage", preuves: ["note", "signature"], ilYaHeures: 200, signataire: "Bureau de contrôle" },
+      { libelle: "Réception du lot", preuves: ["signature"], ilYaHeures: 180, signataire: "Maître d'ouvrage" },
     ],
   },
   {
-    id: "m6",
-    reference: "COL-2026-0089",
     nature: "collecte",
     titre: "Recensement points de vente — Yamoussoukro",
-    assigneA: "Yao Prince",
+    executant: "Yao Prince",
     lieu: "Yamoussoukro",
-    statut: "en_cours",
-    echeance: "28/08/2026",
-    enAttenteSynchro: 14,
+    echeanceHeures: 72,
+    position: [6.8276, -5.2893],
     etapes: [
-      { libelle: "Zone 1 — centre", faite: true, heure: "23/08", preuves: ["formulaire", "position", "photo"] },
-      { libelle: "Zone 2 — Habitat", faite: true, heure: "24/08", preuves: ["formulaire", "position"] },
-      { libelle: "Zone 3 — Kokrenou", faite: false, preuves: ["formulaire", "position"] },
+      { libelle: "Zone 1 — centre", preuves: ["position", "note"], ilYaHeures: 70, note: "42 points recensés" },
+      { libelle: "Zone 2 — Habitat", preuves: ["position"], ilYaHeures: 46 },
+      { libelle: "Zone 3 — Kokrenou", preuves: ["position"] },
     ],
   },
   {
-    id: "m7",
-    reference: "PRJ-2026-0008",
     nature: "projet",
     titre: "Ouverture point de vente Bouaké",
-    assigneA: "Koffi Bernard",
+    executant: "Koffi Bernard",
     lieu: "Bouaké",
-    statut: "en_cours",
-    echeance: "15/10/2026",
-    enAttenteSynchro: 0,
+    echeanceHeures: 24 * 40,
+    position: [7.6906, -5.0303],
     etapes: [
-      { libelle: "Local identifié", faite: true, heure: "02/08", preuves: ["photo", "note"] },
-      { libelle: "Bail signé", faite: true, heure: "12/08", preuves: ["signature"] },
-      { libelle: "Aménagement", faite: false, preuves: ["photo"] },
-      { libelle: "Recrutement équipe", faite: false, preuves: ["note"] },
-      { libelle: "Ouverture", faite: false, preuves: ["photo"] },
+      { libelle: "Local identifié", preuves: ["note"], ilYaHeures: 24 * 50, note: "Rez-de-chaussée, 60 m², avenue principale" },
+      { libelle: "Bail signé", preuves: ["signature"], ilYaHeures: 24 * 40, signataire: "Koffi Bernard" },
+      { libelle: "Aménagement", preuves: ["note"] },
+      { libelle: "Recrutement équipe", preuves: ["note"] },
+      { libelle: "Ouverture", preuves: ["note"] },
     ],
   },
   {
-    id: "m8",
-    reference: "LIV-2026-0413",
     nature: "livraison",
     titre: "Colis — fournitures bureau",
-    assigneA: "Konan Michel",
+    executant: "Konan Michel",
     lieu: "Plateau, Abidjan",
-    statut: "planifiee",
-    echeance: "Demain · 10:00",
     client: "Pharmacie du Plateau",
     montant: 8_000,
-    enAttenteSynchro: 0,
+    echeanceHeures: 20,
+    position: [5.3235, -4.0178],
     etapes: [
-      { libelle: "Colis collecté au dépôt", faite: false, preuves: ["photo", "position"] },
-      { libelle: "En transit", faite: false, preuves: ["position"] },
-      { libelle: "Remis au destinataire", faite: false, preuves: ["photo", "signature", "position"] },
+      { libelle: "Colis collecté au dépôt", preuves: ["position"] },
+      { libelle: "En transit", preuves: ["position"] },
+      { libelle: "Remis au destinataire", preuves: ["signature", "position"] },
     ],
   },
 ];
 
-/** Avancement d'une mission, en proportion d'étapes achevées. */
-export function avancement(mission: MissionDemo): number {
-  const faites = mission.etapes.filter((e) => e.faite).length;
-  return Math.round((faites / mission.etapes.length) * 100);
-}
-
-// ------------------------------------------------------------- formulaires
-
-export type TypeChamp = "texte" | "nombre" | "choix" | "photo" | "position" | "oui_non";
-
-export interface ChampFormulaire {
-  libelle: string;
-  type: TypeChamp;
-  obligatoire: boolean;
-}
-
-export interface FormulaireDemo {
-  id: string;
-  nom: string;
-  usage: string;
-  champs: ChampFormulaire[];
-  /** Réponses déjà collectées et remontées. */
-  reponses: number;
-  /** Réponses sur des appareils, pas encore synchronisées. */
-  enAttente: number;
-}
-
-export const LIBELLE_CHAMP: Record<TypeChamp, string> = {
-  texte: "Texte",
-  nombre: "Nombre",
-  choix: "Liste",
-  photo: "Photo",
-  position: "Position",
-  oui_non: "Oui / Non",
-};
-
-export const FORMULAIRES: FormulaireDemo[] = [
+const FORMULAIRES_DEMO = [
   {
-    id: "f1",
     nom: "Fiche point de vente",
     usage: "Recensement terrain",
-    reponses: 126,
-    enAttente: 14,
     champs: [
-      { libelle: "Enseigne", type: "texte", obligatoire: true },
-      { libelle: "Nom du gérant", type: "texte", obligatoire: true },
-      { libelle: "Téléphone", type: "texte", obligatoire: true },
-      { libelle: "Type de commerce", type: "choix", obligatoire: true },
-      { libelle: "Nombre de caisses", type: "nombre", obligatoire: false },
-      { libelle: "Devanture", type: "photo", obligatoire: true },
-      { libelle: "Coordonnées GPS", type: "position", obligatoire: true },
-      { libelle: "Accepte le mobile money", type: "oui_non", obligatoire: false },
+      { cle: "enseigne", libelle: "Enseigne", type: "texte", obligatoire: true },
+      { cle: "nom_du_gerant", libelle: "Nom du gérant", type: "texte", obligatoire: true },
+      { cle: "telephone", libelle: "Téléphone", type: "texte", obligatoire: true },
+      {
+        cle: "type_de_commerce",
+        libelle: "Type de commerce",
+        type: "choix",
+        obligatoire: true,
+        options: ["Boutique", "Kiosque", "Marché", "Grande surface"],
+      },
+      { cle: "nombre_de_caisses", libelle: "Nombre de caisses", type: "nombre", obligatoire: false },
+      { cle: "coordonnees_gps", libelle: "Coordonnées GPS", type: "position", obligatoire: true },
+      { cle: "accepte_le_mobile_money", libelle: "Accepte le mobile money", type: "oui_non", obligatoire: false },
     ],
   },
   {
-    id: "f2",
     nom: "Constat de livraison",
     usage: "Livraison",
-    reponses: 412,
-    enAttente: 2,
     champs: [
-      { libelle: "État du colis", type: "choix", obligatoire: true },
-      { libelle: "Photo à la remise", type: "photo", obligatoire: true },
-      { libelle: "Observation", type: "texte", obligatoire: false },
+      {
+        cle: "etat_du_colis",
+        libelle: "État du colis",
+        type: "choix",
+        obligatoire: true,
+        options: ["Intact", "Abîmé", "Incomplet"],
+      },
+      { cle: "observation", libelle: "Observation", type: "texte", obligatoire: false },
     ],
   },
   {
-    id: "f3",
     nom: "Réception de lot",
     usage: "Chantier",
-    reponses: 34,
-    enAttente: 5,
     champs: [
-      { libelle: "Lot réceptionné", type: "texte", obligatoire: true },
-      { libelle: "Conforme au plan", type: "oui_non", obligatoire: true },
-      { libelle: "Réserves", type: "texte", obligatoire: false },
-      { libelle: "Photos", type: "photo", obligatoire: true },
+      { cle: "lot_receptionne", libelle: "Lot réceptionné", type: "texte", obligatoire: true },
+      { cle: "conforme_au_plan", libelle: "Conforme au plan", type: "oui_non", obligatoire: true },
+      { cle: "reserves", libelle: "Réserves", type: "texte", obligatoire: false },
     ],
   },
-];
+] as const;
+
+export interface RepereMissions {
+  employes: Map<string, string>;
+  intervenants: Map<string, string>;
+  /** Clients par nom. */
+  clients: Map<string, string>;
+}
+
+const HEURE = 60 * 60 * 1000;
+
+/** Verse les missions et formulaires de démonstration dans l'entreprise. */
+export async function amorcerMissions(
+  tx: Transaction,
+  organizationId: string,
+  reperes: RepereMissions,
+  userId?: string,
+): Promise<{ missions: number; preuves: number; formulaires: number }> {
+  const maintenant = Date.now();
+  let preuves = 0;
+
+  for (const demo of MISSIONS_DEMO) {
+    const employeId = demo.executant ? reperes.employes.get(demo.executant) : undefined;
+    const intervenantId =
+      demo.executant && !employeId ? reperes.intervenants.get(demo.executant) : undefined;
+
+    const { id: missionId } = await creerMissionDans(
+      tx,
+      organizationId,
+      {
+        nature: demo.nature,
+        titre: demo.titre,
+        lieu: demo.lieu,
+        employeId: employeId ?? null,
+        intervenantId: intervenantId ?? null,
+        clientId: demo.client ? (reperes.clients.get(demo.client) ?? null) : null,
+        montant: demo.montant ?? 0,
+        echeanceLe: new Date(maintenant + demo.echeanceHeures * HEURE),
+        etapes: demo.etapes.map((e) => ({ libelle: e.libelle, preuves: e.preuves })),
+      },
+      userId,
+    );
+
+    // Les étapes se relisent dans l'ordre pour leur attacher leurs preuves.
+    const etapes = await tx
+      .select()
+      .from(etapesMission)
+      .where(eq(etapesMission.missionId, missionId))
+      .orderBy(asc(etapesMission.ordre));
+
+    for (const [index, etape] of demo.etapes.entries()) {
+      if (etape.ilYaHeures === undefined) break;
+
+      const prise = new Date(maintenant - etape.ilYaHeures * HEURE);
+      const idEtape = etapes[index].id;
+
+      for (const type of etape.preuves) {
+        const resultat = await enregistrerPreuveDans(
+          tx,
+          organizationId,
+          {
+            id: newId(),
+            missionId,
+            etapeId: idEtape,
+            type,
+            texte:
+              type === "note"
+                ? (etape.note ?? "RAS")
+                : type === "signature"
+                  ? (etape.signataire ?? "Destinataire")
+                  : null,
+            latitudeMicro:
+              type === "position" ? versMicroDegres(demo.position[0] + index * 0.002) : null,
+            longitudeMicro:
+              type === "position" ? versMicroDegres(demo.position[1] + index * 0.002) : null,
+            priseLe: prise,
+          },
+          userId,
+        );
+        if (!resultat.ok) throw new Error(`Amorçage missions : ${resultat.message}`);
+        preuves += 1;
+      }
+
+      const validation = await validerEtapeDans(tx, organizationId, idEtape, {
+        faiteLe: prise,
+        userId,
+      });
+      if (!validation.ok) throw new Error(`Amorçage missions : ${validation.message}`);
+    }
+
+    if (demo.issue) {
+      await cloreMissionDans(
+        tx,
+        organizationId,
+        missionId,
+        demo.issue.type,
+        demo.issue.motif,
+        userId,
+      );
+    }
+  }
+
+  for (const formulaire of FORMULAIRES_DEMO) {
+    await creerFormulaireDans(
+      tx,
+      organizationId,
+      {
+        nom: formulaire.nom,
+        usage: formulaire.usage,
+        champs: formulaire.champs.map((c) => ({ ...c, options: "options" in c ? [...c.options] : undefined })),
+      },
+      userId,
+    );
+  }
+
+  return {
+    missions: MISSIONS_DEMO.length,
+    preuves,
+    formulaires: FORMULAIRES_DEMO.length,
+  };
+}

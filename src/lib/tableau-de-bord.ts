@@ -1,6 +1,5 @@
 import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
 import { DOCUMENTS, comptabilisable, totalTTC } from "@/lib/fixtures/gestion";
-import { MISSIONS } from "@/lib/fixtures/missions";
 import { RESEAUX, SEUIL_FLOAT_BAS } from "@/lib/fixtures/monnaie";
 import { CONTRATS } from "@/lib/fixtures/reservations";
 import { ABONNEMENTS, seancesRestantes } from "@/lib/fixtures/reservations";
@@ -72,6 +71,14 @@ export interface EtatParc {
   indisponibles: number;
 }
 
+/** Ce que les missions ont d'urgent, réduit à deux nombres. */
+export interface EtatMissions {
+  /** Missions ouvertes dont l'échéance est passée. */
+  enRetard: number;
+  /** Missions échouées, à reprogrammer. */
+  echouees: number;
+}
+
 export interface EtatStock {
   ruptures: number;
   /** Articles dont l'autonomie tombe sous le délai de réaction habituel. */
@@ -93,6 +100,7 @@ export function alertes(
   piecesPassees: Record<string, string>,
   stock: EtatStock,
   parc: EtatParc,
+  missions: EtatMissions,
 ): Alerte[] {
   const liste: Alerte[] = [];
 
@@ -286,32 +294,29 @@ export function alertes(
   }
 
   // ------------------------------------------------------------ missions
-  const missionsEchouees = MISSIONS.filter((m) => m.statut === "echouee");
-  if (missionsEchouees.length > 0) {
+  if (missions.echouees > 0) {
     liste.push({
       id: "missions-echouees",
       gravite: "attention",
-      source: "fixture",
+      source: "base",
       module: "Missions",
       titre: "Missions échouées",
       detail: "À reprogrammer",
       href: "/missions",
-      nombre: missionsEchouees.length,
+      nombre: missions.echouees,
     });
   }
 
-  const preuvesEnAttente = MISSIONS.reduce((s, m) => s + m.enAttenteSynchro, 0);
-  if (preuvesEnAttente > 0) {
+  if (missions.enRetard > 0) {
     liste.push({
-      id: "synchro",
-      gravite: "information",
-      source: "fixture",
+      id: "missions-retard",
+      gravite: "attention",
+      source: "base",
       module: "Missions",
-      titre: "Preuves non remontées",
-      // Une mission paraît close alors que sa preuve dort sur un téléphone.
-      detail: "Encore sur les appareils, hors connexion",
+      titre: "Missions en retard",
+      detail: "Échéance dépassée, preuves du terrain attendues",
       href: "/missions",
-      nombre: preuvesEnAttente,
+      nombre: missions.enRetard,
     });
   }
 

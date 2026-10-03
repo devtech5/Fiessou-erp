@@ -12,6 +12,7 @@ import { articles } from "@/modules/catalogue/schema";
 import { actifs } from "@/modules/actifs/schema";
 import { aUnActif } from "@/modules/actifs/requetes";
 import { aUnDocument } from "@/modules/documents/requetes";
+import { aUneMission } from "@/modules/missions/requetes";
 import { employees, workers } from "@/modules/personnes/schema";
 import { aUnIntervenant, aUnSalarie } from "@/modules/personnes/requetes";
 import { aUnDepot, listerDepots } from "@/modules/stock/requetes";
@@ -26,6 +27,7 @@ import { postesCaisse } from "@/modules/ventes/schema";
 
 import { amorcerParc } from "./actifs";
 import { amorcerDocuments } from "./documents";
+import { amorcerMissions, type RepereMissions } from "./missions";
 import { amorcerPersonnel } from "./rh";
 import { amorcerStock, type ArticleAAmorcer } from "./stock";
 
@@ -88,6 +90,8 @@ export interface ResultatInstallation {
   echeances: number;
   documents: number;
   signatures: number;
+  missions: number;
+  formulaires: number;
 }
 
 /** Code de famille sur trois lettres, désambiguïsé si deux catégories collent. */
@@ -121,6 +125,7 @@ export async function installerJeuDemonstration(
     const personnel = await completerPersonnel(organizationId, userId);
     const parc = await completerParc(organizationId, userId);
     const pieces = await completerDocuments(organizationId, userId);
+    const terrain = await completerMissions(organizationId, userId);
 
     return {
       deja: true,
@@ -132,6 +137,7 @@ export async function installerJeuDemonstration(
       ...personnel,
       ...parc,
       ...pieces,
+      ...terrain,
     };
   }
 
@@ -308,6 +314,15 @@ export async function installerJeuDemonstration(
       userId,
     );
 
+    // Les missions viennent après tout le reste : elles se confient à des
+    // salariés et des intervenants, et se facturent à des clients.
+    const terrain = await amorcerMissions(
+      tx,
+      organizationId,
+      await reperesMissions(tx, organizationId),
+      userId,
+    );
+
     return {
       deja: false,
       tiers: FOURNISSEURS.length + CLIENTS.length,
@@ -325,6 +340,8 @@ export async function installerJeuDemonstration(
       echeances: parc.echeances,
       documents: pieces.documents,
       signatures: pieces.signatures,
+      missions: terrain.missions,
+      formulaires: terrain.formulaires,
     };
   });
 }
@@ -574,6 +591,51 @@ async function completerDocuments(
   return db.transaction((tx) =>
     amorcerDocuments(tx, organizationId, reperes, userId),
   );
+}
+
+/** Personnel et clients à relire en base, par leur nom. */
+async function reperesMissions(
+  lecteur: Pick<typeof db, "select">,
+  organizationId: string,
+): Promise<RepereMissions> {
+  const [salaries, intervenants, clients] = await Promise.all([
+    lecteur
+      .select({ id: employees.id, nom: employees.nom })
+      .from(employees)
+      .where(eq(employees.organizationId, organizationId)),
+    lecteur
+      .select({ id: workers.id, nom: workers.nom })
+      .from(workers)
+      .where(eq(workers.organizationId, organizationId)),
+    lecteur
+      .select({ id: tiers.id, nom: tiers.nom })
+      .from(tiers)
+      .where(and(eq(tiers.organizationId, organizationId), eq(tiers.estClient, true))),
+  ]);
+
+  return {
+    employes: new Map(salaries.map((s) => [s.nom, s.id])),
+    intervenants: new Map(intervenants.map((i) => [i.nom, i.id])),
+    clients: new Map(clients.map((c) => [c.nom, c.id])),
+  };
+}
+
+/**
+ * Verse les missions dans une entreprise amorcée avant le module Missions.
+ *
+ * Les repères se relisent en base : personnel et clients sont déjà là, et le
+ * nom est la seule clé commune avec le jeu de démonstration.
+ */
+async function completerMissions(
+  organizationId: string,
+  userId?: string,
+): Promise<{ missions: number; preuves: number; formulaires: number }> {
+  if (await aUneMission(organizationId)) {
+    return { missions: 0, preuves: 0, formulaires: 0 };
+  }
+
+  const reperes = await reperesMissions(db, organizationId);
+  return db.transaction((tx) => amorcerMissions(tx, organizationId, reperes, userId));
 }
 
 /**

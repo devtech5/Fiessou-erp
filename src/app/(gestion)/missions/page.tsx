@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import {
-  BoutonPrincipal,
   CarteIndicateur,
   EnTetePage,
+  EtatVide,
   Pastille,
   type TonPastille,
 } from "@/components/ui/primitives";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
 import { fmt, fmtEntier } from "@/lib/format";
-import {
-  LIBELLE_NATURE,
-  LIBELLE_STATUT,
-  MISSIONS,
-  avancement,
-  type StatutMission,
-} from "@/lib/fixtures/missions";
+import { listerMissions, optionsMission } from "@/modules/missions/requetes";
+import type { StatutMission } from "@/modules/missions/schema";
+import { LIBELLE_NATURE, LIBELLE_STATUT, pourcentage } from "@/modules/missions/suivi";
+
+import { FormulaireMission } from "./formulaire-mission";
 
 export const metadata: Metadata = { title: "Missions" };
 
@@ -26,128 +27,151 @@ const TON: Record<StatutMission, TonPastille> = {
   annulee: "neutre",
 };
 
-export default function PageMissions() {
-  const enCours = MISSIONS.filter((m) => m.statut === "en_cours");
-  const echouees = MISSIONS.filter((m) => m.statut === "echouee");
-  const aSynchroniser = MISSIONS.reduce((s, m) => s + m.enAttenteSynchro, 0);
-  const facturable = MISSIONS.filter((m) => m.montant).reduce(
-    (s, m) => s + (m.montant ?? 0),
-    0,
-  );
+const dateHeure = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "UTC",
+});
+
+export default async function PageMissions() {
+  const session = await exigerEntreprise();
+
+  const [missions, options, peutGerer] = await Promise.all([
+    listerMissions(session.organizationId),
+    optionsMission(session.organizationId),
+    peut("missions.mission.gerer"),
+  ]);
+
+  const enCours = missions.filter((m) => m.statut === "en_cours");
+  const echouees = missions.filter((m) => m.statut === "echouee");
+  const enRetard = missions.filter((m) => m.enRetard);
+  const facturable = missions
+    .filter((m) => m.statut !== "annulee" && m.client)
+    .reduce((somme, m) => somme + m.montant, 0);
 
   return (
     <>
       <EnTetePage
         titre="Missions"
         sousTitre="Livraisons, chantiers, collectes et projets"
-        actions={<BoutonPrincipal>Nouvelle mission</BoutonPrincipal>}
+        actions={peutGerer ? <FormulaireMission options={options} /> : undefined}
       />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <CarteIndicateur
-          libelle="En cours"
-          valeur={fmtEntier(enCours.length)}
-          precision={`Sur ${MISSIONS.length} missions suivies`}
+      {missions.length === 0 ? (
+        <EtatVide
+          titre="Aucune mission"
+          message="Une mission confie un travail à quelqu'un, le découpe en étapes et exige, à chacune, la preuve du terrain : photo, position, signature."
         />
-        <CarteIndicateur
-          libelle="Échouées"
-          valeur={fmtEntier(echouees.length)}
-          ton={echouees.length > 0 ? "danger" : "valide"}
-          precision="À reprogrammer"
-        />
-        <CarteIndicateur
-          libelle="Preuves à remonter"
-          valeur={fmtEntier(aSynchroniser)}
-          ton={aSynchroniser > 0 ? "alerte" : "valide"}
-          precision="Collectées hors connexion"
-        />
-        <CarteIndicateur
-          libelle="Missions facturables"
-          valeur={fmt(facturable)}
-          unite="FCFA"
-          ton="valide"
-          precision="Rattachées à un client"
-        />
-      </section>
+      ) : (
+        <>
+          <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <CarteIndicateur
+              libelle="En cours"
+              valeur={fmtEntier(enCours.length)}
+              precision={`Sur ${missions.length} missions suivies`}
+            />
+            <CarteIndicateur
+              libelle="En retard"
+              valeur={fmtEntier(enRetard.length)}
+              ton={enRetard.length > 0 ? "alerte" : "valide"}
+              precision="Échéance dépassée, mission ouverte"
+            />
+            <CarteIndicateur
+              libelle="Échouées"
+              valeur={fmtEntier(echouees.length)}
+              ton={echouees.length > 0 ? "danger" : "valide"}
+              precision="À reprogrammer"
+            />
+            <CarteIndicateur
+              libelle="Missions facturables"
+              valeur={fmt(facturable)}
+              unite="FCFA"
+              ton="valide"
+              precision="Rattachées à un client"
+            />
+          </section>
 
-      <ul className="grid gap-2 lg:grid-cols-2">
-        {MISSIONS.map((mission) => {
-          const progression = avancement(mission);
-          const etapeCourante =
-            mission.etapes.find((e) => !e.faite) ??
-            mission.etapes[mission.etapes.length - 1];
+          <ul className="grid gap-2 lg:grid-cols-2">
+            {missions.map((mission) => {
+              const progression = pourcentage(mission.etapesFaites, mission.etapes);
 
-          return (
-            <li
-              key={mission.id}
-              className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="chiffres text-xs text-[var(--encre-faible)]">
-                    {mission.reference} · {LIBELLE_NATURE[mission.nature]}
-                  </p>
-                  <p className="truncate text-sm font-semibold">{mission.titre}</p>
-                </div>
-                <Pastille ton={TON[mission.statut]}>
-                  {LIBELLE_STATUT[mission.statut]}
-                </Pastille>
-              </div>
+              return (
+                <li key={mission.id}>
+                  <Link
+                    href={`/missions/suivi?mission=${mission.id}`}
+                    className="block rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4 hover:border-marque-300"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="chiffres text-xs text-[var(--encre-faible)]">
+                          {mission.reference} · {LIBELLE_NATURE[mission.nature]}
+                        </p>
+                        <p className="truncate text-sm font-semibold">{mission.titre}</p>
+                      </div>
+                      <Pastille ton={TON[mission.statut]}>
+                        {LIBELLE_STATUT[mission.statut]}
+                      </Pastille>
+                    </div>
 
-              <p className="mt-1.5 truncate text-xs text-[var(--encre-douce)]">
-                {mission.assigneA} · {mission.lieu}
-              </p>
+                    <p className="mt-1.5 truncate text-xs text-[var(--encre-douce)]">
+                      {mission.executant ?? "Non attribuée"}
+                      {mission.lieu ? ` · ${mission.lieu}` : ""}
+                    </p>
 
-              <div className="mt-3">
-                <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate text-[var(--encre-faible)]">
-                    {mission.statut === "terminee"
-                      ? "Terminée"
-                      : `Étape : ${etapeCourante.libelle}`}
-                  </span>
-                  <span className="chiffres shrink-0 font-semibold">
-                    {progression} %
-                  </span>
-                </div>
-                <div
-                  className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-creuse)]"
-                  role="progressbar"
-                  aria-valuenow={progression}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`Avancement de ${mission.reference}`}
-                >
-                  <div
-                    className={`h-full rounded-full ${
-                      mission.statut === "echouee" ? "bg-danger-500" : "bg-marque-600"
-                    }`}
-                    style={{ width: `${progression}%` }}
-                  />
-                </div>
-              </div>
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+                        <span className="min-w-0 truncate text-[var(--encre-faible)]">
+                          {mission.statut === "terminee"
+                            ? "Terminée"
+                            : mission.motif && mission.statut !== "planifiee" && mission.statut !== "en_cours"
+                              ? mission.motif
+                              : mission.etapeCourante
+                                ? `Étape : ${mission.etapeCourante}`
+                                : "Sans étape"}
+                        </span>
+                        <span className="chiffres shrink-0 font-semibold">{progression} %</span>
+                      </div>
+                      <div
+                        className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-creuse)]"
+                        role="progressbar"
+                        aria-valuenow={progression}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`Avancement de ${mission.reference}`}
+                      >
+                        <div
+                          className={`h-full rounded-full ${
+                            mission.statut === "echouee" ? "bg-danger-500" : "bg-marque-600"
+                          }`}
+                          style={{ width: `${progression}%` }}
+                        />
+                      </div>
+                    </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-[var(--encre-faible)]">{mission.echeance}</span>
-
-                {/* Les preuves prises hors réseau restent sur l'appareil. Le
-                    signaler évite de croire une mission remontée alors qu'elle
-                    n'a pas quitté le téléphone du livreur. */}
-                {mission.enAttenteSynchro > 0 && (
-                  <Pastille ton="alerte">
-                    {mission.enAttenteSynchro} à synchroniser
-                  </Pastille>
-                )}
-
-                {mission.montant && (
-                  <span className="chiffres ml-auto font-semibold">
-                    {fmt(mission.montant)} FCFA
-                  </span>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      {mission.echeanceLe && (
+                        <span className="chiffres text-[var(--encre-faible)]">
+                          {dateHeure.format(mission.echeanceLe)}
+                        </span>
+                      )}
+                      <span className="text-[var(--encre-faible)]">
+                        {fmtEntier(mission.preuves)} preuve{mission.preuves > 1 ? "s" : ""}
+                      </span>
+                      {mission.client && (
+                        <span className="chiffres ml-auto font-semibold">
+                          {fmt(mission.montant)} FCFA
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </>
   );
 }

@@ -73,6 +73,14 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
       };
     }
 
+    if (resultat.missions > 0) {
+      return {
+        message:
+          `${resultat.missions} missions et ${resultat.formulaires} formulaires ` +
+          `ajoutés.`,
+      };
+    }
+
     return { message: "Le jeu de démonstration est déjà installé." };
   }
 
@@ -82,7 +90,7 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
       `${resultat.codes} codes-barres, ${resultat.depots} dépôts, ` +
       `${resultat.mouvements} mouvements, ${resultat.postes} postes de ` +
       `caisse, ${resultat.salaries} salariés, ${resultat.intervenants} ` +
-      `intervenants, ${resultat.actifs} actifs et ${resultat.documents} ` +
-      `documents installés.`,
+      `intervenants, ${resultat.actifs} actifs, ${resultat.documents} ` +
+      `documents et ${resultat.missions} missions installés.`,
   };
 }

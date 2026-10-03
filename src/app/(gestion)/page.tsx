@@ -9,6 +9,7 @@ import {
   listerEcheances,
   resumeParc,
 } from "@/modules/actifs/requetes";
+import { etatMissions } from "@/modules/missions/requetes";
 import { piecesComptabilisees } from "@/modules/comptabilite/actions";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -79,6 +80,7 @@ export default async function PageTableauDeBord() {
     auxiliaires,
     parc,
     echeances,
+    missions,
   ] = await Promise.all([
     piecesComptabilisees(),
     resumeStock(session.organizationId),
@@ -88,6 +90,7 @@ export default async function PageTableauDeBord() {
     soldesParAuxiliaire(session.organizationId),
     listerActifs(session.organizationId),
     listerEcheances(session.organizationId),
+    etatMissions(session.organizationId),
   ]);
 
   const toutesLesAlertes = alertes(passees, {
@@ -99,7 +102,7 @@ export default async function PageTableauDeBord() {
   }, {
     echeancesDepassees: echeances.filter((e) => e.gravite === "depassee").length,
     indisponibles: resumeParc(parc).indisponibles,
-  });
+  }, missions);
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas.
