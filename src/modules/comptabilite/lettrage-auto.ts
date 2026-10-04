@@ -38,7 +38,8 @@ export async function prochainCodeLettrage(tx: Transaction, organizationId: stri
 }
 
 /**
- * Lettre automatiquement le compte client d'un ensemble de pièces soldées.
+ * Lettre automatiquement le compte client (ou fournisseur) d'un ensemble de
+ * pièces soldées.
  *
  * Une facture annulée par son avoir, ou entièrement réglée, n'a plus rien
  * d'ouvert : ses lignes au 411 se rapprochent d'elles-mêmes. Sans cela, la
@@ -53,6 +54,8 @@ export async function lettrerPiecesSoldees(
   organizationId: string,
   pieceIds: string[],
   compteAuxiliaire: string,
+  /** Compte collectif : 411 pour un client, 401 pour un fournisseur. */
+  collectif: "411" | "401" = "411",
 ): Promise<string | null> {
   if (pieceIds.length === 0) return null;
   const lignes = await tx
@@ -70,7 +73,7 @@ export async function lettrerPiecesSoldees(
       and(
         eq(lignesEcriture.organizationId, organizationId),
         inArray(ecritures.pieceId, pieceIds),
-        like(lignesEcriture.compte, "411%"),
+        like(lignesEcriture.compte, `${collectif}%`),
         eq(lignesEcriture.auxiliaire, compteAuxiliaire),
         isNull(lignesEcriture.lettrage),
       ),

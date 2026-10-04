@@ -16,7 +16,7 @@ describe("registre des modules", () => {
   it("n'ouvre que les modules dont les écrans lisent la base", () => {
     // Liste figée à dessein. Y ajouter une clé doit être un geste délibéré,
     // fait le jour où le module cesse de lire `src/lib/fixtures`.
-    expect(MODULES_LIVRES).toEqual(["tiers", "stock", "pos", "comptabilite", "personnes", "documents", "archives", "taches", "tresorerie", "actifs", "reservation", "missions", "billetterie", "valeur_electronique", "projet"]);
+    expect(MODULES_LIVRES).toEqual(["tiers", "stock", "pos", "comptabilite", "personnes", "documents", "archives", "taches", "achats", "tresorerie", "actifs", "reservation", "missions", "billetterie", "valeur_electronique", "projet"]);
   });
 
   it("ferme tout module inconnu du registre", () => {

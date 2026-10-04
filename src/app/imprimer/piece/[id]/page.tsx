@@ -10,7 +10,7 @@ import { formaterQuantite, type CodeUnite } from "@/lib/quantite";
 import { resteDu, totaliserPiece } from "@/modules/facturation/calcul";
 import { detailsPieces, listerPieces } from "@/modules/facturation/requetes";
 
-import { BoutonImprimer } from "./bouton-imprimer";
+import { BoutonImprimer } from "@/components/ui/bouton-imprimer";
 
 export const metadata: Metadata = { title: "Impression" };
 

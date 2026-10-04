@@ -79,6 +79,14 @@ export interface EtatReservations {
   abonnementsEpuises: number;
 }
 
+/** Ce que les achats ont d'urgent : dettes échues ou proches, livraisons en retard. */
+export interface EtatAchatsAlertes {
+  facturesEchues: number;
+  montantEchu: number;
+  aPayerSous7Jours: number;
+  livraisonsEnRetard: number;
+}
+
 /** Ce que la trésorerie a d'urgent, réduit à des nombres. */
 export interface EtatTresorerieAlertes {
   caissesSousSeuil: string[];
@@ -144,8 +152,47 @@ export function alertes(
   depenses: { aApprouver: number; montantAApprouver: number; sansPreuve: number } = { aApprouver: 0, montantAApprouver: 0, sansPreuve: 0 },
   taches: EtatTaches = { miennesEnRetard: 0, equipeEnRetard: 0 },
   tresorerie: EtatTresorerieAlertes = TRESORERIE_VIDE,
+  achats: EtatAchatsAlertes = { facturesEchues: 0, montantEchu: 0, aPayerSous7Jours: 0, livraisonsEnRetard: 0 },
 ): Alerte[] {
   const liste: Alerte[] = [];
+
+  // ------------------------------------------------------------- achats
+  if (achats.facturesEchues > 0) {
+    liste.push({
+      id: "fournisseurs-echus",
+      gravite: "critique",
+      source: "base",
+      module: "Achats",
+      titre: "Factures fournisseurs échues",
+      detail: `${achats.montantEchu.toLocaleString("fr-FR")} FCFA dus et non payés`,
+      href: "/achats/dettes",
+      nombre: achats.facturesEchues,
+    });
+  }
+  if (achats.aPayerSous7Jours > 0) {
+    liste.push({
+      id: "fournisseurs-semaine",
+      gravite: "attention",
+      source: "base",
+      module: "Achats",
+      titre: "Fournisseurs à payer cette semaine",
+      detail: "Échéance dans les sept jours",
+      href: "/achats/dettes",
+      nombre: achats.aPayerSous7Jours,
+    });
+  }
+  if (achats.livraisonsEnRetard > 0) {
+    liste.push({
+      id: "livraisons-retard",
+      gravite: "attention",
+      source: "base",
+      module: "Achats",
+      titre: "Livraisons fournisseurs en retard",
+      detail: "Commandes envoyées, date de livraison dépassée",
+      href: "/achats",
+      nombre: achats.livraisonsEnRetard,
+    });
+  }
 
   // ------------------------------------------------------------ tâches
   // Celles de la personne d'abord : c'est à elle d'agir, sans attendre personne.

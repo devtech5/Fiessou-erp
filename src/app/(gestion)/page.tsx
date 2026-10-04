@@ -21,6 +21,7 @@ import { etatDepenses } from "@/modules/projets/requetes";
 import { LIBELLE_PRIORITE, joursAvantEcheance } from "@/modules/taches/calcul";
 import { tachesEnRetard } from "@/modules/taches/requetes";
 import { etatTresorerie, planDeTresorerie } from "@/modules/tresorerie/requetes";
+import { etatAchats } from "@/modules/achats/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -99,6 +100,7 @@ const DROIT_PAR_RACINE: [string, Droit][] = [
   ["/documents", "documents.consulter"],
   ["/taches", "taches.consulter"],
   ["/tresorerie", "tresorerie.consulter"],
+  ["/achats", "achats.consulter"],
 ];
 
 function droitRequis(href: string): Droit | null {
@@ -138,6 +140,7 @@ export default async function PageTableauDeBord() {
     retards,
     caisses,
     plan,
+    achats,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -156,6 +159,7 @@ export default async function PageTableauDeBord() {
       : Promise.resolve({ liste: [], miennes: 0, autres: 0 }),
     voitLaTresorerieInterne ? etatTresorerie(session.organizationId) : Promise.resolve(null),
     voitLaTresorerieInterne ? planDeTresorerie(session.organizationId, aujourdhui) : Promise.resolve(null),
+    moduleOuvert("achats") && droits.has("achats.consulter") ? etatAchats(session.organizationId) : Promise.resolve(undefined),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -172,7 +176,7 @@ export default async function PageTableauDeBord() {
     equipeEnRetard: retards.autres,
   }, caisses
     ? { ...caisses, premierDecouvert: plan && plan.comptes > 0 ? plan.premierDecouvert : null }
-    : undefined);
+    : undefined, achats);
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une

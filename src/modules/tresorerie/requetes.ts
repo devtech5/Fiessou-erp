@@ -394,12 +394,13 @@ export function ecrituresNonPointees(organizationId: string, compte: string) {
  *   + factures clients émises et pas encore soldées, à leur échéance ;
  *   − dépenses de projet approuvées et pas encore payées ;
  *   − bons de caisse approuvés et pas encore décaissés ;
- *   − ce qui reste dû aux intervenants (pointé, pas réglé).
+ *   − ce qui reste dû aux intervenants (pointé, pas réglé) ;
+ *   − les factures fournisseurs non soldées, à leur échéance.
  *
  * Les montants dus sans date tombent aujourd'hui : on les doit maintenant.
  */
 export async function fluxPrevus(organizationId: string, aujourdhui: string): Promise<Flux[]> {
-  const [factures, depenses, bons, intervenants] = await Promise.all([
+  const [factures, depenses, bons, intervenants, dettes] = await Promise.all([
     db.execute<{ numero: string; client: string | null; echeance: string | Date | null; reste: string }>(sql`
       select p.numero, p.client_nom as client, coalesce(p.echeance, p.date_piece) as echeance,
              p.total_ttc - coalesce((select sum(r.montant) from reglements_piece r where r.piece_id = p.id and r.deleted_at is null), 0) as reste
@@ -419,6 +420,12 @@ export async function fluxPrevus(organizationId: string, aujourdhui: string): Pr
            - coalesce((select sum(b.montant) from bons_paiement b where b.worker_id = w.id), 0) as du
       from workers w where w.organization_id = ${organizationId} and w.deleted_at is null
     `),
+    db.execute<{ numero: string; fournisseur: string; echeance: string | Date; reste: string }>(sql`
+      select f.numero || ' (' || f.reference_fournisseur || ')' as numero, f.fournisseur_nom as fournisseur, f.echeance,
+             f.total_ttc - coalesce((select sum(r.montant) from reglements_fournisseur r where r.facture_id = f.id), 0) as reste
+      from factures_fournisseur f
+      where f.organization_id = ${organizationId} and f.statut = 'comptabilisee'
+    `),
   ]);
 
   const flux: Flux[] = [];
@@ -428,6 +435,10 @@ export async function fluxPrevus(organizationId: string, aujourdhui: string): Pr
   }
   for (const d of depenses) flux.push({ date: aujourdhui, montant: -Number(d.montant), libelle: `${d.numero} — ${d.libelle}`, origine: "depense" });
   for (const b of bons) flux.push({ date: aujourdhui, montant: -Number(b.montant), libelle: `${b.numero} — ${b.beneficiaire}`, origine: "bon" });
+  for (const d of dettes) {
+    const reste = Number(d.reste);
+    if (reste > 0) flux.push({ date: jour(d.echeance) ?? aujourdhui, montant: -reste, libelle: `${d.numero} — ${d.fournisseur}`, origine: "fournisseur" });
+  }
   for (const i of intervenants) {
     const du = Number(i.du);
     if (du > 0) flux.push({ date: aujourdhui, montant: -du, libelle: `Dû à ${i.nom}`, origine: "intervenant" });

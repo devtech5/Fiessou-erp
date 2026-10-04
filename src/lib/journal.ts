@@ -182,6 +182,15 @@ const LIBELLES: Record<string, string> = {
   "releve.pointer": "a pointé le relevé bancaire",
   "releve.depointer": "a retiré un pointage",
   "releve.comptabiliser": "a comptabilisé une ligne de relevé",
+
+  "commande_achat.creer": "a préparé une commande fournisseur",
+  "commande_achat.modifier": "a modifié une commande fournisseur",
+  "commande_achat.envoyer": "a envoyé une commande fournisseur",
+  "commande_achat.annuler": "a annulé une commande fournisseur",
+  "reception_achat.recevoir": "a réceptionné une livraison",
+  "facture_fournisseur.enregistrer": "a enregistré une facture fournisseur",
+  "facture_fournisseur.annuler": "a annulé une facture fournisseur",
+  "facture_fournisseur.regler": "a réglé un fournisseur",
 };
 
 /** Gestes dont la famille ne se déduit pas du verbe seul. */
@@ -219,6 +228,10 @@ const FAMILLE_EXPLICITE: Record<string, Categorie> = {
   "arrete_caisse.passer": "creation",
   "releve.pointer": "modification",
   "releve.comptabiliser": "creation",
+  "commande_achat.envoyer": "modification",
+  "reception_achat.recevoir": "creation",
+  "facture_fournisseur.enregistrer": "creation",
+  "facture_fournisseur.regler": "creation",
 };
 
 const VERBES: [RegExp, Categorie][] = [
@@ -292,6 +305,9 @@ const MODULES: Record<string, string> = {
   avance: "Trésorerie",
   arrete_caisse: "Trésorerie",
   releve: "Trésorerie",
+  commande_achat: "Achats",
+  reception_achat: "Achats",
+  facture_fournisseur: "Achats",
 };
 
 /** Module d'un geste, d'après son préfixe. */

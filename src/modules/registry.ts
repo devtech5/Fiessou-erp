@@ -151,6 +151,19 @@ export const MODULES: ModuleDefinition[] = [
   },
 
   {
+    key: "achats",
+    name: "Achats & Fournisseurs",
+    layer: "socle",
+    // En base : bons de commande, réceptions qui font entrer le stock au prix
+    // commandé, factures fournisseurs comptabilisées (6xx/4451/401) avec
+    // contrôle face à la réception, règlements depuis la trésorerie et
+    // lettrage du 401, réassort préparé en brouillon. Restent l'avoir
+    // fournisseur et le retour de marchandise.
+    status: "en_cours",
+    requires: ["tiers", "stock", "comptabilite", "tresorerie"],
+    description: "Commandes fournisseurs, réceptions, factures d'achat, dettes et règlements.",
+  },
+  {
     key: "tresorerie",
     name: "Trésorerie",
     layer: "socle",

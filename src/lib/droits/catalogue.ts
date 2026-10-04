@@ -445,6 +445,38 @@ export const DROITS = [
     description: "Compter le tiroir, relever les soldes opérateur et passer l'écriture de la journée.",
   },
 
+  // ---------------------------------------------------------------- achats
+  {
+    cle: "achats.consulter",
+    moduleKey: "achats",
+    libelle: "Consulter les achats",
+    description: "Voir les commandes fournisseurs, les réceptions, les factures et les dettes.",
+  },
+  {
+    cle: "achats.commande.gerer",
+    moduleKey: "achats",
+    libelle: "Passer les commandes fournisseurs",
+    description: "Préparer, envoyer et annuler un bon de commande ; préparer le réassort.",
+  },
+  {
+    cle: "achats.reception.saisir",
+    moduleKey: "achats",
+    libelle: "Réceptionner la marchandise",
+    description: "Constater ce qui est livré au dépôt. Fait entrer le stock au prix commandé.",
+  },
+  {
+    cle: "achats.facture.saisir",
+    moduleKey: "achats",
+    libelle: "Enregistrer les factures fournisseurs",
+    description: "Saisir et comptabiliser une facture fournisseur, l'annuler tant qu'elle n'est pas réglée.",
+  },
+  {
+    cle: "achats.reglement.payer",
+    moduleKey: "achats",
+    libelle: "Régler les fournisseurs",
+    description: "Payer une facture fournisseur depuis un compte de trésorerie. Passe l'écriture et lettre le compte.",
+  },
+
   // ------------------------------------------------------------ trésorerie
   {
     cle: "tresorerie.consulter",
@@ -675,6 +707,8 @@ export const PRESETS_ROLES = [
       "stock.depot.gerer",
       "stock.mouvement.saisir",
       "tiers.fiche.consulter",
+      "achats.consulter",
+      "achats.reception.saisir",
       "tresorerie.bon.demander",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
@@ -691,6 +725,9 @@ export const PRESETS_ROLES = [
       "tiers.fiche.gerer",
       "comptabilite.ecriture.consulter",
       "comptabilite.ecriture.enregistrer",
+      "achats.consulter",
+      "achats.facture.saisir",
+      "achats.reglement.payer",
       ...TRESORERIE_COMPTABLE,
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,

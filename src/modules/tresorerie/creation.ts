@@ -112,7 +112,7 @@ async function compteDe(tx: Transaction, organizationId: string, id: string): Pr
  * sort pas des billets qu'on n'a pas. Une banque peut avoir un découvert
  * autorisé — la banque refusera elle-même ce qu'elle n'accorde pas.
  */
-async function exigerProvision(tx: Transaction, organizationId: string, compte: CompteRef & { nom: string }, montant: number) {
+export async function exigerProvision(tx: Transaction, organizationId: string, compte: CompteRef & { nom: string }, montant: number) {
   if (compte.nature === "banque") return;
   const solde = await soldeDuCompte(tx, organizationId, compte.numero);
   if (solde < montant) {
