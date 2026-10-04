@@ -327,4 +327,13 @@ describe("trésorerie du tableau de bord", () => {
     const [, , caisse] = tresorerie([solde("571", 0, 150_000)]);
     expect(caisse.montant).toBe(-150_000);
   });
+
+  it("range le mobile money du 5711 avec le mobile money, pas dans le tiroir", () => {
+    const comptes = [solde("571", 100_000, 0), solde("5711", 20_000, 0)];
+    const [, mobile, caisse] = tresorerie(comptes);
+    expect(mobile.montant).toBe(20_000);
+    expect(caisse.montant).toBe(100_000);
+    // Rien ne se perd ni ne se compte deux fois.
+    expect(mobile.montant + caisse.montant).toBe(positionComptable(comptes).tresorerie);
+  });
 });

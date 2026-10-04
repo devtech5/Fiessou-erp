@@ -342,14 +342,20 @@ export function tresorerie(soldes: SoldeCompte[]): Tresorerie[] {
       .filter((s) => s.compte.startsWith(prefixe))
       .reduce((somme, s) => somme + s.debit - s.credit, 0);
 
+  // La caisse et le mobile money encaissés au comptoir ou sur facture passent
+  // au 5711 « Caisse Mobile Money » : c'est de l'argent électronique, pas des
+  // billets dans le tiroir. Le compter en caisse ferait chercher au caissier,
+  // le soir, des espèces qui n'ont jamais existé.
+  const mobile = cumul("5711");
+
   return [
     { libelle: "Banque", montant: cumul("52"), detail: "Comptes 52" },
     {
       libelle: "Mobile money",
-      montant: cumul("53"),
-      detail: "Comptes 53 · établissements financiers",
+      montant: cumul("53") + mobile,
+      detail: "Comptes 53 et 5711",
     },
-    { libelle: "Caisse", montant: cumul("57"), detail: "Comptes 57" },
+    { libelle: "Caisse", montant: cumul("57") - mobile, detail: "Comptes 57, hors 5711" },
   ];
 }
 
