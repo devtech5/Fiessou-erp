@@ -1,13 +1,22 @@
 import "server-only";
 
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lt, sql } from "drizzle-orm";
 
 import { auditLogs } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { prochainNumero, type Transaction } from "@/lib/sequences";
 import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
 
-import { ecritureClotureGuichet, rapprocher, refusOperation, RESEAUX, soldes, type Soldes } from "./calcul";
+import {
+  ecritureApportOuverture,
+  ecritureClotureGuichet,
+  ouvertureAttendue,
+  rapprocher,
+  refusOperation,
+  RESEAUX,
+  soldes,
+  type Soldes,
+} from "./calcul";
 import {
   floatsSession,
   operationsGuichet,
@@ -79,7 +88,101 @@ export async function ouvrirSessionDans(
     RESEAUX.map((reseau) => ({ sessionId: id, organizationId, reseau, ouverture: ouverture.floats[reseau] ?? 0 })),
   );
   await journaliser(tx, organizationId, userId, "guichet.ouvrir", id, { numero, fondCaisse: ouverture.fondCaisse });
+  // Ce qui arrive au guichet sans venir d'une opération vient de l'exploitant.
+  if (userId) await comptabiliserOuverturesDans(tx, organizationId, userId);
   return { id, numero };
+}
+
+/**
+ * Passe l'apport (ou le prélèvement) de l'exploitant de chaque session qui ne
+ * l'a pas encore, dans l'ordre d'ouverture.
+ *
+ * La première session apporte tout son float et son fond de caisse ; les
+ * suivantes, seulement l'écart avec ce que la clôture précédente a laissé.
+ * Rattrape aussi les sessions ouvertes avant que la règle n'existe.
+ */
+export async function comptabiliserOuverturesDans(
+  tx: Transaction,
+  organizationId: string,
+  userId: string,
+): Promise<string[]> {
+  const enAttente = await tx
+    .select()
+    .from(sessionsGuichet)
+    .where(and(eq(sessionsGuichet.organizationId, organizationId), eq(sessionsGuichet.ouvertureComptabilisee, false)))
+    .orderBy(asc(sessionsGuichet.ouverteLe), asc(sessionsGuichet.numero))
+    .for("update");
+
+  const passees: string[] = [];
+  for (const session of enAttente) {
+    const [precedente] = await tx
+      .select()
+      .from(sessionsGuichet)
+      .where(
+        and(
+          eq(sessionsGuichet.organizationId, organizationId),
+          eq(sessionsGuichet.statut, "cloturee"),
+          lt(sessionsGuichet.ouverteLe, session.ouverteLe),
+        ),
+      )
+      .orderBy(desc(sessionsGuichet.ouverteLe))
+      .limit(1);
+
+    let laisse: { especesComptees: number; floats: Partial<Record<Reseau, number>> } | null = null;
+    if (precedente) {
+      const [floats, operations] = await Promise.all([
+        tx.select().from(floatsSession).where(eq(floatsSession.sessionId, precedente.id)),
+        tx
+          .select({
+            type: operationsGuichet.type,
+            reseau: operationsGuichet.reseau,
+            montant: operationsGuichet.montant,
+            commission: operationsGuichet.commission,
+          })
+          .from(operationsGuichet)
+          .where(and(eq(operationsGuichet.sessionId, precedente.id), isNull(operationsGuichet.annuleeLe))),
+      ]);
+      const theoriques = soldes(
+        { floats: Object.fromEntries(floats.map((f) => [f.reseau, f.ouverture])), fondCaisse: precedente.fondCaisse },
+        operations,
+      ).floats;
+      laisse = {
+        especesComptees: precedente.especesComptees ?? precedente.fondCaisse,
+        floats: Object.fromEntries(
+          RESEAUX.map((r) => [r, floats.find((f) => f.reseau === r)?.releveCloture ?? theoriques[r]]),
+        ),
+      };
+    }
+
+    const declares = await tx.select().from(floatsSession).where(eq(floatsSession.sessionId, session.id));
+    const date = jourIso(session.ouverteLe);
+    const ecriture = ecritureApportOuverture({
+      numero: session.numero,
+      date,
+      declare: {
+        especes: session.fondCaisse,
+        floats: Object.fromEntries(declares.map((f) => [f.reseau, f.ouverture])),
+      },
+      attendu: ouvertureAttendue(laisse),
+    });
+    const numeroEcriture = ecriture
+      ? await enregistrerEcritureDans(tx, ecriture, {
+          organizationId,
+          userId: session.ouvertePar ?? userId,
+          origine: "saisie",
+          pieceId: session.id,
+          exercice: date.slice(0, 4),
+          dateIso: date,
+        })
+      : null;
+
+    await tx
+      .update(sessionsGuichet)
+      .set({ ouvertureComptabilisee: true, ecritureOuverture: numeroEcriture, updatedAt: new Date() })
+      .where(eq(sessionsGuichet.id, session.id));
+    if (numeroEcriture) passees.push(numeroEcriture);
+  }
+  return passees;
 }
 
 /** Session ouverte, verrouillée, avec ses soldes courants. */
@@ -209,6 +312,8 @@ export async function cloturerSessionDans(
   cloture: { especesComptees: number; releves: Partial<Record<Reseau, number | null>>; observations?: string | null },
   userId: string,
 ): Promise<{ numero: string; ecartEspeces: number; ecriture: string | null }> {
+  // Une session ouverte avant la règle d'apport se rattrape ici, avant de clore.
+  await comptabiliserOuverturesDans(tx, organizationId, userId);
   const { session, courants, ouvertures } = await sessionCourante(tx, organizationId);
   const r = rapprocher(courants, cloture.especesComptees, cloture.releves);
 

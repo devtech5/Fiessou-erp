@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   pgEnum,
@@ -60,6 +61,13 @@ export const sessionsGuichet = pgTable(
     ecartEspeces: money("ecart_especes"),
     ecriture: text("ecriture"),
     observations: text("observations"),
+    /**
+     * L'apport (ou le prélèvement) de l'exploitant constaté à l'ouverture a-t-il
+     * été passé ? Faux sur les sessions antérieures à la règle : elles se
+     * rattrapent, dans l'ordre, à la prochaine ouverture ou clôture.
+     */
+    ouvertureComptabilisee: boolean("ouverture_comptabilisee").notNull().default(false),
+    ecritureOuverture: text("ecriture_ouverture"),
 
     ...timestamps,
     ...rowVersion,

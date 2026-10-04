@@ -134,6 +134,13 @@
       "when": 1791102781893,
       "tag": "0018_petite_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791118706117,
+      "tag": "0019_cooing_lethal_legion",
+      "breakpoints": true
     }
   ]
 }

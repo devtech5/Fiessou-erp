@@ -45,7 +45,7 @@ export default async function PageCloture() {
           ouvertures={guichet.ouvertures}
           volumes={{
             entrees: effets.filter((e) => e > 0).reduce((s, e) => s + e, 0),
-            sorties: -effets.filter((e) => e < 0).reduce((s, e) => s + e, 0),
+            sorties: Math.abs(effets.filter((e) => e < 0).reduce((s, e) => s + e, 0)),
           }}
           autorise={cloturer}
         />
@@ -66,7 +66,7 @@ export default async function PageCloture() {
                 <Th aligne="droite">Commissions</Th>
                 <Th aligne="droite">Espèces comptées</Th>
                 <Th aligne="droite">Écart</Th>
-                <Th>Écriture</Th>
+                <Th>Écritures</Th>
               </tr>
             </thead>
             <tbody>
@@ -87,7 +87,12 @@ export default async function PageCloture() {
                       {s.ecartEspeces === null ? "—" : s.ecartEspeces === 0 ? "0" : `${s.ecartEspeces > 0 ? "+" : "−"} ${fmt(Math.abs(s.ecartEspeces))}`}
                     </span>
                   </Td>
-                  <Td chiffres>{s.ecriture ?? "—"}</Td>
+                  <Td chiffres>
+                    {s.ecriture ?? "—"}
+                    {s.ecritureOuverture && (
+                      <span className="block text-xs text-[var(--encre-faible)]">ouverture {s.ecritureOuverture}</span>
+                    )}
+                  </Td>
                 </tr>
               ))}
             </tbody>

@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { estEquilibree, totalDebit } from "@/lib/comptabilite/ecritures";
 import {
   commissionIndicative,
+  ecritureApportOuverture,
   ecritureClotureGuichet,
   effetSurEspeces,
   effetSurFloat,
+  ouvertureAttendue,
   rapprocher,
   refusOperation,
   soldes,
@@ -121,5 +123,56 @@ describe("rapprochement et clôture", () => {
 
   it("ne passe rien pour une journée blanche", () => {
     expect(ecritureClotureGuichet({ numero: "G", date: "2026-10-04", variationsFloat: {}, commissions: 0, ecartEspeces: 0 })).toBeNull();
+  });
+});
+
+describe("apport de l'exploitant à l'ouverture", () => {
+  it("passe tout le float et le fond de la première session en apport", () => {
+    const e = ecritureApportOuverture({
+      numero: "GUI-2026-00001",
+      date: "2026-10-03",
+      declare: { especes: 250_000, floats: { wave: 1_000_000, orange: 500_000, mtn: 350_000, moov: 200_000 } },
+      attendu: ouvertureAttendue(null),
+    })!;
+    expect(estEquilibree(e)).toBe(true);
+    expect(e.piece).toBe("GUI-2026-00001-O");
+    expect(e.libelle).toMatch(/^Apport de l'exploitant/);
+    expect(e.lignes.filter((l) => l.compte === "5712").map((l) => l.debit)).toEqual([1_000_000, 500_000, 350_000, 200_000]);
+    expect(e.lignes.find((l) => l.compte === "571")?.debit).toBe(250_000);
+    expect(e.lignes.find((l) => l.compte === "104")?.credit).toBe(2_300_000);
+  });
+
+  it("ne passe rien quand l'ouverture reprend exactement la clôture", () => {
+    const laisse = { especesComptees: 75_500, floats: { wave: 1_055_000, orange: 425_000, mtn: 354_000, moov: 160_000 } };
+    expect(
+      ecritureApportOuverture({
+        numero: "GUI-2026-00002",
+        date: "2026-10-04",
+        declare: { especes: 75_500, floats: laisse.floats },
+        attendu: ouvertureAttendue(laisse),
+      }),
+    ).toBeNull();
+  });
+
+  it("passe un apport partiel et un prélèvement dans le bon sens", () => {
+    const laisse = { especesComptees: 100_000, floats: { wave: 500_000 } };
+    const apport = ecritureApportOuverture({
+      numero: "G2",
+      date: "2026-10-04",
+      declare: { especes: 100_000, floats: { wave: 700_000 } },
+      attendu: ouvertureAttendue(laisse),
+    })!;
+    expect(apport.lignes.find((l) => l.compte === "104")?.credit).toBe(200_000);
+
+    const prelevement = ecritureApportOuverture({
+      numero: "G3",
+      date: "2026-10-04",
+      declare: { especes: 40_000, floats: { wave: 500_000 } },
+      attendu: ouvertureAttendue(laisse),
+    })!;
+    expect(estEquilibree(prelevement)).toBe(true);
+    expect(prelevement.libelle).toMatch(/^Prélèvement/);
+    expect(prelevement.lignes.find((l) => l.compte === "571")?.credit).toBe(60_000);
+    expect(prelevement.lignes.find((l) => l.compte === "104")?.debit).toBe(60_000);
   });
 });

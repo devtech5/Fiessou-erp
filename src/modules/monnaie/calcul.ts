@@ -231,3 +231,76 @@ export function ecritureClotureGuichet(cloture: {
   if (!estEquilibree(ecriture)) throw new Error(`Écriture déséquilibrée sur ${cloture.numero}.`);
   return ecriture;
 }
+
+// ------------------------------------------------------- apport d'ouverture
+
+/** Apports et prélèvements de l'exploitant individuel (SYSCOHADA). */
+export const COMPTE_EXPLOITANT = { numero: "104", libelle: "Compte de l'exploitant" };
+
+/**
+ * Ce que l'ouverture d'une session aurait dû trouver : les soldes laissés
+ * par la clôture précédente. Le float relevé chez l'opérateur fait foi ; à
+ * défaut, celui que les opérations laissaient. Aucune session avant : rien.
+ */
+export function ouvertureAttendue(
+  precedente: { especesComptees: number; floats: Partial<Record<Reseau, number>> } | null,
+): { especes: number; floats: Record<Reseau, number> } {
+  return {
+    especes: precedente?.especesComptees ?? 0,
+    floats: Object.fromEntries(RESEAUX.map((r) => [r, precedente?.floats[r] ?? 0])) as Record<Reseau, number>,
+  };
+}
+
+/**
+ * Écriture d'ouverture : ce qui entre au guichet sans venir d'une opération
+ * vient de l'exploitant.
+ *
+ *   5712 Float (par réseau)   débit    float apporté
+ *   571  Caisse               débit    espèces apportées
+ *   104  Exploitant           crédit   total apporté
+ *
+ * Un écart négatif est un PRÉLÈVEMENT : l'exploitant a repris de l'argent
+ * entre deux sessions, et le sens s'inverse. Sans cette écriture, le float
+ * ne naît jamais en comptabilité et son compte passe négatif dès le
+ * premier dépôt client.
+ */
+export function ecritureApportOuverture(ouverture: {
+  numero: string;
+  date: string;
+  declare: { especes: number; floats: Partial<Record<Reseau, number>> };
+  attendu: { especes: number; floats: Partial<Record<Reseau, number>> };
+}): Ecriture | null {
+  const lignes: LigneEcriture[] = [];
+  const poser = (compte: { numero: string; libelle: string }, montant: number, auxiliaire?: string) => {
+    if (montant === 0) return;
+    lignes.push({
+      compte: compte.numero,
+      libelleCompte: compte.libelle,
+      ...(auxiliaire ? { auxiliaire } : {}),
+      debit: montant > 0 ? montant : 0,
+      credit: montant < 0 ? -montant : 0,
+    });
+  };
+
+  let total = 0;
+  for (const reseau of RESEAUX) {
+    const ecart = (ouverture.declare.floats[reseau] ?? 0) - (ouverture.attendu.floats[reseau] ?? 0);
+    total += ecart;
+    poser(COMPTE_FLOAT, ecart, NOM_RESEAU[reseau]);
+  }
+  const ecartEspeces = ouverture.declare.especes - ouverture.attendu.especes;
+  total += ecartEspeces;
+  poser(COMPTES.caisse, ecartEspeces);
+  poser(COMPTE_EXPLOITANT, -total);
+
+  if (lignes.length === 0) return null;
+  const ecriture: Ecriture = {
+    journal: "CA",
+    date: ouverture.date,
+    piece: `${ouverture.numero}-O`,
+    libelle: `${total >= 0 ? "Apport" : "Prélèvement"} de l'exploitant — ouverture du guichet ${ouverture.numero}`,
+    lignes,
+  };
+  if (!estEquilibree(ecriture)) throw new Error(`Écriture déséquilibrée sur ${ouverture.numero}.`);
+  return ecriture;
+}

@@ -126,6 +126,8 @@ export interface SessionVue {
   especesComptees: number | null;
   ecartEspeces: number | null;
   ecriture: string | null;
+  /** Apport ou prélèvement de l'exploitant constaté à l'ouverture. */
+  ecritureOuverture: string | null;
   operations: number;
   commissions: number;
 }
@@ -155,6 +157,7 @@ export async function historiqueSessions(organizationId: string, limite = 10): P
         especesComptees: s.especesComptees,
         ecartEspeces: s.ecartEspeces,
         ecriture: s.ecriture,
+        ecritureOuverture: s.ecritureOuverture,
         operations: valides.length,
         commissions: valides.reduce((somme, o) => somme + o.commission, 0),
       };
