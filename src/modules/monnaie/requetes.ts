@@ -1,10 +1,10 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 
-import { RESEAUX, SEUIL_FLOAT_BAS, soldes, type Soldes } from "./calcul";
+import { COMPTE_EXPLOITANT, RESEAUX, SEUIL_FLOAT_BAS, soldes, type Soldes } from "./calcul";
 import { floatsSession, operationsGuichet, sessionsGuichet, type Reseau, type TypeOperationGuichet } from "./schema";
 
 export interface OperationVue {
@@ -27,6 +27,8 @@ export interface GuichetVue {
     numero: string;
     ouverteLe: Date;
     fondCaisse: number;
+    /** Apport (positif) ou prélèvement (négatif) passé à l'ouverture, avec son écriture. */
+    apport: { ecriture: string; montant: number } | null;
   };
   ouvertures: Record<Reseau, number>;
   operations: OperationVue[];
@@ -54,6 +56,20 @@ async function operationsDe(sessionId: string): Promise<OperationVue[]> {
   }));
 }
 
+/** Montant porté au compte de l'exploitant par l'écriture d'ouverture : crédit = apport. */
+async function apportDe(
+  organizationId: string,
+  numero: string | null,
+): Promise<{ ecriture: string; montant: number } | null> {
+  if (!numero) return null;
+  const [ligne] = await db.execute<{ montant: string }>(sql`
+    select coalesce(sum(l.credit - l.debit), 0) as montant
+    from lignes_ecriture l join ecritures e on e.id = l.ecriture_id
+    where e.organization_id = ${organizationId} and e.numero = ${numero} and l.compte = ${COMPTE_EXPLOITANT.numero}
+  `);
+  return { ecriture: numero, montant: Number(ligne?.montant ?? 0) };
+}
+
 /** Le guichet ouvert, ses opérations et ses soldes courants ; `null` s'il est fermé. */
 export async function guichetOuvert(organizationId: string): Promise<GuichetVue | null> {
   const [session] = await db
@@ -62,9 +78,10 @@ export async function guichetOuvert(organizationId: string): Promise<GuichetVue 
     .where(and(eq(sessionsGuichet.organizationId, organizationId), eq(sessionsGuichet.statut, "ouverte")));
   if (!session) return null;
 
-  const [floats, operations] = await Promise.all([
+  const [floats, operations, apport] = await Promise.all([
     db.select().from(floatsSession).where(eq(floatsSession.sessionId, session.id)),
     operationsDe(session.id),
+    apportDe(organizationId, session.ecritureOuverture),
   ]);
   const ouvertures = Object.fromEntries(RESEAUX.map((r) => [r, floats.find((f) => f.reseau === r)?.ouverture ?? 0])) as Record<
     Reseau,
@@ -72,7 +89,7 @@ export async function guichetOuvert(organizationId: string): Promise<GuichetVue 
   >;
 
   return {
-    session: { id: session.id, numero: session.numero, ouverteLe: session.ouverteLe, fondCaisse: session.fondCaisse },
+    session: { id: session.id, numero: session.numero, ouverteLe: session.ouverteLe, fondCaisse: session.fondCaisse, apport },
     ouvertures,
     operations,
     soldes: soldes(

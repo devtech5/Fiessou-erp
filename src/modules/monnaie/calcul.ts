@@ -264,6 +264,45 @@ export function ouvertureAttendue(
  * ne naît jamais en comptabilité et son compte passe négatif dès le
  * premier dépôt client.
  */
+export interface EcartsOuverture {
+  floats: Record<Reseau, number>;
+  especes: number;
+  /** Positif : apport de l'exploitant ; négatif : prélèvement. */
+  total: number;
+}
+
+/** Écarts entre l'ouverture déclarée et ce que la clôture précédente a laissé. */
+export function ecartsOuverture(
+  declare: { especes: number; floats: Partial<Record<Reseau, number>> },
+  attendu: { especes: number; floats: Partial<Record<Reseau, number>> },
+): EcartsOuverture {
+  const floats = Object.fromEntries(
+    RESEAUX.map((r) => [r, (declare.floats[r] ?? 0) - (attendu.floats[r] ?? 0)]),
+  ) as Record<Reseau, number>;
+  const especes = declare.especes - attendu.especes;
+  return { floats, especes, total: especes + RESEAUX.reduce((s, r) => s + floats[r], 0) };
+}
+
+/**
+ * Phrase qui dit à l'agent ce que son ouverture va passer en comptabilité.
+ * Nulle quand l'ouverture reprend exactement la clôture précédente.
+ */
+export function messageOuverture(ecarts: EcartsOuverture, premiere: boolean): string | null {
+  if (ecarts.total === 0 && ecarts.especes === 0 && RESEAUX.every((r) => ecarts.floats[r] === 0)) return null;
+  const f = (n: number) => Math.abs(n).toLocaleString("fr-FR");
+  const details = [
+    ...RESEAUX.filter((r) => ecarts.floats[r] !== 0).map(
+      (r) => `${NOM_RESEAU[r]} ${ecarts.floats[r] > 0 ? "+" : "−"} ${f(ecarts.floats[r])}`,
+    ),
+    ...(ecarts.especes !== 0 ? [`espèces ${ecarts.especes > 0 ? "+" : "−"} ${f(ecarts.especes)}`] : []),
+  ].join(", ");
+  if (ecarts.total === 0) {
+    return `Pas d'apport net, mais de la valeur a changé de réserve depuis la clôture (${details}).`;
+  }
+  const nature = ecarts.total > 0 ? "Apport de l'exploitant" : "Prélèvement de l'exploitant";
+  return `${nature} de ${f(ecarts.total)} F${premiere ? " — première ouverture : tout le float et le fond de caisse" : ""} (${details}).`;
+}
+
 export function ecritureApportOuverture(ouverture: {
   numero: string;
   date: string;

@@ -8,9 +8,12 @@ import { fmt } from "@/lib/format";
 import { enregistrerOperation, ouvrirGuichet } from "@/modules/monnaie/actions";
 import {
   commissionIndicative,
+  ecartsOuverture,
   effetSurEspeces,
   effetSurFloat,
   NOM_RESEAU,
+  messageOuverture,
+  ouvertureAttendue,
   refusOperation,
   RESEAUX,
   SEUIL_FLOAT_BAS,
@@ -49,6 +52,14 @@ export function OuvertureGuichet({
     Object.fromEntries(RESEAUX.map((r) => [r, String(proposition?.floats[r] ?? "")])) as Record<Reseau, string>,
   );
 
+  // Même calcul que le serveur : ce que la dernière clôture a laissé, comparé
+  // à ce que l'agent déclare. L'écart passera en apport ou en prélèvement.
+  const ecarts = ecartsOuverture(
+    { especes: entier(fond), floats: Object.fromEntries(RESEAUX.map((r) => [r, entier(floats[r])])) },
+    ouvertureAttendue(proposition ? { especesComptees: proposition.fondCaisse, floats: proposition.floats } : null),
+  );
+  const message = fond.trim() === "" ? null : messageOuverture(ecarts, proposition === null);
+
   return (
     <form
       onSubmit={(e) => {
@@ -86,6 +97,29 @@ export function OuvertureGuichet({
           </label>
         ))}
       </div>
+
+      {message && (
+        <p
+          role="status"
+          className={`mt-4 rounded-lg px-3 py-2.5 text-sm ${
+            ecarts.total < 0 ? "bg-alerte-50 text-alerte-600" : "bg-marque-50 text-[var(--encre)]"
+          }`}
+        >
+          <span className="font-semibold">{message}</span>
+          <span className="mt-0.5 block text-xs text-[var(--encre-douce)]">
+            {ecarts.total < 0
+              ? "Passé en comptabilité au compte 104 — Compte de l'exploitant, au débit. Vérifiez que cet argent a bien été repris."
+              : ecarts.total > 0
+                ? "Passé en comptabilité au compte 104 — Compte de l'exploitant, au crédit."
+                : "Rien n'est passé au compte de l'exploitant."}
+          </span>
+        </p>
+      )}
+      {!message && proposition && fond.trim() !== "" && (
+        <p className="mt-4 text-xs text-[var(--encre-faible)]">
+          L&apos;ouverture reprend exactement la dernière clôture : aucune écriture.
+        </p>
+      )}
 
       <button
         type="submit"

@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { estEquilibree, totalDebit } from "@/lib/comptabilite/ecritures";
 import {
   commissionIndicative,
+  ecartsOuverture,
   ecritureApportOuverture,
   ecritureClotureGuichet,
   effetSurEspeces,
   effetSurFloat,
+  messageOuverture,
   ouvertureAttendue,
   rapprocher,
   refusOperation,
@@ -174,5 +176,36 @@ describe("apport de l'exploitant à l'ouverture", () => {
     expect(prelevement.libelle).toMatch(/^Prélèvement/);
     expect(prelevement.lignes.find((l) => l.compte === "571")?.credit).toBe(60_000);
     expect(prelevement.lignes.find((l) => l.compte === "104")?.debit).toBe(60_000);
+  });
+});
+
+describe("message d'ouverture", () => {
+  const laisse = ouvertureAttendue({ especesComptees: 100_000, floats: { wave: 500_000, orange: 200_000 } });
+
+  it("annonce un apport, réseau par réseau", () => {
+    const e = ecartsOuverture({ especes: 100_000, floats: { wave: 550_000, orange: 200_000 } }, laisse);
+    expect(e.total).toBe(50_000);
+    expect(messageOuverture(e, false)).toMatch(/^Apport de l'exploitant de 50.000 F \(Wave \+ 50.000\)\.$/);
+  });
+
+  it("annonce un prélèvement", () => {
+    const e = ecartsOuverture({ especes: 60_000, floats: { wave: 500_000, orange: 200_000 } }, laisse);
+    expect(messageOuverture(e, false)).toMatch(/^Prélèvement de l'exploitant de 40.000 F \(espèces − 40.000\)\.$/);
+  });
+
+  it("se tait quand l'ouverture reprend la clôture", () => {
+    const e = ecartsOuverture({ especes: 100_000, floats: { wave: 500_000, orange: 200_000 } }, laisse);
+    expect(messageOuverture(e, false)).toBeNull();
+  });
+
+  it("signale un transfert entre réserves sans apport net", () => {
+    const e = ecartsOuverture({ especes: 50_000, floats: { wave: 550_000, orange: 200_000 } }, laisse);
+    expect(e.total).toBe(0);
+    expect(messageOuverture(e, false)).toMatch(/^Pas d'apport net/);
+  });
+
+  it("précise la première ouverture", () => {
+    const e = ecartsOuverture({ especes: 250_000, floats: { wave: 1_000_000 } }, ouvertureAttendue(null));
+    expect(messageOuverture(e, true)).toMatch(/première ouverture/);
   });
 });
