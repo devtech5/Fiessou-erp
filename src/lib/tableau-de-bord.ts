@@ -1,5 +1,4 @@
 import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
-import { DOCUMENTS, comptabilisable, totalTTC } from "@/lib/fixtures/gestion";
 import { RESEAUX, SEUIL_FLOAT_BAS } from "@/lib/fixtures/monnaie";
 import { CONTRATS } from "@/lib/fixtures/reservations";
 import { ABONNEMENTS, seancesRestantes } from "@/lib/fixtures/reservations";
@@ -52,7 +51,7 @@ const ORDRE: Record<Gravite, number> = {
 /**
  * État du stock, tel que la base le connaît.
  *
- * Passé en paramètre plutôt que lu ici, comme `piecesPassees` : ce module reste
+ * Passé en paramètre plutôt que lu ici : ce module reste
  * une fonction de mise en forme, sans accès à la base, donc lisible et
  * testable. C'est l'écran qui interroge.
  */
@@ -79,6 +78,12 @@ export interface EtatMissions {
   echouees: number;
 }
 
+/** Factures émises, échues et pas entièrement payées. */
+export interface EtatFacturation {
+  enRetard: number;
+  montantEnRetard: number;
+}
+
 export interface EtatStock {
   ruptures: number;
   /** Articles dont l'autonomie tombe sous le délai de réaction habituel. */
@@ -93,11 +98,11 @@ export interface EtatStock {
  * Classé par gravité, pas par module : quelqu'un qui ouvre son application le
  * matin veut savoir ce qui brûle, pas parcourir un sommaire.
  *
- * `piecesPassees` et `stock` viennent de la base — les autres sources sont
- * encore des fixtures, en attendant leurs modules.
+ * Facturation, stock, parc et missions viennent de la base — les autres
+ * sources sont encore des fixtures, en attendant leurs modules.
  */
 export function alertes(
-  piecesPassees: Record<string, string>,
+  facturation: EtatFacturation,
   stock: EtatStock,
   parc: EtatParc,
   missions: EtatMissions,
@@ -105,37 +110,18 @@ export function alertes(
   const liste: Alerte[] = [];
 
   // ------------------------------------------------------------- ventes
-  const enRetard = DOCUMENTS.filter(
-    (d) => d.nature === "facture" && d.statut === "en_retard",
-  );
-  if (enRetard.length > 0) {
+  // Plus d'alerte « pièces sans écriture » : une facture passe son écriture à
+  // l'émission, dans la même transaction. L'écart ne peut plus exister.
+  if (facturation.enRetard > 0) {
     liste.push({
       id: "factures-retard",
       gravite: "critique",
-      source: "fixture",
+      source: "base",
       module: "Commercial",
       titre: "Factures impayées",
-      detail: `${enRetard.reduce((s, f) => s + totalTTC(f), 0).toLocaleString("fr-FR")} FCFA en souffrance`,
-      href: "/commercial/ventes",
-      nombre: enRetard.length,
-    });
-  }
-
-  const aComptabiliser = DOCUMENTS.filter(
-    (d) => comptabilisable(d) && !piecesPassees[d.numero],
-  );
-  if (aComptabiliser.length > 0) {
-    liste.push({
-      id: "a-comptabiliser",
-      gravite: "attention",
-      source: "fixture",
-      module: "Comptabilité",
-      titre: "Pièces sans écriture",
-      // C'est l'écart entre ce que le commerce a vendu et ce que la
-      // comptabilité sait. Le laisser courir rend la clôture impossible.
-      detail: "Le commerce a facturé, la comptabilité ne le sait pas encore",
-      href: "/commercial/ventes",
-      nombre: aComptabiliser.length,
+      detail: `${facturation.montantEnRetard.toLocaleString("fr-FR")} FCFA en souffrance`,
+      href: "/commercial/factures",
+      nombre: facturation.enRetard,
     });
   }
 

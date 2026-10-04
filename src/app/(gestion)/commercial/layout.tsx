@@ -3,16 +3,18 @@ import { SousNavigation } from "@/components/coque/sous-navigation";
 import { peut } from "@/lib/droits/garde";
 
 /**
- * Trois sections, pas dix.
+ * Quatre sections, pas dix.
  *
- * « Ventes » regroupe devis, factures et avoirs : ce sont trois états d'un même
- * flux commercial, pas trois métiers. Le concurrent leur donne trois onglets
- * distincts, plus un pour les abonnements, un pour les prestations, un pour le
- * catalogue, un pour l'analyse et un pour les meilleures ventes.
+ * « Devis et factures » regroupe devis, factures et avoirs : ce sont trois
+ * états d'un même flux commercial, pas trois métiers. « Caisse » garde les
+ * ventes au comptoir, qui se règlent sur-le-champ. Le concurrent éclate le
+ * tout en huit onglets, abonnements, prestations et « meilleures ventes »
+ * compris.
  */
 const SECTIONS = [
   { href: "/commercial", libelle: "Clients" },
-  { href: "/commercial/ventes", libelle: "Ventes" },
+  { href: "/commercial/factures", libelle: "Devis et factures" },
+  { href: "/commercial/ventes", libelle: "Caisse" },
   { href: "/commercial/fournisseurs", libelle: "Fournisseurs" },
 ];
 

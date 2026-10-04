@@ -47,7 +47,9 @@ export const MODULES: ModuleDefinition[] = [
     name: "Tiers & Commercial",
     layer: "socle",
     // Fichier tiers en base, avec comptes auxiliaires et soldes déduits des
-    // écritures. Restent les devis, factures et achats.
+    // écritures. Devis, factures, avoirs et règlements en base : l'émission
+    // numérote, sort le stock et passe l'écriture dans une transaction. Restent
+    // les achats fournisseurs et l'avoir partiel.
     status: "en_cours",
     requires: [],
     description:

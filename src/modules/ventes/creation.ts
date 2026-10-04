@@ -442,7 +442,7 @@ export async function creerPosteCaisseDans(
 
 // ------------------------------------------------------------------ outils
 
-interface ArticleVendable {
+export interface ArticleVendable {
   id: string;
   designation: string;
   type: "marchandise" | "service";
@@ -459,7 +459,7 @@ interface ArticleVendable {
  * Une seule requête pour tout le ticket, et seulement pour ses articles : la
  * caisse n'a pas à charger trois cents références pour en vendre quatre.
  */
-async function referentielArticles(
+export async function referentielArticles(
   tx: Transaction,
   organizationId: string,
   ids: string[],

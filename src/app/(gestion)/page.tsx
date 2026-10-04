@@ -10,7 +10,7 @@ import {
   resumeParc,
 } from "@/modules/actifs/requetes";
 import { etatMissions } from "@/modules/missions/requetes";
-import { piecesComptabilisees } from "@/modules/comptabilite/actions";
+import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
 import { journeeCaisse } from "@/modules/ventes/requetes";
@@ -72,7 +72,7 @@ export default async function PageTableauDeBord() {
   debutJournee.setHours(0, 0, 0, 0);
 
   const [
-    passees,
+    facturation,
     resume,
     aCommander,
     soldesComptes,
@@ -82,7 +82,7 @@ export default async function PageTableauDeBord() {
     echeances,
     missions,
   ] = await Promise.all([
-    piecesComptabilisees(),
+    etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
     alertesReapprovisionnement(session.organizationId),
     soldesParCompte(session.organizationId),
@@ -93,7 +93,7 @@ export default async function PageTableauDeBord() {
     etatMissions(session.organizationId),
   ]);
 
-  const toutesLesAlertes = alertes(passees, {
+  const toutesLesAlertes = alertes(facturation, {
     ruptures: resume.ruptures,
     aCommanderVite: aCommander.filter(
       (alerte) => joursRestants(alerte) <= DELAI_REACTION_JOURS,

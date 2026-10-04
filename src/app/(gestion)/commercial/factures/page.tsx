@@ -1,0 +1,92 @@
+import type { Metadata } from "next";
+
+import { AccesRefuse } from "@/components/coque/acces-refuse";
+import { CarteIndicateur, EnTetePage } from "@/components/ui/primitives";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
+import { fmtCompact, fmtEntier } from "@/lib/format";
+import { resteDu } from "@/modules/facturation/calcul";
+import { detailsPieces, listerPieces, optionsPiece } from "@/modules/facturation/requetes";
+
+import { PiecesCommerciales } from "./pieces";
+
+export const metadata: Metadata = { title: "Devis et factures" };
+
+/**
+ * Devis, factures et avoirs.
+ *
+ * Trois états d'un même flux sur un seul écran : un devis devient une
+ * facture, une facture se corrige par un avoir. Les séparer en trois onglets
+ * obligerait à traverser l'application pour suivre une seule affaire.
+ */
+export default async function PageFactures() {
+  const session = await exigerEntreprise();
+
+  if (!(await peut("commercial.piece.consulter"))) {
+    return <AccesRefuse droit="commercial.piece.consulter" />;
+  }
+
+  const [pieces, details, options, gerer, annuler, encaisser] = await Promise.all([
+    listerPieces(session.organizationId),
+    detailsPieces(session.organizationId),
+    optionsPiece(session.organizationId),
+    peut("commercial.piece.gerer"),
+    peut("commercial.piece.annuler"),
+    peut("commercial.reglement.encaisser"),
+  ]);
+
+  const factures = pieces.filter((p) => p.nature === "facture" && p.statut === "emise");
+  const aEncaisser = factures.reduce((s, f) => s + resteDu(f.totalTtc, f.regle), 0);
+  const enRetard = factures.filter((f) => f.enRetard);
+  const montantRetard = enRetard.reduce((s, f) => s + resteDu(f.totalTtc, f.regle), 0);
+  const devisOuverts = pieces.filter(
+    (p) => p.nature === "devis" && (p.statut === "emise" || p.statut === "acceptee"),
+  );
+  const brouillons = pieces.filter((p) => p.statut === "brouillon").length;
+
+  // La date du jour vient du serveur, en UTC (l'heure d'Abidjan) : le
+  // navigateur ne décide pas de la date d'une pièce.
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+
+  return (
+    <>
+      <EnTetePage titre="Devis et factures" sousTitre="Du devis à l'encaissement, sur un seul écran" />
+
+      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <CarteIndicateur
+          libelle="À encaisser"
+          valeur={fmtCompact(aEncaisser)}
+          unite="FCFA"
+          precision={`${factures.length} facture${factures.length > 1 ? "s" : ""} émise${factures.length > 1 ? "s" : ""}`}
+        />
+        <CarteIndicateur
+          libelle="En retard"
+          valeur={fmtCompact(montantRetard)}
+          unite="FCFA"
+          ton={enRetard.length > 0 ? "danger" : "valide"}
+          precision={`${enRetard.length} à relancer`}
+        />
+        <CarteIndicateur
+          libelle="Devis en cours"
+          valeur={fmtEntier(devisOuverts.length)}
+          precision="Envoyés ou acceptés, pas encore facturés"
+        />
+        <CarteIndicateur
+          libelle="Brouillons"
+          valeur={fmtEntier(brouillons)}
+          ton={brouillons > 0 ? "alerte" : "neutre"}
+          precision="Sans numéro tant qu'ils ne sont pas émis"
+        />
+      </section>
+
+      <PiecesCommerciales
+        pieces={pieces}
+        lignes={Object.fromEntries(details.lignes)}
+        reglements={Object.fromEntries(details.reglements)}
+        options={options}
+        aujourdHui={aujourdHui}
+        droits={{ gerer, annuler, encaisser }}
+      />
+    </>
+  );
+}

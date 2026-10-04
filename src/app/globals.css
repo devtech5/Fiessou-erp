@@ -144,7 +144,9 @@
 }
 
 @media print {
-  body * {
+  /* Seulement sur une page qui porte un ticket : sinon une facture A4
+     s'imprimerait blanche. */
+  body:has(#ticket-imprimable) * {
     visibility: hidden;
   }
   #ticket-imprimable,

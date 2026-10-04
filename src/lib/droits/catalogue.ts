@@ -189,6 +189,34 @@ export const DROITS = [
     description: "Assurance, visite technique, garantie, entretien périodique.",
   },
 
+  // ---------------------------------------------------------- facturation
+  {
+    cle: "commercial.piece.consulter",
+    moduleKey: "tiers",
+    libelle: "Consulter les devis et factures",
+    description: "Voir les pièces commerciales, leurs règlements et ce qui reste dû.",
+  },
+  {
+    cle: "commercial.piece.gerer",
+    moduleKey: "tiers",
+    libelle: "Établir devis et factures",
+    description:
+      "Préparer un brouillon, l'émettre, convertir un devis. L'émission d'une " +
+      "facture sort le stock et passe l'écriture.",
+  },
+  {
+    cle: "commercial.piece.annuler",
+    moduleKey: "tiers",
+    libelle: "Annuler une facture",
+    description: "Émettre l'avoir qui annule une facture. Défait une recette : à réserver.",
+  },
+  {
+    cle: "commercial.reglement.encaisser",
+    moduleKey: "tiers",
+    libelle: "Encaisser un règlement client",
+    description: "Enregistrer un paiement reçu sur une facture.",
+  },
+
   // ------------------------------------------------------------- missions
   {
     cle: "missions.consulter",
@@ -376,6 +404,7 @@ const CONSULTATION_COMMERCE = [
   "tiers.fiche.consulter",
   "stock.article.consulter",
   "pos.vente.consulter",
+  "commercial.piece.consulter",
 ] as const satisfies readonly Droit[];
 
 export const PRESETS_ROLES = [

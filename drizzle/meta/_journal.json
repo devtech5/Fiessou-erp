@@ -92,6 +92,13 @@
       "when": 1791066711091,
       "tag": "0012_early_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791080305767,
+      "tag": "0013_fearless_namorita",
+      "breakpoints": true
     }
   ]
 }
