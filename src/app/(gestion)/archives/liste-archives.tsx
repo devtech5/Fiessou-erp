@@ -14,6 +14,7 @@ export interface ArchiveAffichee {
   numero: string;
   titre: string;
   dossier: string | null;
+  dossierPartage: { id: string; nom: string } | null;
   description: string | null;
   nomFichier: string;
   typeMime: string;
@@ -23,6 +24,7 @@ export interface ArchiveAffichee {
   retireeLeIso: string | null;
   motifRetrait: string | null;
   auteur: string;
+  auteurId: string;
   consultationsParAutres: number;
   verification: { leIso: string; etat: string } | null;
 }
@@ -61,10 +63,14 @@ export function ListeArchives({
   archives,
   mode,
   peutRetirer = false,
+  moi,
 }: {
   archives: ArchiveAffichee[];
-  mode: "personnel" | "supervision";
+  /** personnel : son espace · dossier : un dossier partagé · supervision : tout. */
+  mode: "personnel" | "dossier" | "supervision";
   peutRetirer?: boolean;
+  /** Utilisateur courant : dans un dossier partagé, on ne retire que ce qu'on a déposé. */
+  moi?: string;
 }) {
   const [recherche, setRecherche] = useState("");
   const [dossier, setDossier] = useState<string | null>(null);
@@ -84,7 +90,7 @@ export function ListeArchives({
   const visibles = archives.filter(
     (a) =>
       (dossier === null || (a.dossier ?? "") === dossier) &&
-      correspond(recherche, [a.titre, a.numero, a.nomFichier, a.dossier, a.description, a.auteur]),
+      correspond(recherche, [a.titre, a.numero, a.nomFichier, a.dossier, a.dossierPartage?.nom, a.description, a.auteur]),
   );
 
   function ouvrir(id: string) {
@@ -116,7 +122,7 @@ export function ListeArchives({
         <input
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          placeholder={mode === "supervision" ? "Titre, numéro, fichier, auteur…" : "Titre, numéro, fichier, dossier…"}
+          placeholder={mode === "personnel" ? "Titre, numéro, fichier, rubrique…" : "Titre, numéro, fichier, auteur…"}
           aria-label="Rechercher une archive"
           className={CLASSE_CHAMP}
         />
@@ -142,7 +148,7 @@ export function ListeArchives({
                   dossier === nom ? "bg-marque-600 text-white" : "bg-[var(--surface-creuse)] text-[var(--encre-douce)]"
                 }`}
               >
-                {nom || "Sans dossier"} ({n})
+                {nom || "Sans rubrique"} ({n})
               </button>
             ))}
           </div>
@@ -183,9 +189,12 @@ export function ListeArchives({
                       ) : (
                         <Pastille ton="valide">Scellée</Pastille>
                       )}
+                      {mode === "personnel" && a.dossierPartage && (
+                        <Pastille ton="marque">Dossier « {a.dossierPartage.nom} »</Pastille>
+                      )}
                       {mode === "personnel" && a.consultationsParAutres > 0 && (
                         <Pastille ton="neutre">
-                          Ouverte {a.consultationsParAutres} fois par l&apos;administrateur
+                          Ouverte {a.consultationsParAutres} fois par d&apos;autres
                         </Pastille>
                       )}
                       {a.verification && (
@@ -198,7 +207,8 @@ export function ListeArchives({
                     <p className="chiffres mt-0.5 truncate text-xs text-[var(--encre-faible)]">
                       {a.numero} · {LIBELLE_FAMILLE[famille]} · {tailleLisible(a.tailleOctets)}
                       {a.dossier && ` · ${a.dossier}`}
-                      {mode === "supervision" && ` · ${a.auteur}`} · {MOMENT.format(new Date(a.deposeLeIso))}
+                      {mode !== "personnel" && ` · ${a.auteur}`}
+                      {mode === "supervision" && a.dossierPartage && ` · dossier « ${a.dossierPartage.nom} »`} · {MOMENT.format(new Date(a.deposeLeIso))}
                     </p>
                     {a.description && <p className="mt-1 text-xs text-[var(--encre-douce)]">{a.description}</p>}
                     {retiree && (
@@ -222,7 +232,11 @@ export function ListeArchives({
                         Vérifier
                       </button>
                     )}
-                    {mode === "personnel" && peutRetirer && heures > 0 && retrait?.id !== a.id && (
+                    {(mode === "personnel" || (mode === "dossier" && a.auteurId === moi)) &&
+                      peutRetirer &&
+                      !retiree &&
+                      heures > 0 &&
+                      retrait?.id !== a.id && (
                       <button
                         type="button"
                         onClick={() => setRetrait({ id: a.id, motif: "" })}

@@ -320,6 +320,14 @@ export const DROITS = [
       "de correction. Un retrait masque l'archive, il ne l'efface pas.",
   },
   {
+    cle: "archives.dossier.gerer",
+    moduleKey: "archives",
+    libelle: "Gérer les dossiers d'archives",
+    description:
+      "Créer un dossier partagé, le renommer, décider quels membres le voient et " +
+      "s'ils peuvent y déposer. Celui qui gère les dossiers les voit tous.",
+  },
+  {
     cle: "archives.superviser",
     moduleKey: "archives",
     libelle: "Superviser les archives (administrateur légal)",

@@ -5,17 +5,23 @@ import { peut } from "@/lib/droits/garde";
 import { moduleOuvert } from "@/lib/modules/garde";
 
 /**
- * Deux vues sur les mêmes archives : l'espace de chacun, et la supervision de
- * l'administrateur légal. La seconde n'apparaît qu'à qui en porte le droit.
+ * Trois vues sur les mêmes archives : l'espace de chacun, les dossiers
+ * partagés que l'administration lui ouvre, et la supervision de
+ * l'administrateur légal — celle-ci n'apparaît qu'à qui en porte le droit.
  */
 export default async function LayoutArchives({ children }: LayoutProps<"/archives">) {
   if (!moduleOuvert("archives")) return <ModuleEnPreparation cle="archives" />;
 
-  const [consulter, superviser] = await Promise.all([peut("archives.consulter"), peut("archives.superviser")]);
-  if (!consulter && !superviser) return <AccesRefuse droit="archives.consulter" />;
+  const [consulter, gestionnaire, superviser] = await Promise.all([
+    peut("archives.consulter"),
+    peut("archives.dossier.gerer"),
+    peut("archives.superviser"),
+  ]);
+  if (!consulter && !gestionnaire && !superviser) return <AccesRefuse droit="archives.consulter" />;
 
   const sections = [
     ...(consulter ? [{ href: "/archives", libelle: "Mes archives" }] : []),
+    ...(consulter || gestionnaire ? [{ href: "/archives/dossiers", libelle: "Dossiers partagés" }] : []),
     ...(superviser ? [{ href: "/archives/supervision", libelle: "Supervision" }] : []),
   ];
 

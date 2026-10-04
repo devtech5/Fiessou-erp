@@ -9,6 +9,7 @@ export function affichee(a: ArchiveVue): ArchiveAffichee {
     numero: a.numero,
     titre: a.titre,
     dossier: a.dossier,
+    dossierPartage: a.dossierPartage,
     description: a.description,
     nomFichier: a.nomFichier,
     typeMime: a.typeMime,
@@ -18,6 +19,7 @@ export function affichee(a: ArchiveVue): ArchiveAffichee {
     retireeLeIso: a.retireeLe?.toISOString() ?? null,
     motifRetrait: a.motifRetrait,
     auteur: a.auteur,
+    auteurId: a.auteurId,
     consultationsParAutres: a.consultationsParAutres,
     verification: a.derniereVerification
       ? { leIso: a.derniereVerification.le.toISOString(), etat: a.derniereVerification.etat }

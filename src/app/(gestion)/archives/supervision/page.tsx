@@ -29,7 +29,19 @@ const GESTE: Record<string, string> = {
   "archive.ouvrir": "Ouverture",
   "archive.retirer": "Retrait",
   "archive.verifier": "Vérification",
+  "archive_dossier.creer": "Dossier créé",
+  "archive_dossier.modifier": "Dossier modifié",
+  "archive_dossier.supprimer": "Dossier supprimé",
 };
+
+/** Visibilité d'un dossier telle que le journal l'a gardée. */
+function visibiliteJournal(etat: unknown): string {
+  const e = etat as { visibilite?: string; membres?: unknown[] } | null;
+  if (!e?.visibilite) return "";
+  if (e.visibilite === "tous") return "visible de tous";
+  const n = e.membres?.length ?? 0;
+  return n === 0 ? "masqué à tous" : `visible de ${n} membre${n > 1 ? "s" : ""}`;
+}
 
 /**
  * Supervision des archives, réservée à l'administrateur légal.
@@ -156,9 +168,13 @@ export default async function PageSupervision({ searchParams }: PageProps<"/arch
                               : "ALTÉRÉE"
                           : e.action === "archive.ouvrir"
                             ? e.detail?.parAdministrateur
-                              ? "Par un administrateur"
+                              ? "Par un autre que l'auteur"
                               : "Par son auteur"
-                            : ""}
+                            : e.action === "archive_dossier.modifier"
+                              ? `${visibiliteJournal(e.avant)} → ${visibiliteJournal(e.detail)}`
+                              : e.action === "archive_dossier.creer"
+                                ? visibiliteJournal(e.detail)
+                                : ""}
                     </span>
                   </Td>
                 </tr>

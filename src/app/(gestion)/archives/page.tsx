@@ -9,8 +9,16 @@ import { peut } from "@/lib/droits/garde";
 import { fmtEntier } from "@/lib/format";
 import { stockageConfigure } from "@/lib/stockage";
 import { archiver } from "@/modules/archives/actions";
-import { ACCEPT_ARCHIVES, DELAI_RETRAIT_HEURES, partQuota, QUOTA_OCTETS, retraitPossible, tailleLisible } from "@/modules/archives/calcul";
-import { mesArchives } from "@/modules/archives/requetes";
+import {
+  ACCEPT_ARCHIVES,
+  DELAI_RETRAIT_HEURES,
+  depotDossierPermis,
+  partQuota,
+  QUOTA_OCTETS,
+  retraitPossible,
+  tailleLisible,
+} from "@/modules/archives/calcul";
+import { dossiersVisibles, mesArchives } from "@/modules/archives/requetes";
 
 import { affichee } from "./affichage";
 import { ListeArchives } from "./liste-archives";
@@ -19,10 +27,25 @@ export const metadata: Metadata = { title: "Mes archives" };
 
 export default async function PageMesArchives() {
   const session = await exigerEntreprise();
-  const [consulter, deposer] = await Promise.all([peut("archives.consulter"), peut("archives.deposer")]);
+  const [consulter, deposer, gestionnaire] = await Promise.all([
+    peut("archives.consulter"),
+    peut("archives.deposer"),
+    peut("archives.dossier.gerer"),
+  ]);
   if (!consulter) return <AccesRefuse droit="archives.consulter" />;
 
-  const archives = await mesArchives(session.organizationId, session.userId);
+  const [archives, dossiersPartages] = await Promise.all([
+    mesArchives(session.organizationId, session.userId),
+    dossiersVisibles(session.organizationId, session.userId, gestionnaire),
+  ]);
+  // Les dossiers partagés où la personne peut déposer : proposés au formulaire.
+  const destinations = dossiersPartages.filter((d) =>
+    depotDossierPermis(
+      { visibilite: d.visibilite, depotOuvert: d.depotOuvert, designes: d.designes.map((m) => m.userId) },
+      session.userId,
+      gestionnaire,
+    ),
+  );
   const utilise = archives.reduce((s, a) => s + a.tailleOctets, 0);
   const dossiers = [...new Set(archives.map((a) => a.dossier).filter((d): d is string => Boolean(d)))].sort();
   const scellees = archives.filter((a) => !retraitPossible(a.deposeLe)).length;
@@ -49,15 +72,28 @@ export default async function PageMesArchives() {
                     <input name="titre" maxLength={160} placeholder="Sinon, le nom du fichier" className={CLASSE_CHAMP} />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs font-semibold text-[var(--encre-faible)]">Dossier</span>
-                    <input name="dossier" maxLength={60} list="dossiers-archives" placeholder="Contrats, Banque, Fiscal…" className={CLASSE_CHAMP} />
-                    <datalist id="dossiers-archives">
+                    <span className="mb-1 block text-xs font-semibold text-[var(--encre-faible)]">Rubrique</span>
+                    <input name="dossier" maxLength={60} list="rubriques-archives" placeholder="Contrats, Banque, Fiscal…" className={CLASSE_CHAMP} />
+                    <datalist id="rubriques-archives">
                       {dossiers.map((d) => (
                         <option key={d} value={d} />
                       ))}
                     </datalist>
                   </label>
                 </div>
+                {destinations.length > 0 && (
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold text-[var(--encre-faible)]">Partager dans un dossier</span>
+                    <select name="dossierId" defaultValue="" className={CLASSE_CHAMP}>
+                      <option value="">Non : mon espace seulement</option>
+                      {destinations.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-[var(--encre-faible)]">Description</span>
                   <textarea
@@ -102,7 +138,12 @@ export default async function PageMesArchives() {
           ton={partQuota(utilise) >= 90 ? "danger" : partQuota(utilise) >= 75 ? "alerte" : "neutre"}
           precision={`${partQuota(utilise)} % de ${tailleLisible(QUOTA_OCTETS)}`}
         />
-        <CarteIndicateur libelle="Dossiers" valeur={fmtEntier(dossiers.length)} precision="Classement libre" />
+        <CarteIndicateur
+          libelle="Dossiers partagés"
+          valeur={fmtEntier(dossiersPartages.length)}
+          precision={`${fmtEntier(dossiers.length)} rubrique${dossiers.length > 1 ? "s" : ""} personnelle${dossiers.length > 1 ? "s" : ""}`}
+          href="/archives/dossiers"
+        />
       </section>
 
       {archives.length === 0 ? (

@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { presetRole, resoudreDroits } from "@/lib/droits/catalogue";
 import {
+  depotDossierPermis,
+  dossierVisible,
   ENVOI_MAX_OCTETS,
   familleDe,
   heuresAvantScellement,
   partQuota,
   QUOTA_OCTETS,
   refusEnvoi,
+  resumeVisibilite,
   retraitPossible,
   tailleLisible,
 } from "@/modules/archives/calcul";
@@ -92,5 +95,40 @@ describe("droits d'archivage", () => {
 
     expect(presetRole("gerant")?.droits).not.toContain("archives.superviser");
     expect(resoudreDroits({ cleRole: null, estProprietaire: true }).has("archives.superviser")).toBe(true);
+  });
+});
+
+describe("dossiers partagés", () => {
+  const awa = "awa";
+  const kone = "kone";
+  const choisis = { visibilite: "selection" as const, depotOuvert: false, designes: [awa] };
+
+  it("ne montre un dossier « sélection » qu'aux membres désignés", () => {
+    expect(dossierVisible(choisis, awa, false)).toBe(true);
+    expect(dossierVisible(choisis, kone, false)).toBe(false);
+  });
+
+  it("montre un dossier « tous » à chacun, et tout dossier à qui les gère", () => {
+    expect(dossierVisible({ ...choisis, visibilite: "tous" }, kone, false)).toBe(true);
+    expect(dossierVisible({ ...choisis, designes: [] }, kone, true)).toBe(true);
+  });
+
+  it("masque à tous un dossier sans désigné", () => {
+    const masque = { ...choisis, designes: [] };
+    expect(dossierVisible(masque, awa, false)).toBe(false);
+    expect(resumeVisibilite(masque)).toMatch(/^Masqué/);
+  });
+
+  it("n'ouvre le dépôt qu'à qui voit le dossier, et seulement s'il est ouvert", () => {
+    expect(depotDossierPermis(choisis, awa, false)).toBe(false);
+    expect(depotDossierPermis({ ...choisis, depotOuvert: true }, awa, false)).toBe(true);
+    expect(depotDossierPermis({ ...choisis, depotOuvert: true }, kone, false)).toBe(false);
+    expect(depotDossierPermis(choisis, kone, true)).toBe(true);
+  });
+
+  it("confie la gestion des dossiers au gérant comme au propriétaire, pas au caissier", () => {
+    expect(presetRole("gerant")?.droits).toContain("archives.dossier.gerer");
+    expect(resoudreDroits({ cleRole: null, estProprietaire: true }).has("archives.dossier.gerer")).toBe(true);
+    expect(resoudreDroits({ cleRole: "caissier", estProprietaire: false }).has("archives.dossier.gerer")).toBe(false);
   });
 });

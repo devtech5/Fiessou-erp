@@ -162,3 +162,38 @@ export function tailleLisible(octets: number): string {
 export function partQuota(utilise: number): number {
   return Math.min(100, Math.round((utilise * 100) / QUOTA_OCTETS));
 }
+
+// ------------------------------------------------------------ dossiers partagés
+
+export interface RegleDossier {
+  visibilite: "tous" | "selection";
+  depotOuvert: boolean;
+  /** Membres désignés, pour la visibilité « sélection ». */
+  designes: readonly string[];
+}
+
+/**
+ * Le dossier est-il visible de cette personne ?
+ *
+ * Celui qui gère les dossiers les voit tous : il ne peut pas administrer ce
+ * qu'il ne voit pas. Pour les autres, « tous » ouvre à chacun, « sélection »
+ * aux seuls désignés — personne de désigné, le dossier est masqué.
+ */
+export function dossierVisible(regle: RegleDossier, userId: string, gestionnaire: boolean): boolean {
+  if (gestionnaire) return true;
+  return regle.visibilite === "tous" || regle.designes.includes(userId);
+}
+
+/** Peut-elle y déposer ? Il faut le voir, et que le dépôt y soit ouvert. */
+export function depotDossierPermis(regle: RegleDossier, userId: string, gestionnaire: boolean): boolean {
+  if (gestionnaire) return true;
+  return regle.depotOuvert && dossierVisible(regle, userId, false);
+}
+
+/** Résumé de la visibilité, tel que l'écran l'affiche. */
+export function resumeVisibilite(regle: Pick<RegleDossier, "visibilite" | "designes">): string {
+  if (regle.visibilite === "tous") return "Visible de tous les membres";
+  const n = regle.designes.length;
+  if (n === 0) return "Masqué — visible des seuls administrateurs";
+  return `Visible de ${n} membre${n > 1 ? "s" : ""}`;
+}
