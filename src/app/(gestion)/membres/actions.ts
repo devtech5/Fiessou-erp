@@ -12,6 +12,7 @@ import { compteExclusifA, rattachementDe } from "@/lib/auth/membres";
 import { genererMotDePasseProvisoire, hacherMotDePasse } from "@/lib/auth/mot-de-passe";
 import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
+import { estDoublon } from "@/lib/erreurs-pg";
 
 export interface EtatMembre {
   erreur?: string;
@@ -132,7 +133,7 @@ export async function ajouterMembre(
   } catch (erreur) {
     // 23505 : violation d'unicité. Ici, un rattachement déjà existant entre
     // cette personne et cette entreprise.
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Cette personne a déjà un accès à cette entreprise." };
     }
     throw erreur;

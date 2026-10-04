@@ -11,6 +11,7 @@ import {
   ouvrirSessionDans,
   type ResultatCloture,
 } from "./session";
+import { violeContrainte } from "@/lib/erreurs-pg";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -69,7 +70,7 @@ export async function ouvrirSessionCaisse(
     return { message: "Caisse ouverte." };
   } catch (erreur) {
     // L'index unique partiel a fait son travail : un tiroir est déjà ouvert.
-    if (erreur instanceof Error && erreur.message.includes("sessions_caisse_ouverte_unique")) {
+    if (violeContrainte(erreur, "sessions_caisse_ouverte_unique")) {
       return {
         erreur:
           "Une session est déjà ouverte sur ce poste. Clôturez-la avant d'en ouvrir une autre.",

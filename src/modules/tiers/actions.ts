@@ -11,6 +11,7 @@ import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
 import { creerTiersPour } from "./creation";
 import { tiers } from "./schema";
+import { estDoublon } from "@/lib/erreurs-pg";
 
 export interface EtatTiers {
   erreur?: string;
@@ -111,7 +112,7 @@ export async function creerTiers(
   } catch (erreur) {
     // 23505 : violation d'unicité. Le seul cas atteignable ici est une
     // référence déjà prise, quand elle a été forcée à la main.
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Cette référence est déjà utilisée." };
     }
     throw erreur;

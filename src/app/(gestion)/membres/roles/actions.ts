@@ -10,6 +10,7 @@ import { slug } from "@/lib/auth/creation-entreprise";
 import { droitsAccordables, presetRole, type Droit } from "@/lib/droits/catalogue";
 import { droitsActifs, exigerDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
+import { estDoublon, estReferencee } from "@/lib/erreurs-pg";
 
 export interface EtatRole {
   erreur?: string;
@@ -94,7 +95,7 @@ export async function creerRole(
       });
     });
   } catch (erreur) {
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Un rôle porte déjà ce nom." };
     }
     throw erreur;
@@ -219,7 +220,7 @@ export async function supprimerRole(donnees: FormData): Promise<void> {
     });
   } catch (erreur) {
     // 23503 : violation de clé étrangère. Le rôle est encore porté.
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23503") {
+    if (estReferencee(erreur)) {
       throw new Error(
         "Ce rôle est encore attribué. Donnez un autre rôle à ces personnes avant de le supprimer.",
       );

@@ -15,6 +15,7 @@ import {
 } from "@/lib/comptabilite/lettrage";
 import { DOCUMENTS, totalTTC } from "@/lib/fixtures/gestion";
 import { buildDocumentNumber, newId } from "@/lib/ids";
+import { violeContrainte } from "@/lib/erreurs-pg";
 
 export type Resultat =
   | { ok: true; numero: string; lettrage?: string }
@@ -245,7 +246,7 @@ export async function encaisserFacture(
         message: "Comptabilisez d'abord la facture : sans créance, rien à solder.",
       };
     }
-    if (message.includes("ecritures_piece_unique")) {
+    if (violeContrainte(erreur, "ecritures_piece_unique")) {
       return { ok: false, message: "Ce règlement est déjà enregistré." };
     }
 

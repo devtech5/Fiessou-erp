@@ -12,6 +12,7 @@ import { newId } from "@/lib/ids";
 import { UNITES, versQuantite } from "@/lib/quantite";
 import { creerArticlePour } from "./creation";
 import { articles } from "./schema";
+import { estDoublon } from "@/lib/erreurs-pg";
 
 export interface EtatArticle {
   erreur?: string;
@@ -115,7 +116,7 @@ export async function creerArticle(
 
     return { cree: reference };
   } catch (erreur) {
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Cette référence est déjà utilisée." };
     }
     throw erreur;

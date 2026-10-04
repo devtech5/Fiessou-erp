@@ -41,6 +41,15 @@ const SANS_SERVEUR = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTI
 function resolveDb(): Database {
   if (globalForDb.fiessouDb) return globalForDb.fiessouDb;
 
+  // Base locale PGlite : ouverte au démarrage par `instrumentation.ts`, qui
+  // dépose l'instance ci-dessus. L'atteindre ici veut dire que le démarrage
+  // n'a pas eu lieu ou a échoué — le dire plutôt que de tenter un réseau.
+  if (env.DATABASE_URL.startsWith("pglite:")) {
+    throw new Error(
+      "Base locale PGlite non ouverte : voir le journal de démarrage du serveur.",
+    );
+  }
+
   const pooler = derrierePoolerTransaction(env.DATABASE_URL);
 
   const connection =

@@ -17,6 +17,7 @@ import {
   transfererDans,
 } from "./creation";
 import { depots } from "./schema";
+import { estDoublon } from "@/lib/erreurs-pg";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -101,7 +102,7 @@ export async function creerDepot(
     revalidatePath("/stock", "layout");
     return { cree: code };
   } catch (erreur) {
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Ce code de dépôt est déjà utilisé." };
     }
     throw erreur;

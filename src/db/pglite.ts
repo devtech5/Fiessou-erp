@@ -1,0 +1,91 @@
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+
+import * as schema from "./schema";
+
+/**
+ * Base locale PGlite : un vrai PostgreSQL, compilé en WebAssembly, qui tourne
+ * DANS le processus Node.
+ *
+ * Sert au développement sur un poste sans serveur PostgreSQL : ni service à
+ * installer, ni mot de passe, ni port. Les données vivent dans un dossier
+ * (`.pglite/` par défaut, ignoré par git). Les migrations, contraintes,
+ * transactions et numérotations sont celles de la production — c'est le
+ * moteur qui change de forme, pas les règles.
+ *
+ * Activée par `DATABASE_URL="pglite:./.pglite"`. Jamais en production : un
+ * seul processus peut ouvrir le dossier, et les requêtes y passent une à une.
+ */
+
+export function estPglite(url: string | undefined): url is string {
+  return Boolean(url?.startsWith("pglite:"));
+}
+
+const globalPglite = globalThis as unknown as {
+  fiessouPglite?: Promise<unknown>;
+};
+
+/**
+ * Ouvre la base, applique les migrations et recopie le catalogue des droits.
+ *
+ * Appelée une fois, au démarrage du serveur (`instrumentation.ts`), avant la
+ * première requête. Rend l'instance Drizzle, que `src/db/index.ts` reprend.
+ */
+export function ouvrirPglite(url: string): Promise<unknown> {
+  globalPglite.fiessouPglite ??= (async () => {
+    const dossier = resolve(url.slice("pglite:".length) || "./.pglite");
+    mkdirSync(dossier, { recursive: true });
+
+    const client = new PGlite(dossier);
+    await client.waitReady;
+
+    const instance = drizzle(client, { schema });
+    await migrate(instance, { migrationsFolder: resolve("./drizzle") });
+
+    const { synchroniserDroits } = await import("./droits");
+    await synchroniserDroits((texte, valeurs) => client.query(texte, valeurs));
+
+    console.info(`\n  Base locale PGlite prête : ${dossier}\n`);
+
+    return adapter(instance);
+  })();
+
+  return globalPglite.fiessouPglite;
+}
+
+/**
+ * Aligne `execute` sur postgres-js.
+ *
+ * Avec postgres-js, `db.execute(sql)` rend directement le tableau de lignes ;
+ * PGlite rend `{ rows, fields, … }`. Tout le code applicatif lit un tableau —
+ * l'adaptateur évite d'y semer des conditions sur le pilote.
+ */
+function adapter<T extends object>(instance: T): T {
+  return new Proxy(instance, {
+    get(cible, cle, recepteur) {
+      const valeur = Reflect.get(cible, cle, recepteur);
+
+      if (cle === "execute" && typeof valeur === "function") {
+        return async (...args: unknown[]) => {
+          const resultat = await valeur.apply(cible, args);
+          return (resultat as { rows: unknown[] }).rows;
+        };
+      }
+
+      if (cle === "transaction" && typeof valeur === "function") {
+        return (rappel: (tx: unknown) => unknown, ...reste: unknown[]) =>
+          valeur.call(
+            cible,
+            (tx: object) => rappel(adapter(tx)),
+            ...reste,
+          );
+      }
+
+      return typeof valeur === "function" ? valeur.bind(cible) : valeur;
+    },
+  });
+}

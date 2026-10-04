@@ -1,6 +1,25 @@
 import type { Instrumentation } from "next";
 
 /**
+ * Démarrage du serveur.
+ *
+ * Seul travail aujourd'hui : ouvrir la base locale PGlite quand
+ * `DATABASE_URL` la désigne (`pglite:./.pglite`). L'ouverture est asynchrone
+ * — migrations comprises — et Next attend `register` avant la première
+ * requête : aucune page ne peut donc tomber sur une base à moitié prête.
+ */
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  const url = process.env.DATABASE_URL;
+  if (!url?.startsWith("pglite:")) return;
+
+  const { ouvrirPglite } = await import("./db/pglite");
+  const instance = await ouvrirPglite(url);
+  (globalThis as { fiessouDb?: unknown }).fiessouDb = instance;
+}
+
+/**
  * Journalisation des erreurs serveur.
  *
  * Sans elle, un plantage chez le client est invisible : il voit un écran

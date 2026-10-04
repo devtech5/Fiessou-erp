@@ -171,6 +171,7 @@ un script `tsx` qui importe un tel module se lance avec
 
 ```bash
 pnpm dev                      # serveur de développement
+pnpm dev:local                # idem, sur une base locale PGlite (.pglite/), sans PostgreSQL installé
 pnpm verify                   # analyse statique + types + tests
 pnpm test                     # tests unitaires seuls
 pnpm test:watch               # les mêmes, en continu
@@ -208,6 +209,21 @@ préfixe comme `organization_id` isole les lignes.
 
 Sans ces variables, le module reste utilisable : les fiches se créent, les
 échéances se suivent, et seul l'ajout de pièce refuse en disant pourquoi.
+
+## Base locale sans serveur : PGlite
+
+`pnpm dev:local` démarre l'application sur PGlite, un vrai PostgreSQL compilé
+en WebAssembly qui tourne dans le processus Node. Les données vivent dans
+`.pglite/` (ignoré par git). Au démarrage, `instrumentation.ts` ouvre la base,
+applique les migrations et recopie le catalogue des droits.
+
+Deux limites à connaître : un seul processus ouvre le dossier (les scripts
+`db:*` ne peuvent pas y accéder pendant que le serveur tourne), et
+`db.execute` y rend `{ rows }` — `src/db/pglite.ts` le ramène au tableau que
+rend postgres-js. Jamais en production.
+
+Après un arrêt brutal pendant une installation, Turbopack peut servir des
+404 sur toutes les routes : supprimer `.next/dev` et relancer.
 
 ## La base est sur Supabase
 

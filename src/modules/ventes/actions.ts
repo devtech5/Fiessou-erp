@@ -10,6 +10,7 @@ import { exigerDroit, messageRefus, peut, refusDroit } from "@/lib/droits/garde"
 import { annulerVenteDans } from "./annulation";
 import { creerPosteCaisseDans, enregistrerVenteDans } from "./creation";
 import { postesCaisse } from "./schema";
+import { estDoublon, violeContrainte } from "@/lib/erreurs-pg";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -120,7 +121,7 @@ export async function encaisserTicket(
     // Le rang est déjà pris sur ce poste : deux appareils se partagent une
     // caisse, ce que le modèle interdit. Le dire clairement plutôt que de
     // laisser une erreur de contrainte remonter telle quelle.
-    if (message.includes("ventes_numero_unique")) {
+    if (violeContrainte(erreur, "ventes_numero_unique")) {
       return {
         ok: false,
         message:
@@ -226,7 +227,7 @@ export async function creerPosteCaisse(
     revalidatePath("/caisse");
     return { cree: code };
   } catch (erreur) {
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Ce code de poste est déjà utilisé." };
     }
     throw erreur;

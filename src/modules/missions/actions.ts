@@ -20,6 +20,7 @@ import {
 } from "./creation";
 import { preuvesMission } from "./schema";
 import { GABARITS, cleDeChamp } from "./suivi";
+import { estDoublon } from "@/lib/erreurs-pg";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const entierSigne = z.number().int();
@@ -422,7 +423,7 @@ export async function creerFormulaire(
     revalidatePath("/missions", "layout");
     return { nom: analyse.data.nom };
   } catch (erreur) {
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Un formulaire porte déjà ce nom." };
     }
     throw erreur;

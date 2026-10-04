@@ -17,6 +17,7 @@ import { DOCUMENTS, comptabilisable } from "@/lib/fixtures/gestion";
 import { prochainNumero } from "@/lib/sequences";
 import { enregistrerEcritureDans, type ContexteEcriture } from "./enregistrement";
 import { ecritures } from "./schema";
+import { estDoublon, violeContrainte } from "@/lib/erreurs-pg";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -94,7 +95,7 @@ export async function comptabiliserPiece(
     const message = erreur instanceof Error ? erreur.message : String(erreur);
 
     // La contrainte d'unicité fait son travail : la pièce était déjà passée.
-    if (message.includes("ecritures_piece_unique")) {
+    if (violeContrainte(erreur, "ecritures_piece_unique")) {
       return { ok: false, message: "Cette pièce est déjà comptabilisée." };
     }
 
@@ -244,7 +245,7 @@ export async function saisirEcriture(
     return { numero };
   } catch (erreur) {
     // 23505 : violation d'unicité. Une pièce déjà comptabilisée.
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return { erreur: "Cette pièce a déjà été comptabilisée." };
     }
     throw erreur;

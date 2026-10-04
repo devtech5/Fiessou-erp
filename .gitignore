@@ -46,3 +46,6 @@ next-env.d.ts
 
 # outillage local
 .claude/
+
+# Base locale PGlite (développement sans serveur PostgreSQL)
+/.pglite/

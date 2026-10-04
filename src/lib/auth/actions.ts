@@ -25,6 +25,7 @@ import {
   lireSession,
   ouvrirSession,
 } from "./session";
+import { estDoublon } from "@/lib/erreurs-pg";
 
 export interface EtatConnexion {
   erreur?: string;
@@ -175,7 +176,7 @@ export async function sInscrire(
       );
     });
   } catch (erreur) {
-    if (erreur instanceof Error && "code" in erreur && erreur.code === "23505") {
+    if (estDoublon(erreur)) {
       return {
         valeurs,
         erreur: "Un compte existe déjà avec cette adresse. Connectez-vous.",
