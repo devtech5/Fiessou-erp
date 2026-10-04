@@ -73,6 +73,14 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
       };
     }
 
+    if (resultat.ressources > 0) {
+      return {
+        message:
+          `${resultat.ressources} ressources louables et ${resultat.locations} ` +
+          `contrats ajoutés.`,
+      };
+    }
+
     if (resultat.missions > 0) {
       return {
         message:

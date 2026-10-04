@@ -28,6 +28,8 @@ import { postesCaisse } from "@/modules/ventes/schema";
 import { amorcerParc } from "./actifs";
 import { amorcerDocuments } from "./documents";
 import { amorcerMissions, type RepereMissions } from "./missions";
+import { amorcerReservations } from "./reservations";
+import { aUneRessource } from "@/modules/reservations/requetes";
 import { amorcerPersonnel } from "./rh";
 import { amorcerStock, type ArticleAAmorcer } from "./stock";
 
@@ -92,6 +94,8 @@ export interface ResultatInstallation {
   signatures: number;
   missions: number;
   formulaires: number;
+  ressources: number;
+  locations: number;
 }
 
 /** Code de famille sur trois lettres, désambiguïsé si deux catégories collent. */
@@ -126,6 +130,7 @@ export async function installerJeuDemonstration(
     const parc = await completerParc(organizationId, userId);
     const pieces = await completerDocuments(organizationId, userId);
     const terrain = await completerMissions(organizationId, userId);
+    const louables = await completerReservations(organizationId, userId);
 
     return {
       deja: true,
@@ -138,6 +143,7 @@ export async function installerJeuDemonstration(
       ...parc,
       ...pieces,
       ...terrain,
+      ...louables,
     };
   }
 
@@ -323,6 +329,17 @@ export async function installerJeuDemonstration(
       userId,
     );
 
+    // La location vient en dernier : elle réserve pour des clients et passe
+    // ses écritures au nom de celui qui installe.
+    const location = userId
+      ? await amorcerReservations(
+          tx,
+          organizationId,
+          (await reperesMissions(tx, organizationId)).clients,
+          userId,
+        )
+      : { ressources: 0, contrats: 0, adherents: 0 };
+
     return {
       deja: false,
       tiers: FOURNISSEURS.length + CLIENTS.length,
@@ -342,6 +359,8 @@ export async function installerJeuDemonstration(
       signatures: pieces.signatures,
       missions: terrain.missions,
       formulaires: terrain.formulaires,
+      ressources: location.ressources,
+      locations: location.contrats,
     };
   });
 }
@@ -636,6 +655,20 @@ async function completerMissions(
 
   const reperes = await reperesMissions(db, organizationId);
   return db.transaction((tx) => amorcerMissions(tx, organizationId, reperes, userId));
+}
+
+/** Verse le parc louable dans une entreprise amorcée avant le module Réservations. */
+async function completerReservations(
+  organizationId: string,
+  userId?: string,
+): Promise<{ ressources: number; locations: number }> {
+  if (!userId || (await aUneRessource(organizationId))) return { ressources: 0, locations: 0 };
+
+  const { clients } = await reperesMissions(db, organizationId);
+  const { ressources, contrats } = await db.transaction((tx) =>
+    amorcerReservations(tx, organizationId, clients, userId),
+  );
+  return { ressources, locations: contrats };
 }
 
 /**

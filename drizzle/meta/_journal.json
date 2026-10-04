@@ -99,6 +99,13 @@
       "when": 1791080305767,
       "tag": "0013_fearless_namorita",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791081925533,
+      "tag": "0014_wise_vulture",
+      "breakpoints": true
     }
   ]
 }

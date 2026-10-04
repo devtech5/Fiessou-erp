@@ -1,7 +1,5 @@
 import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
 import { RESEAUX, SEUIL_FLOAT_BAS } from "@/lib/fixtures/monnaie";
-import { CONTRATS } from "@/lib/fixtures/reservations";
-import { ABONNEMENTS, seancesRestantes } from "@/lib/fixtures/reservations";
 import { etatCourant } from "@/lib/approbation/circuit";
 import type { SoldeCompte } from "@/lib/comptabilite/etats";
 
@@ -78,6 +76,12 @@ export interface EtatMissions {
   echouees: number;
 }
 
+/** Biens loués non rendus et adhérents bloqués à l'accueil. */
+export interface EtatReservations {
+  locationsEnRetard: number;
+  abonnementsEpuises: number;
+}
+
 /** Factures émises, échues et pas entièrement payées. */
 export interface EtatFacturation {
   enRetard: number;
@@ -106,6 +110,7 @@ export function alertes(
   stock: EtatStock,
   parc: EtatParc,
   missions: EtatMissions,
+  reservations: EtatReservations,
 ): Alerte[] {
   const liste: Alerte[] = [];
 
@@ -248,34 +253,29 @@ export function alertes(
   }
 
   // ----------------------------------------------------------- locations
-  const locationsEnRetard = CONTRATS.filter((c) => c.statut === "en_retard");
-  if (locationsEnRetard.length > 0) {
+  if (reservations.locationsEnRetard > 0) {
     liste.push({
       id: "locations-retard",
       gravite: "critique",
-      source: "fixture",
+      source: "base",
       module: "Réservations",
       titre: "Matériel non restitué",
       detail: "Immobilisé chez un client, non louable",
       href: "/reservations",
-      nombre: locationsEnRetard.length,
+      nombre: reservations.locationsEnRetard,
     });
   }
 
-  const abonnementsEpuises = ABONNEMENTS.filter((a) => {
-    const reste = seancesRestantes(a);
-    return reste !== null && reste <= 0;
-  });
-  if (abonnementsEpuises.length > 0) {
+  if (reservations.abonnementsEpuises > 0) {
     liste.push({
       id: "abonnements",
       gravite: "information",
-      source: "fixture",
+      source: "base",
       module: "Réservations",
       titre: "Abonnements épuisés",
       detail: "Accès refusé à l'accueil, à renouveler",
       href: "/reservations/abonnements",
-      nombre: abonnementsEpuises.length,
+      nombre: reservations.abonnementsEpuises,
     });
   }
 

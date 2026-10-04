@@ -1,152 +1,168 @@
 import type { Metadata } from "next";
 
 import {
-  BoutonPrincipal,
-  BoutonSecondaire,
   CarteIndicateur,
+  Champ,
+  CLASSE_CHAMP,
   EnTetePage,
+  EtatVide,
   Pastille,
   Tableau,
   Td,
   Th,
 } from "@/components/ui/primitives";
-import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
-import {
-  ABONNEMENTS,
-  LIBELLE_PERIODICITE,
-  seancesRestantes,
-} from "@/lib/fixtures/reservations";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
+import { fmt, fmtCompact, fmtDateIso, fmtEntier } from "@/lib/format";
+import { inscrireAdherent } from "@/modules/reservations/actions";
+import { accesAbonnement, ajouterJours } from "@/modules/reservations/calcul";
+import { listerAbonnements } from "@/modules/reservations/requetes";
+
+import { BoutonPassage, FormulaireRepliable } from "../outils";
 
 export const metadata: Metadata = { title: "Abonnements" };
+
+const heure = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "UTC",
+});
 
 /**
  * Abonnements et adhésions.
  *
- * Deux régimes cohabitent et se traitent différemment :
- *
- *   · au forfait — l'accès est illimité sur une période, seule la date de fin
- *     compte ;
- *   · à la séance — un capital se consomme, et c'est le solde qui compte, pas
- *     la date.
- *
- * Un adhérent au forfait dont l'abonnement expire demain et un adhérent à la
- * séance dont il reste zéro entrée sont tous deux bloqués à l'accueil, mais
- * pour des raisons opposées. Les confondre, c'est refuser l'entrée à quelqu'un
- * qui a payé.
+ * Deux régimes : au forfait, seule la date de fin compte ; à la séance, c'est
+ * le solde. Un adhérent au forfait qui expire demain et un adhérent à la
+ * séance à zéro entrée sont tous deux bloqués à l'accueil, mais pour des
+ * raisons opposées — l'écran dit laquelle.
  */
-export default function PageAbonnements() {
-  const actifs = ABONNEMENTS.length;
-  const epuises = ABONNEMENTS.filter((a) => {
-    const reste = seancesRestantes(a);
-    return reste !== null && reste <= 0;
-  });
-  const presqueEpuises = ABONNEMENTS.filter((a) => {
-    const reste = seancesRestantes(a);
-    return reste !== null && reste > 0 && reste <= 2;
-  });
-  const recettes = ABONNEMENTS.reduce((s, a) => s + a.montant, 0);
+export default async function PageAbonnements() {
+  const session = await exigerEntreprise();
+  const [adherents, gerer] = await Promise.all([
+    listerAbonnements(session.organizationId),
+    peut("reservation.abonnement.gerer"),
+  ]);
+
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const avecAcces = adherents.map((a) => ({ ...a, acces: accesAbonnement(a, aujourdHui) }));
+  const actifs = avecAcces.filter((a) => a.acces.ok);
+  const bloques = avecAcces.filter((a) => !a.acces.ok && a.fin >= aujourdHui);
+  const recettes = adherents
+    .filter((a) => a.debut.slice(0, 7) === aujourdHui.slice(0, 7))
+    .reduce((s, a) => s + a.montant, 0);
 
   return (
     <>
       <EnTetePage
         titre="Abonnements"
-        sousTitre="Adhérents, formules et consommation"
+        sousTitre="Adhérents, formules et entrées"
         actions={
-          <>
-            <BoutonSecondaire>Borne d&apos;accueil</BoutonSecondaire>
-            <BoutonPrincipal>Nouvel adhérent</BoutonPrincipal>
-          </>
+          gerer ? (
+            <FormulaireRepliable libelle="Nouvel adhérent" titre="Inscrire un adhérent" action={inscrireAdherent}>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Champ libelle="Nom">
+                  <input name="nom" required className={CLASSE_CHAMP} />
+                </Champ>
+                <Champ libelle="Téléphone">
+                  <input name="telephone" inputMode="tel" className={`${CLASSE_CHAMP} chiffres`} />
+                </Champ>
+                <Champ libelle="Formule">
+                  <input name="formule" required placeholder="Illimité mensuel, 12 séances…" className={CLASSE_CHAMP} />
+                </Champ>
+                <Champ libelle="Séances incluses" precision="Vide : accès illimité sur la période.">
+                  <input name="seancesIncluses" inputMode="numeric" className={`${CLASSE_CHAMP} chiffres`} />
+                </Champ>
+                <Champ libelle="Du">
+                  <input name="debut" type="date" required defaultValue={aujourdHui} className={`${CLASSE_CHAMP} chiffres`} />
+                </Champ>
+                <Champ libelle="Au">
+                  <input name="fin" type="date" required defaultValue={ajouterJours(aujourdHui, 29)} className={`${CLASSE_CHAMP} chiffres`} />
+                </Champ>
+                <Champ libelle="Montant encaissé (TTC)">
+                  <input name="montant" inputMode="numeric" required className={`${CLASSE_CHAMP} chiffres`} />
+                </Champ>
+                <Champ libelle="Moyen">
+                  <select name="moyen" className={CLASSE_CHAMP}>
+                    <option value="especes">Espèces</option>
+                    <option value="mobile_money">Mobile money</option>
+                    <option value="banque">Virement / chèque</option>
+                  </select>
+                </Champ>
+              </div>
+            </FormulaireRepliable>
+          ) : undefined
         }
       />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <CarteIndicateur libelle="Adhérents actifs" valeur={fmtEntier(actifs)} />
-        <CarteIndicateur
-          libelle="Crédits épuisés"
-          valeur={fmtEntier(epuises.length)}
-          ton={epuises.length > 0 ? "danger" : "valide"}
-          precision="Accès refusé à l'accueil"
+      {adherents.length === 0 ? (
+        <EtatVide
+          titre="Aucun adhérent"
+          message="Inscrivez un adhérent avec sa formule : au forfait, il entre jusqu'à la date de fin ; à la séance, chaque entrée décompte son carnet."
         />
-        <CarteIndicateur
-          libelle="Bientôt épuisés"
-          valeur={fmtEntier(presqueEpuises.length)}
-          ton={presqueEpuises.length > 0 ? "alerte" : "valide"}
-          precision="Deux séances ou moins"
-        />
-        <CarteIndicateur
-          libelle="Recettes"
-          valeur={fmtCompact(recettes)}
-          unite="FCFA"
-          ton="valide"
-          precision="Abonnements en cours"
-        />
-      </section>
+      ) : (
+        <>
+          <section className="mb-5 grid gap-3 sm:grid-cols-3">
+            <CarteIndicateur libelle="Adhérents actifs" valeur={fmtEntier(actifs.length)} precision={`Sur ${adherents.length} inscrits`} />
+            <CarteIndicateur
+              libelle="Bloqués à l'accueil"
+              valeur={fmtEntier(bloques.length)}
+              ton={bloques.length > 0 ? "alerte" : "valide"}
+              precision="Carnet épuisé avant la date de fin"
+            />
+            <CarteIndicateur libelle="Formules du mois" valeur={fmtCompact(recettes)} unite="FCFA" ton="valide" />
+          </section>
 
-      <Tableau>
-        <thead>
-          <tr>
-            <Th>Code</Th>
-            <Th>Adhérent</Th>
-            <Th>Formule</Th>
-            <Th>Régime</Th>
-            <Th>Période</Th>
-            <Th aligne="droite">Consommé</Th>
-            <Th aligne="droite">Reste</Th>
-            <Th>Dernière venue</Th>
-            <Th aligne="droite">Montant</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {ABONNEMENTS.map((abonnement) => {
-            const reste = seancesRestantes(abonnement);
-            const illimite = reste === null;
-
-            return (
-              <tr key={abonnement.id}>
-                {/* Code adhérent au format deux lettres + deux chiffres :
-                    assez court pour être annoncé de vive voix à l'accueil. */}
-                <Td chiffres fort>
-                  {abonnement.codeAdherent}
-                </Td>
-                <Td fort>{abonnement.nom}</Td>
-                <Td>{abonnement.formule}</Td>
-                <Td>
-                  <span className="text-xs text-[var(--encre-douce)]">
-                    {LIBELLE_PERIODICITE[abonnement.periodicite]}
-                  </span>
-                </Td>
-                <Td chiffres>
-                  <span className="text-xs">
-                    {abonnement.debut} → {abonnement.fin}
-                  </span>
-                </Td>
-                <Td aligne="droite" chiffres>
-                  {fmtEntier(abonnement.seancesConsommees)}
-                </Td>
-                <Td aligne="droite">
-                  {illimite ? (
-                    <Pastille ton="valide">Illimité</Pastille>
-                  ) : reste <= 0 ? (
-                    <Pastille ton="danger">Épuisé</Pastille>
-                  ) : reste <= 2 ? (
-                    <Pastille ton="alerte">{reste}</Pastille>
-                  ) : (
-                    <span className="chiffres">{reste}</span>
-                  )}
-                </Td>
-                <Td>
-                  <span className="text-xs text-[var(--encre-douce)]">
-                    {abonnement.derniereVenue}
-                  </span>
-                </Td>
-                <Td aligne="droite" chiffres fort>
-                  {fmt(abonnement.montant)}
-                </Td>
+          <Tableau>
+            <thead>
+              <tr>
+                <Th>Code</Th>
+                <Th>Adhérent</Th>
+                <Th>Formule</Th>
+                <Th>Validité</Th>
+                <Th aligne="droite">Séances</Th>
+                <Th>Accès</Th>
+                <Th aligne="droite">Montant</Th>
+                {gerer && <Th aligne="droite">Accueil</Th>}
               </tr>
-            );
-          })}
-        </tbody>
-      </Tableau>
+            </thead>
+            <tbody>
+              {avecAcces.map((a) => (
+                <tr key={a.id}>
+                  <Td chiffres fort>{a.code}</Td>
+                  <Td>
+                    {a.nom}
+                    <span className="block text-xs text-[var(--encre-faible)]">
+                      {a.derniereVenue ? `Dernière venue ${heure.format(a.derniereVenue)}` : "Jamais venu"}
+                    </span>
+                  </Td>
+                  <Td>{a.formule}</Td>
+                  <Td chiffres>
+                    {fmtDateIso(a.debut)} → {fmtDateIso(a.fin)}
+                  </Td>
+                  <Td aligne="droite" chiffres>
+                    {a.seancesIncluses === null ? `${a.seancesConsommees} · illimité` : `${a.seancesConsommees} / ${a.seancesIncluses}`}
+                  </Td>
+                  <Td>
+                    {a.acces.ok ? (
+                      <Pastille ton="valide">Autorisé</Pastille>
+                    ) : (
+                      <Pastille ton="danger">{a.acces.raison}</Pastille>
+                    )}
+                  </Td>
+                  <Td aligne="droite" chiffres>{fmt(a.montant)}</Td>
+                  {gerer && (
+                    <Td aligne="droite">
+                      <BoutonPassage id={a.id} desactive={!a.acces.ok} />
+                    </Td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </Tableau>
+        </>
+      )}
     </>
   );
 }

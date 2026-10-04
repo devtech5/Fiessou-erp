@@ -217,6 +217,33 @@ export const DROITS = [
     description: "Enregistrer un paiement reçu sur une facture.",
   },
 
+  // ---------------------------------------------------------- réservations
+  {
+    cle: "reservation.consulter",
+    moduleKey: "reservation",
+    libelle: "Consulter les réservations",
+    description: "Voir le parc louable, le planning, les contrats et les adhérents.",
+  },
+  {
+    cle: "reservation.ressource.gerer",
+    moduleKey: "reservation",
+    libelle: "Gérer les ressources louables",
+    description: "Ajouter un bien, fixer sa grille de tarifs et sa caution, le mettre en maintenance.",
+  },
+  {
+    cle: "reservation.contrat.gerer",
+    moduleKey: "reservation",
+    libelle: "Établir les contrats",
+    description:
+      "Réserver, remettre le bien (encaissement et caution), constater la restitution, annuler.",
+  },
+  {
+    cle: "reservation.abonnement.gerer",
+    moduleKey: "reservation",
+    libelle: "Gérer les adhérents",
+    description: "Inscrire un adhérent, encaisser sa formule, enregistrer ses venues.",
+  },
+
   // ------------------------------------------------------------- missions
   {
     cle: "missions.consulter",
@@ -281,7 +308,6 @@ export const DROITS = [
   // Ces écrans montrent encore des données d'exemple ; le droit gouverne leur
   // accès dès maintenant, pour que l'ouverture du module ne soit pas le moment
   // où l'on découvre que tout le monde y entre.
-  { cle: "reservation.consulter", moduleKey: "reservation", libelle: "Consulter les réservations" },
   { cle: "billetterie.consulter", moduleKey: "billetterie", libelle: "Consulter la billetterie" },
   {
     cle: "valeur_electronique.consulter",

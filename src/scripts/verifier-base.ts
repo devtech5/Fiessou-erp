@@ -25,12 +25,14 @@ if (!url) {
 }
 
 const TABLES_ATTENDUES = [
+  "abonnements",
   "actifs",
   "articles",
   "audit_logs",
   "bons_paiement",
   "change_log",
   "comptages_caisse",
+  "contrats_location",
   "demandes_signature",
   "depots",
   "document_sequences",
@@ -55,11 +57,13 @@ const TABLES_ATTENDUES = [
   "pieces_commerciales",
   "pointages",
   "preuves_mission",
+  "passages_abonnement",
   "postes_caisse",
   "reglements_piece",
   "reglements_vente",
   "releves_compteur",
   "reponses_formulaire",
+  "ressources",
   "role_permissions",
   "roles",
   "sessions",

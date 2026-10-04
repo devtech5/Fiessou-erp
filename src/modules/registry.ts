@@ -142,7 +142,11 @@ export const MODULES: ModuleDefinition[] = [
     key: "reservation",
     name: "Réservation de ressource",
     layer: "moteur",
-    status: "planifie",
+    // En base : ressources et grille de tarifs, contrats avec contrôle de
+    // disponibilité verrouillé, remise (location + caution en 165) et
+    // restitution (retenue en 758), abonnements et passages. Restent la
+    // facturation des locations longues et le paiement fractionné.
+    status: "en_cours",
     requires: ["tiers"],
     description:
       "Ressource, calendrier anti-surréservation, tarif par durée, caution, contrat, retour. " +
