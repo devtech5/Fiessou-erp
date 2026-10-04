@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 
-import { CarteIndicateur, EnTetePage } from "@/components/ui/primitives";
+import Link from "next/link";
+
+import { CarteIndicateur, EnTetePage, Pastille } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
-import { apercuActif } from "@/lib/modules/garde";
+import { apercuActif, moduleOuvert } from "@/lib/modules/garde";
 import { droitsActifs } from "@/lib/droits/garde";
 import type { Droit } from "@/lib/droits/catalogue";
 import {
@@ -16,6 +18,8 @@ import { etatReservations } from "@/modules/reservations/requetes";
 import { NOM_RESEAU } from "@/modules/monnaie/calcul";
 import { floatsBas } from "@/modules/monnaie/requetes";
 import { etatDepenses } from "@/modules/projets/requetes";
+import { LIBELLE_PRIORITE, joursAvantEcheance } from "@/modules/taches/calcul";
+import { tachesEnRetard } from "@/modules/taches/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -92,6 +96,7 @@ const DROIT_PAR_RACINE: [string, Droit][] = [
   ["/projets", "projet.consulter"],
   ["/rh", "personnes.consulter"],
   ["/documents", "documents.consulter"],
+  ["/taches", "taches.consulter"],
 ];
 
 function droitRequis(href: string): Droit | null {
@@ -107,6 +112,13 @@ export default async function PageTableauDeBord() {
   const debutJournee = new Date();
   debutJournee.setHours(0, 0, 0, 0);
 
+  const droits = await droitsActifs();
+  // Les tâches de l'équipe ne se lisent qu'avec le droit d'attribuer ; sans
+  // celui de consulter, aucune tâche du tout.
+  const voitSesTaches = moduleOuvert("taches") && droits.has("taches.consulter");
+  const voitLEquipe = voitSesTaches && droits.has("taches.attribuer");
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+
   const [
     facturation,
     resume,
@@ -120,6 +132,7 @@ export default async function PageTableauDeBord() {
     reservations,
     floats,
     depenses,
+    retards,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -133,6 +146,9 @@ export default async function PageTableauDeBord() {
     etatReservations(session.organizationId),
     floatsBas(session.organizationId),
     etatDepenses(session.organizationId),
+    voitSesTaches
+      ? tachesEnRetard(session.organizationId, session.userId, voitLEquipe, aujourdhui)
+      : Promise.resolve({ liste: [], miennes: 0, autres: 0 }),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -144,12 +160,14 @@ export default async function PageTableauDeBord() {
   }, {
     echeancesDepassees: echeances.filter((e) => e.gravite === "depassee").length,
     indisponibles: resumeParc(parc).indisponibles,
-  }, missions, reservations, floats.map((r) => NOM_RESEAU[r]), depenses);
+  }, missions, reservations, floats.map((r) => NOM_RESEAU[r]), depenses, {
+    miennesEnRetard: retards.miennes,
+    equipeEnRetard: retards.autres,
+  });
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une
   // alerte ne s'affiche qu'à qui peut ouvrir l'écran vers lequel elle mène.
-  const droits = await droitsActifs();
   const voitLaTresorerie = droits.has("comptabilite.ecriture.consulter");
   const liste = (
     apercuActif()
@@ -288,6 +306,51 @@ export default async function PageTableauDeBord() {
           </div>
         )}
       </section>
+
+      {/* -------------------------------------------------- tâches en retard */}
+      {retards.liste.length > 0 && (
+        <section className="mt-6">
+          <div className="mb-2.5 flex items-baseline justify-between gap-3">
+            <h2 className="text-base font-semibold">Tâches en retard</h2>
+            <Link href={voitLEquipe ? "/taches?vue=toutes" : "/taches"} className="text-sm font-semibold text-marque-600 hover:underline">
+              Toutes les tâches →
+            </Link>
+          </div>
+          <ul className="divide-y divide-[var(--filet)] overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
+            {retards.liste.slice(0, 6).map((t) => {
+              const jours = -(joursAvantEcheance(t.echeance, "a_faire", aujourdhui) ?? 0);
+              return (
+                <li key={t.id}>
+                  <Link
+                    href={t.mienne ? "/taches" : "/taches?vue=toutes"}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 hover:bg-[var(--surface-creuse)]"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{t.titre}</span>
+                      <span className="chiffres block text-xs text-[var(--encre-faible)]">
+                        {t.numero} · {t.mienne ? "pour vous" : `pour ${t.assignee}`}
+                      </span>
+                    </span>
+                    {t.priorite !== "normale" && (
+                      <Pastille ton={t.priorite === "urgente" ? "danger" : t.priorite === "haute" ? "alerte" : "neutre"}>
+                        {LIBELLE_PRIORITE[t.priorite]}
+                      </Pastille>
+                    )}
+                    <Pastille ton="danger">
+                      {jours} jour{jours > 1 ? "s" : ""} de retard
+                    </Pastille>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {retards.liste.length > 6 && (
+            <p className="mt-2 text-xs text-[var(--encre-faible)]">
+              Et {retards.liste.length - 6} autre{retards.liste.length - 6 > 1 ? "s" : ""}.
+            </p>
+          )}
+        </section>
+      )}
     </>
   );
 }

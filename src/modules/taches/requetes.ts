@@ -114,18 +114,59 @@ export async function listerTaches(organizationId: string, userId: string, vue: 
   }));
 }
 
-/** Tâches ouvertes et en retard de la personne : pour le tableau de bord. */
-export async function etatMesTaches(
+export interface TacheEnRetard {
+  id: string;
+  numero: string;
+  titre: string;
+  priorite: Priorite;
+  echeance: string;
+  assignee: string;
+  mienne: boolean;
+}
+
+/**
+ * Tâches ouvertes dont l'échéance est passée, pour le tableau de bord : les
+ * siennes, et celles de toute l'équipe pour qui attribue. Les plus anciennes
+ * d'abord — ce sont elles qui coûtent.
+ *
+ * La date du jour vient de l'appelant, en jour ISO : le serveur et l'écran
+ * des tâches jugent le retard au même jour.
+ */
+export async function tachesEnRetard(
   organizationId: string,
   userId: string,
-): Promise<{ ouvertes: number; enRetard: number }> {
-  const [l] = await db.execute<{ ouvertes: string; en_retard: string }>(sql`
-    select count(*) filter (where statut in ('a_faire', 'en_cours')) as ouvertes,
-           count(*) filter (where statut in ('a_faire', 'en_cours') and echeance < current_date) as en_retard
-    from taches
-    where organization_id = ${organizationId} and assignee_user_id = ${userId} and deleted_at is null
+  equipe: boolean,
+  aujourdhui: string,
+): Promise<{ liste: TacheEnRetard[]; miennes: number; autres: number }> {
+  const lignes = await db.execute<{
+    id: string;
+    numero: string;
+    titre: string;
+    priorite: Priorite;
+    echeance: string | Date;
+    assignee_user_id: string;
+    assignee: string | null;
+  }>(sql`
+    select t.id, t.numero, t.titre, t.priorite, t.echeance, t.assignee_user_id, u.full_name as assignee
+    from taches t left join users u on u.id = t.assignee_user_id
+    where t.organization_id = ${organizationId} and t.deleted_at is null
+      and t.statut in ('a_faire', 'en_cours')
+      and t.echeance < ${aujourdhui}::date
+      and (${equipe} or t.assignee_user_id = ${userId})
+    order by t.echeance, t.created_at
+    limit 200
   `);
-  return { ouvertes: Number(l?.ouvertes ?? 0), enRetard: Number(l?.en_retard ?? 0) };
+  const liste = lignes.map((l) => ({
+    id: l.id,
+    numero: l.numero,
+    titre: l.titre,
+    priorite: l.priorite,
+    echeance: jour(l.echeance)!,
+    assignee: l.assignee ?? "Ancien membre",
+    mienne: l.assignee_user_id === userId,
+  }));
+  const miennes = liste.filter((t) => t.mienne).length;
+  return { liste, miennes, autres: liste.length - miennes };
 }
 
 /** Membres actifs, pour choisir l'exécutant. */

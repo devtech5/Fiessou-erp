@@ -81,6 +81,15 @@ export interface EtatReservations {
   abonnementsEpuises: number;
 }
 
+/**
+ * Tâches dont l'échéance est passée. `equipe` ne compte que celles confiées
+ * à d'autres, et n'est renseigné que pour qui attribue les tâches.
+ */
+export interface EtatTaches {
+  miennesEnRetard: number;
+  equipeEnRetard: number;
+}
+
 /** Factures émises, échues et pas entièrement payées. */
 export interface EtatFacturation {
   enRetard: number;
@@ -113,8 +122,36 @@ export function alertes(
   /** Réseaux dont le float est bas au guichet ouvert, déjà nommés. */
   floatsBas: string[] = [],
   depenses: { aApprouver: number; montantAApprouver: number; sansPreuve: number } = { aApprouver: 0, montantAApprouver: 0, sansPreuve: 0 },
+  taches: EtatTaches = { miennesEnRetard: 0, equipeEnRetard: 0 },
 ): Alerte[] {
   const liste: Alerte[] = [];
+
+  // ------------------------------------------------------------ tâches
+  // Celles de la personne d'abord : c'est à elle d'agir, sans attendre personne.
+  if (taches.miennesEnRetard > 0) {
+    liste.push({
+      id: "taches-miennes-retard",
+      gravite: "critique",
+      source: "base",
+      module: "Tâches",
+      titre: "Vos tâches en retard",
+      detail: "Échéance dépassée : terminez-les ou faites reporter l'échéance",
+      href: "/taches",
+      nombre: taches.miennesEnRetard,
+    });
+  }
+  if (taches.equipeEnRetard > 0) {
+    liste.push({
+      id: "taches-equipe-retard",
+      gravite: "attention",
+      source: "base",
+      module: "Tâches",
+      titre: "Tâches de l'équipe en retard",
+      detail: "Confiées à d'autres membres, échéance dépassée",
+      href: "/taches?vue=toutes",
+      nombre: taches.equipeEnRetard,
+    });
+  }
 
   // ------------------------------------------------------------- ventes
   // Plus d'alerte « pièces sans écriture » : une facture passe son écriture à

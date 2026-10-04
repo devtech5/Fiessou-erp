@@ -146,7 +146,7 @@ export function BarreLaterale({
   return (
     <nav
       aria-label="Modules"
-      className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-2 lg:w-56 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-2.5 lg:py-3"
+      className="nav-sombre flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-2 lg:w-56 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-2.5 lg:py-3"
     >
       <Link
         href={ACCUEIL.href}
@@ -270,9 +270,13 @@ function MenuCompte({
     };
   }, [ouvert]);
 
-  function changerTheme(theme: "light" | "dark" | "systeme") {
+  /**
+   * Clair par défaut : sans choix enregistré, la page est claire. « Auto »
+   * suit le téléphone, mais seulement si on le demande.
+   */
+  function changerTheme(theme: "light" | "dark" | "auto") {
     const racine = document.documentElement;
-    if (theme === "systeme") {
+    if (theme === "light") {
       racine.removeAttribute("data-theme");
       localStorage.removeItem("fiessou-theme");
     } else {
@@ -313,7 +317,7 @@ function MenuCompte({
       {ouvert && (
         <div
           role="menu"
-          className="absolute bottom-full left-0 z-50 mb-1 w-60 overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)] shadow-lg"
+          className="absolute bottom-full left-0 z-50 mb-1 w-60 overflow-hidden lg:right-0 lg:w-auto rounded-xl border border-[var(--filet)] bg-[var(--surface)] shadow-lg"
         >
           <div className="border-b border-[var(--filet)] px-3 py-2.5">
             <p className="truncate text-sm font-medium">{nomUtilisateur}</p>
@@ -322,14 +326,14 @@ function MenuCompte({
             </p>
           </div>
 
-          <div className="flex items-center justify-between border-b border-[var(--filet)] px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-[var(--filet)] px-3 py-2">
             <span className="text-sm">Thème</span>
             <span className="flex gap-1">
               {(
                 [
-                  ["systeme", "Auto"],
                   ["light", "Clair"],
                   ["dark", "Sombre"],
+                  ["auto", "Auto"],
                 ] as const
               ).map(([valeur, libelle]) => (
                 <button

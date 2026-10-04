@@ -66,8 +66,10 @@
   --filet: var(--color-ardoise-200);
 }
 
+/* Le thème CLAIR est celui par défaut, quel que soit le réglage du téléphone :
+   « Auto » le suit seulement si on le choisit. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root[data-theme="auto"] {
     --fond: #0d1418;
     --surface: #16212a;
     --surface-creuse: #1e2b34;
@@ -124,6 +126,34 @@
   --color-marque-400: #4fa9b6;
   --color-marque-600: #2a8a99;
   --color-marque-700: #237784;
+}
+
+/**
+ * Navigation sombre, dans les deux thèmes.
+ *
+ * La barre latérale redéfinit pour elle seule les couleurs de surface et
+ * d'encre : tout ce qu'elle contient — liens, titres de groupe, menu de
+ * compte — passe en sombre sans une classe de plus. La page reste claire, et
+ * l'œil sépare d'un coup ce qui navigue de ce qui se lit.
+ */
+.nav-sombre {
+  --fond: #0b2228;
+  --surface: #0f2b32;
+  --surface-creuse: #183b43;
+  --encre: #f1f6f7;
+  --encre-douce: #c5d6da;
+  --encre-faible: #8eaab0;
+  --filet: #20474f;
+  --color-marque-50: #13323a;
+  --color-marque-400: #5fb6c2;
+  --color-marque-600: #2a8a99;
+  --color-marque-700: #237784;
+  --color-danger-50: #3a1916;
+  --color-danger-600: #f2826f;
+  background: var(--surface);
+  color: var(--encre);
+  color-scheme: dark;
+  scrollbar-color: var(--filet) transparent;
 }
 
 @layer base {
