@@ -117,7 +117,7 @@ export default async function PageProjets() {
         />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
             <CarteIndicateur
               libelle="Projets actifs"
               valeur={fmtEntier(actifs.length)}
@@ -125,11 +125,11 @@ export default async function PageProjets() {
               ton={depasses > 0 ? "alerte" : "neutre"}
             />
             <CarteIndicateur
-              libelle={resultatCumule >= 0 ? "Bénéfice cumulé" : "Perte cumulée"}
+              libelle={resultatCumule >= 0 ? "Résultat à date : bénéfice" : "Résultat à date : perte"}
               valeur={`${resultatCumule < 0 ? "− " : ""}${fmtCompact(Math.abs(resultatCumule))}`}
               unite="FCFA"
               ton={resultatCumule >= 0 ? "valide" : "danger"}
-              precision={`HT · ${fmtCompact(engage)} F engagés sur les projets actifs`}
+              precision={`Facturé moins coûts engagés, HT · ${fmtCompact(engage)} F engagés sur les projets actifs`}
             />
             <CarteIndicateur
               libelle="Taux de réussite"
@@ -151,7 +151,7 @@ export default async function PageProjets() {
 
           </section>
 
-          <ul className="grid gap-2 lg:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {projets.map((p) => {
               const taux = p.suivi.taux ?? 0;
               return (
@@ -192,14 +192,24 @@ export default async function PageProjets() {
                           aria-label={`Budget consommé du projet ${p.code}`}
                         >
                           <div
-                            className={`h-full rounded-full ${taux > 100 ? "bg-danger-600" : taux >= 85 ? "bg-alerte-500" : "bg-marque-600"}`}
+                            className={`h-full rounded-full ${taux > 100 ? "bg-danger-500" : taux >= 85 ? "bg-alerte-500" : "bg-marque-600"}`}
                             style={{ width: `${Math.min(100, taux)}%` }}
                           />
                         </div>
                       )}
                     </div>
                     <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-[var(--filet)] pt-2 text-xs">
-                      {p.facture > 0 || p.prixVente !== null ? (
+                      {p.statut !== "termine" && p.bilan.resultatPrevu !== null ? (
+                        // En cours, le prix convenu dit ce que le projet rapportera ;
+                        // le facturé à date n'en est qu'une partie.
+                        <span className="text-[var(--encre-douce)]">
+                          <span className={`chiffres font-semibold ${p.bilan.resultatPrevu >= 0 ? "text-valide-600" : "text-danger-600"}`}>
+                            {p.bilan.resultatPrevu >= 0 ? "Bénéfice prévu " : "Perte prévue "}
+                            {fmt(Math.abs(p.bilan.resultatPrevu))} HT
+                          </span>
+                          {p.facture > 0 && <span className="chiffres"> · facturé {fmt(p.facture)}</span>}
+                        </span>
+                      ) : p.facture > 0 || p.prixVente !== null ? (
                         <span className={`chiffres font-semibold ${p.bilan.resultat >= 0 ? "text-valide-600" : "text-danger-600"}`}>
                           {p.bilan.resultat >= 0 ? "Bénéfice " : "Perte "}
                           {fmt(Math.abs(p.bilan.resultat))} HT

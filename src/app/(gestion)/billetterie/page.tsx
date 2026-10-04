@@ -123,7 +123,7 @@ export default async function PageDeparts() {
         />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
             <CarteIndicateur
               libelle="Départs du jour"
               valeur={fmtEntier(duJour.length)}
@@ -148,7 +148,7 @@ export default async function PageDeparts() {
               <h2 className="mb-2 text-sm font-semibold text-[var(--encre-douce)] first-letter:uppercase">
                 {JOUR.format(new Date(`${jour}T12:00:00Z`))}
               </h2>
-              <ul className="grid gap-2 lg:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                 {liste.map((depart) => {
                   const places = capacite(depart.rangees);
                   const taux = tauxRemplissage(depart.vendus, depart.rangees);

@@ -38,7 +38,7 @@ export function AnnulationTicket({ id, numero }: { id: string; numero: string })
         aria-label={`Motif d'annulation du ticket ${numero}`}
         className="h-8 w-36 rounded-lg border border-[var(--filet)] bg-[var(--fond)] px-2 text-xs"
       />
-      <button type="submit" className="h-8 rounded-lg bg-danger-600 px-2.5 text-xs font-semibold text-white">
+      <button type="submit" className="h-8 rounded-lg bg-danger-500 px-2.5 text-xs font-semibold text-white">
         Confirmer
       </button>
       <button type="button" onClick={() => setOuvert(false)} className="text-xs text-[var(--encre-faible)]">

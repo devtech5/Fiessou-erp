@@ -47,7 +47,7 @@ export default function PageFiscalite() {
         sousTitre="Obligations déclaratives · DGI et CNPS"
       />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-3">
+      <section className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
         <CarteIndicateur
           libelle="À régler"
           valeur={fmtCompact(aPayer.reduce((s, o) => s + o.montant, 0))}

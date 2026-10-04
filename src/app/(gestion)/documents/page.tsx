@@ -118,7 +118,7 @@ export default async function PageDocuments() {
         />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-3">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
             <CarteIndicateur
               libelle="Documents"
               valeur={fmtEntier(pieces.length)}

@@ -34,7 +34,7 @@ export function AnnulationOperation({ id, numero }: { id: string; numero: string
           type="button"
           disabled={op.enCours || motif.trim().length < 3}
           onClick={() => op.lancer(() => annulerOperation(id, motif), () => setMotif(null))}
-          className="h-8 rounded-lg bg-danger-600 px-2.5 text-xs font-semibold text-white disabled:opacity-50"
+          className="h-8 rounded-lg bg-danger-500 px-2.5 text-xs font-semibold text-white disabled:opacity-50"
         >
           Confirmer
         </button>

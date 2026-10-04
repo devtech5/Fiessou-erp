@@ -96,7 +96,7 @@ export default async function PageMouvements() {
         />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-3">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
             {/* Les trois compteurs portent sur les lignes affichées, pas sur
                 tout l'historique : un magasin qui tourne dépasse le million de
                 mouvements en un an, et les compter à chaque affichage coûterait

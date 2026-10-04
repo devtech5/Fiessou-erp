@@ -603,7 +603,7 @@ function ClotureMission({ missionId }: { missionId: string }) {
       <div className="flex gap-3">
         <button
           type="submit"
-          className="h-cible rounded-lg bg-danger-600 px-4 text-sm font-semibold text-white"
+          className="h-cible rounded-lg bg-danger-500 px-4 text-sm font-semibold text-white"
         >
           Confirmer
         </button>

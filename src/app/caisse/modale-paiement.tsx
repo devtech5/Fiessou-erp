@@ -221,7 +221,7 @@ export function ModalePaiement({ net, lignes, onAnnuler, onValider }: Props) {
                   })),
                 )
               }
-              className="sans-selection h-touche w-full rounded-xl bg-valide-500 text-base font-bold text-white hover:bg-valide-600"
+              className="sans-selection h-touche w-full rounded-xl bg-valide-500 text-base font-bold text-white hover:bg-valide-500"
             >
               Valider et imprimer le ticket
             </button>

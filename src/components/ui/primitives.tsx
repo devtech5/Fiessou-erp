@@ -36,7 +36,7 @@ export function CarteIndicateur({
   const contenu = (
     <>
       <p className="text-xs font-medium text-[var(--encre-faible)]">{libelle}</p>
-      <p className={`chiffres mt-1 text-2xl font-bold ${tons[ton]}`}>
+      <p className={`chiffres mt-1 text-xl font-bold sm:text-2xl ${tons[ton]}`}>
         {valeur}
         {unite && (
           <span className="ml-1 text-sm font-medium text-[var(--encre-faible)]">
@@ -50,7 +50,9 @@ export function CarteIndicateur({
     </>
   );
 
-  const habillage = "rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4";
+  // `min-w-0` : dans une grille à deux colonnes sur téléphone, un montant long
+  // ne doit pas pousser sa voisine hors de l'écran.
+  const habillage = "min-w-0 rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-3 sm:p-4";
 
   // `h-full` sur le lien : dans une grille, une carte au texte plus court
   // laisserait sinon un vide sous elle et casserait l'alignement de la rangée.

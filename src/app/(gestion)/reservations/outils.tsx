@@ -88,7 +88,7 @@ export function ActionsContrat({
               type="button"
               disabled={op.enCours || motif.trim().length < 3}
               onClick={() => op.lancer(() => annulerContrat(id, motif), () => setPanneau(null))}
-              className={`${PETIT} bg-danger-600 text-white`}
+              className={`${PETIT} bg-danger-500 text-white`}
             >
               Confirmer
             </button>

@@ -72,7 +72,7 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
         titre={projet.nom}
         sousTitre={[
           projet.code,
-          projet.client ?? "Projet interne",
+          projet.client ?? (projet.prixVente === null ? "Projet interne" : "Client non désigné"),
           projet.debut ? `du ${JOUR.format(new Date(projet.debut))}` : null,
           projet.fin ? `au ${JOUR.format(new Date(projet.fin))}` : null,
         ]
@@ -208,7 +208,7 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
         )}
       </section>
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
         <CarteIndicateur
           libelle="Budget"
           valeur={projet.budget === null ? "—" : fmtCompact(projet.budget)}

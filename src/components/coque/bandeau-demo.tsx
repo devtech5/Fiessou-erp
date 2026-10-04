@@ -11,7 +11,7 @@ export function BandeauDemo() {
   if (env.INSTANCE_DEMO !== "1") return null;
 
   return (
-    <div className="flex shrink-0 items-center justify-center gap-2 bg-alerte-600 px-3 py-1 text-center text-[11px] font-medium text-white">
+    <div className="flex shrink-0 items-center justify-center gap-2 bg-alerte-500 px-3 py-1 text-center text-[11px] font-medium text-white">
       Instance de démonstration — données fictives
     </div>
   );

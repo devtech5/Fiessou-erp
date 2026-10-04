@@ -98,7 +98,7 @@ export default async function PageSignatures() {
         />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-3">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
             <CarteIndicateur
               libelle="En attente"
               valeur={fmtEntier(enAttente.length)}
@@ -119,7 +119,7 @@ export default async function PageSignatures() {
             />
           </section>
 
-          <ul className="grid gap-2 lg:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {demandes.map((demande) => (
               <li
                 key={demande.id}

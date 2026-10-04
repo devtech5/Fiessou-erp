@@ -299,7 +299,8 @@ export function EcranCaisse({
     <div className="flex h-dvh flex-col bg-[var(--fond)] text-[var(--encre)]">
       <EnTete
         nomBoutique={nomBoutique}
-        nomCaisse={`${poste.nom} · ${poste.depotNom}`}
+        // Le poste porte souvent déjà le nom du magasin : ne pas le répéter.
+        nomCaisse={poste.nom.includes(poste.depotNom) ? poste.nom : `${poste.nom} · ${poste.depotNom}`}
         caissier={caissier}
         enLigne={enLigne}
         heure={heure}
@@ -405,7 +406,7 @@ function EnTete({
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold">{nomBoutique}</p>
         <p className="truncate text-xs text-[var(--encre-faible)]">
-          {nomCaisse} · session ouverte
+          {nomCaisse}
         </p>
       </div>
 
@@ -445,14 +446,15 @@ function EnTete({
         attendu={attendu}
       />
 
-      <div className="ml-auto flex items-center gap-4 text-xs text-[var(--encre-douce)]">
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-xs text-[var(--encre-douce)]">
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
             checked={reglagesTicket.auto}
             onChange={(e) => reglagesTicket.changerAuto(e.target.checked)}
           />
-          Imprimer à l&apos;encaissement
+          <span className="hidden sm:inline">Imprimer à l&apos;encaissement</span>
+          <span className="sm:hidden">Impression auto</span>
         </label>
         <select
           aria-label="Largeur du papier"

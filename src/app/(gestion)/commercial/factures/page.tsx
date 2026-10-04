@@ -52,7 +52,7 @@ export default async function PageFactures() {
     <>
       <EnTetePage titre="Devis et factures" sousTitre="Du devis à l'encaissement, sur un seul écran" />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
         <CarteIndicateur
           libelle="À encaisser"
           valeur={fmtCompact(aEncaisser)}

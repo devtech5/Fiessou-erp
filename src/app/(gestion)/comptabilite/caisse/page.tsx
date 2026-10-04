@@ -65,7 +65,7 @@ export default function PageCaisseDepenses() {
         sousTitre="Bons de décaissement et réserves d'espèces"
       />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
         <CarteIndicateur
           libelle="En attente de validation"
           valeur={fmtEntier(enAttente.length)}
@@ -98,7 +98,7 @@ export default function PageCaisseDepenses() {
       {/* ------------------------------------------------------ les caisses */}
       <section className="mb-6">
         <h2 className="mb-2.5 text-base font-semibold">Réserves d&apos;espèces</h2>
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {CAISSES.map((k) => {
             const bas = k.solde < k.seuilAlerte;
             return (
@@ -139,7 +139,7 @@ export default function PageCaisseDepenses() {
       <section>
         <h2 className="mb-2.5 text-base font-semibold">Bons de caisse</h2>
 
-        <ul className="grid gap-2 lg:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
           {etats.map(({ bon, etat }) => {
             const emetteur = personne(bon.emetteurId);
             const attente = etapeEnAttente(bon.circuit);

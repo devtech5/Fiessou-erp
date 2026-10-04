@@ -74,7 +74,7 @@ export function ActionsDepart({
               type="button"
               disabled={op.enCours || motif.trim().length < 3}
               onClick={() => op.lancer(() => changerStatutDepart(id, "annule", motif), () => setMotif(null))}
-              className={`${PETIT} shrink-0 bg-danger-600 text-white`}
+              className={`${PETIT} shrink-0 bg-danger-500 text-white`}
             >
               Confirmer
             </button>
@@ -161,7 +161,7 @@ export function AnnulationBillet({ id, numero }: { id: string; numero: string })
           type="button"
           disabled={op.enCours || motif.trim().length < 3}
           onClick={() => op.lancer(() => annulerBillet(id, motif), () => setMotif(null))}
-          className="h-8 rounded-lg bg-danger-600 px-2.5 text-xs font-semibold text-white disabled:opacity-50"
+          className="h-8 rounded-lg bg-danger-500 px-2.5 text-xs font-semibold text-white disabled:opacity-50"
         >
           Rembourser
         </button>

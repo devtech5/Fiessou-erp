@@ -88,7 +88,7 @@ export default async function PageParc() {
         />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
             <CarteIndicateur
               libelle="Actifs suivis"
               valeur={fmtEntier(resume.actifs)}

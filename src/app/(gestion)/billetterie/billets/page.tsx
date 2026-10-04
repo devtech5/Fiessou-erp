@@ -73,7 +73,7 @@ export default async function PageBillets() {
         <EtatVide titre="Aucun billet émis" message="Les billets vendus au plan de places apparaissent ici." />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
             <CarteIndicateur
               libelle="Billets émis"
               valeur={fmtEntier(actifs.length)}

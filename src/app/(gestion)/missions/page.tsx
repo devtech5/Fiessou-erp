@@ -66,7 +66,7 @@ export default async function PageMissions() {
         />
       ) : (
         <>
-          <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
             <CarteIndicateur
               libelle="En cours"
               valeur={fmtEntier(enCours.length)}
@@ -93,7 +93,7 @@ export default async function PageMissions() {
             />
           </section>
 
-          <ul className="grid gap-2 lg:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {missions.map((mission) => {
               const progression = pourcentage(mission.etapesFaites, mission.etapes);
 

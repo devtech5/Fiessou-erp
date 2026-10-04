@@ -61,7 +61,9 @@ const LIBELLE: Record<Gravite, string> = {
  * deux au-delà du téléphone, le même écart. Trois rythmes différents sur une
  * même page donnent l'impression de trois écrans collés bout à bout.
  */
-const GRILLE = "grid gap-3 sm:grid-cols-2 xl:grid-cols-4";
+const GRILLE = "grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2";
+/** Les alertes portent un titre et une phrase : sur téléphone, une par ligne. */
+const GRILLE_ALERTES = "grid gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4";
 
 /**
  * Délai de réaction : au-delà, une commande passée aujourd'hui arrive trop
@@ -256,7 +258,7 @@ export default async function PageTableauDeBord() {
             Rien à signaler. Tout est à jour.
           </p>
         ) : (
-          <div className={GRILLE}>
+          <div className={GRILLE_ALERTES}>
             {liste.map((alerte) => (
               // Le nombre occupe la place de la valeur : c'est lui qui dit
               // l'ampleur avant même qu'on lise le libellé, comme un montant

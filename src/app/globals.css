@@ -75,6 +75,25 @@
     --encre-douce: #aebfc7;
     --encre-faible: #83959d;
     --filet: #27353e;
+    /* Couleurs de sens en thème sombre : les fonds « -50 » deviennent des
+       teintes profondes, les textes « -600 » s'éclaircissent. Sans cela, une
+       alerte s'affiche en pavé pastel éblouissant et un montant en rouge
+       sombre disparaît sur la surface. */
+    --color-valide-50: #12301f;
+    --color-valide-500: #2fae76;
+    --color-valide-600: #52c890;
+    --color-alerte-50: #362710;
+    --color-alerte-500: #d4962c;
+    --color-alerte-600: #eeb04f;
+    --color-danger-50: #3a1916;
+    --color-danger-500: #e0604f;
+    --color-danger-600: #f2826f;
+    /* La marque sert de fond aux boutons (texte blanc) ET de couleur aux liens :
+       un ton intermédiaire tient les deux contrastes. */
+    --color-marque-50: #13323a;
+    --color-marque-400: #4fa9b6;
+    --color-marque-600: #2a8a99;
+    --color-marque-700: #237784;
   }
 }
 
@@ -86,6 +105,25 @@
   --encre-douce: #aebfc7;
   --encre-faible: #83959d;
   --filet: #27353e;
+  /* Couleurs de sens en thème sombre : les fonds « -50 » deviennent des
+     teintes profondes, les textes « -600 » s'éclaircissent. Sans cela, une
+     alerte s'affiche en pavé pastel éblouissant et un montant en rouge
+     sombre disparaît sur la surface. */
+  --color-valide-50: #12301f;
+  --color-valide-500: #2fae76;
+  --color-valide-600: #52c890;
+  --color-alerte-50: #362710;
+  --color-alerte-500: #d4962c;
+  --color-alerte-600: #eeb04f;
+  --color-danger-50: #3a1916;
+  --color-danger-500: #e0604f;
+  --color-danger-600: #f2826f;
+  /* La marque sert de fond aux boutons (texte blanc) ET de couleur aux liens :
+     un ton intermédiaire tient les deux contrastes. */
+  --color-marque-50: #13323a;
+  --color-marque-400: #4fa9b6;
+  --color-marque-600: #2a8a99;
+  --color-marque-700: #237784;
 }
 
 @layer base {

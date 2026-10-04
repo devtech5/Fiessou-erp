@@ -628,7 +628,7 @@ function FormulaireAnnulation({
           type="button"
           disabled={enCours || motif.trim().length < 3}
           onClick={() => agir(() => annulerFacture(pieceId, motif), () => onFermer())}
-          className="h-cible rounded-lg bg-danger-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+          className="h-cible rounded-lg bg-danger-500 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
           Émettre l&apos;avoir
         </button>

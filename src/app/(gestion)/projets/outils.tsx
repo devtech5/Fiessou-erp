@@ -90,7 +90,7 @@ export function ActionsDepense({
               type="button"
               disabled={op.enCours || motif.trim().length < 3}
               onClick={() => op.lancer(() => refuserDepense(id, panneau === "rejeter" ? "rejetee" : "annulee", motif), () => setPanneau(null))}
-              className={`${PETIT} bg-danger-600 text-white`}
+              className={`${PETIT} bg-danger-500 text-white`}
             >
               Confirmer
             </button>
@@ -186,7 +186,7 @@ export function AjoutPiece({
     >
       {projetId && <input type="hidden" name="projetId" value={projetId} />}
       {depenseId && <input type="hidden" name="depenseId" value={depenseId} />}
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <select name="nature" defaultValue={natures[0]} aria-label="Nature de la pièce" className={`${CLASSE_CHAMP} h-9`}>
           {natures.map((n) => (
             <option key={n} value={n}>
