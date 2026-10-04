@@ -170,7 +170,11 @@ export const MODULES: ModuleDefinition[] = [
     key: "billetterie",
     name: "Billetterie",
     layer: "moteur",
-    status: "planifie",
+    // En base : lignes, départs à tarif figé, plan de places protégé par un
+    // index unique, billets nominatifs avec écriture, contrôle à la montée,
+    // non-présentés au départ, annulation contrepassée. Restent la vente en
+    // ligne et le billet imprimé avec son code.
+    status: "en_cours",
     requires: [],
     description:
       "Départ programmé, plan de places, billet, contrôle, vente en ligne. " +
@@ -180,7 +184,10 @@ export const MODULES: ModuleDefinition[] = [
     key: "valeur_electronique",
     name: "Valeur électronique",
     layer: "moteur",
-    status: "planifie",
+    // En base : sessions de guichet, floats par réseau, opérations contrôlées
+    // contre les deux réserves, clôture avec rapprochement et écriture.
+    // Restent les barèmes de commission par opérateur et le reçu imprimé.
+    status: "en_cours",
     requires: [],
     description:
       "Float par réseau, opérations, barèmes de commission, rapprochement float/espèces. " +

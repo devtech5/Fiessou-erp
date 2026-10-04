@@ -29,3 +29,5 @@ export * from "@/modules/documents/schema";
 export * from "@/modules/missions/schema";
 export * from "@/modules/facturation/schema";
 export * from "@/modules/reservations/schema";
+export * from "@/modules/billetterie/schema";
+export * from "@/modules/monnaie/schema";

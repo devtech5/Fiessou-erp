@@ -81,6 +81,14 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
       };
     }
 
+    if (resultat.departs > 0 || resultat.operationsGuichet > 0) {
+      return {
+        message:
+          `${resultat.departs} départs, ${resultat.billets} billets et ` +
+          `${resultat.operationsGuichet} opérations de guichet ajoutés.`,
+      };
+    }
+
     if (resultat.missions > 0) {
       return {
         message:

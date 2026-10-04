@@ -2,63 +2,73 @@
 
 import { useState } from "react";
 
+import { Retour, useOperation } from "@/components/ui/operations";
+import { CLASSE_CHAMP } from "@/components/ui/primitives";
 import { fmt } from "@/lib/format";
-import {
-  FOND_DE_CAISSE,
-  RESEAUX,
-  rapprochement,
-  totauxJournee,
-} from "@/lib/fixtures/monnaie";
+import { cloturerGuichet } from "@/modules/monnaie/actions";
+import { NOM_RESEAU, rapprocher, RESEAUX, type Soldes } from "@/modules/monnaie/calcul";
+import type { Reseau } from "@/modules/monnaie/schema";
+
+const entierOuNul = (v: string) => (v.trim() === "" ? null : Math.max(0, Math.round(Number(v.replace(/[\s  ]/g, "")) || 0)));
+
+function ton(ecart: number) {
+  if (ecart === 0) return { fond: "bg-valide-50", texte: "text-valide-600" };
+  if (Math.abs(ecart) <= 1000) return { fond: "bg-alerte-50", texte: "text-alerte-600" };
+  return { fond: "bg-danger-50", texte: "text-danger-600" };
+}
+
+const signe = (n: number) => (n > 0 ? "+ " : n < 0 ? "− " : "");
 
 /**
  * Clôture du guichet.
  *
- * L'agent compte son tiroir et saisit le montant. Tout le reste se déduit :
- * fond de caisse d'ouverture, plus les espèces reçues, moins celles remises,
- * plus les commissions encaissées.
- *
- * L'écart est le seul chiffre qui compte. Un guichet qui ne rapproche pas son
- * float et ses espèces chaque soir découvre les manquants des semaines plus
- * tard, quand plus personne ne peut dire d'où ils viennent.
+ * L'agent compte son tiroir et relève le solde de chaque réseau. Tout le reste
+ * se déduit des opérations. L'écart d'espèces passe en charge ou en produit ;
+ * un écart de float signale une opération oubliée, à retrouver.
  */
-export function Rapprochement() {
-  const [comptees, setComptees] = useState<number | null>(null);
-  const t = totauxJournee();
-  const r = rapprochement(comptees ?? 0);
+export function Rapprochement({
+  soldes,
+  fondCaisse,
+  volumes,
+  ouvertures,
+  autorise,
+}: {
+  soldes: Soldes;
+  fondCaisse: number;
+  volumes: { entrees: number; sorties: number };
+  ouvertures: Record<Reseau, number>;
+  autorise: boolean;
+}) {
+  const op = useOperation();
+  const [comptees, setComptees] = useState("");
+  const [releves, setReleves] = useState<Record<Reseau, string>>(
+    Object.fromEntries(RESEAUX.map((r) => [r, ""])) as Record<Reseau, string>,
+  );
+  const [observations, setObservations] = useState("");
 
-  const saisi = comptees !== null;
-  const ecartNul = r.ecart === 0;
+  const especes = entierOuNul(comptees);
+  const r = rapprocher(
+    soldes,
+    especes ?? 0,
+    Object.fromEntries(RESEAUX.map((x) => [x, entierOuNul(releves[x])])),
+  );
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      {/* -------------------------------------------------------- espèces */}
       <section className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
         <h2 className="text-base font-semibold">Espèces</h2>
-
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between gap-3">
             <dt className="text-[var(--encre-faible)]">Fond de caisse</dt>
-            <dd className="chiffres">{fmt(FOND_DE_CAISSE)}</dd>
+            <dd className="chiffres">{fmt(fondCaisse)}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-[var(--encre-faible)]">
-              Reçu des clients ({t.nbDepots} dépôts)
-            </dt>
-            <dd className="chiffres text-valide-600">+ {fmt(t.volumeDepots)}</dd>
+            <dt className="text-[var(--encre-faible)]">Reçu (dépôts, crédit, déstockage)</dt>
+            <dd className="chiffres text-valide-600">+ {fmt(volumes.entrees)}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-[var(--encre-faible)]">
-              Remis aux clients ({t.nbRetraits} retraits)
-            </dt>
-            <dd className="chiffres text-danger-600">− {fmt(t.volumeRetraits)}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-[var(--encre-faible)]">Crédit vendu</dt>
-            <dd className="chiffres text-valide-600">+ {fmt(t.volumeCredits)}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-[var(--encre-faible)]">Commissions</dt>
-            <dd className="chiffres text-valide-600">+ {fmt(t.commissions)}</dd>
+            <dt className="text-[var(--encre-faible)]">Remis (retraits, approvisionnements)</dt>
+            <dd className="chiffres text-danger-600">− {fmt(volumes.sorties)}</dd>
           </div>
           <div className="flex justify-between gap-3 border-t border-[var(--filet)] pt-2">
             <dt className="font-semibold">Attendu en caisse</dt>
@@ -67,121 +77,93 @@ export function Rapprochement() {
         </dl>
 
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-xs font-semibold text-[var(--encre-faible)]">
-            Espèces comptées dans le tiroir
-          </span>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              step={100}
-              inputMode="numeric"
-              value={comptees ?? ""}
-              onChange={(e) =>
-                setComptees(
-                  e.target.value === ""
-                    ? null
-                    : Math.max(0, Math.round(Number(e.target.value) || 0)),
-                )
-              }
-              placeholder="0"
-              className="chiffres h-touche w-full rounded-lg border border-[var(--filet)] bg-[var(--fond)] px-3 text-right text-xl font-bold outline-none focus:border-marque-500"
-            />
-            <span className="shrink-0 text-sm text-[var(--encre-faible)]">FCFA</span>
-          </div>
+          <span className="mb-1.5 block text-xs font-semibold text-[var(--encre-faible)]">Espèces comptées dans le tiroir</span>
+          <input
+            value={comptees}
+            onChange={(e) => setComptees(e.target.value)}
+            inputMode="numeric"
+            placeholder="0"
+            className="chiffres h-touche w-full rounded-lg border border-[var(--filet)] bg-[var(--fond)] px-3 text-right text-xl font-bold outline-none focus:border-marque-500"
+          />
         </label>
 
-        {saisi && (
-          <div
-            className={`mt-3 rounded-lg px-4 py-3 ${
-              ecartNul
-                ? "bg-valide-50"
-                : Math.abs(r.ecart) <= 1000
-                  ? "bg-alerte-50"
-                  : "bg-danger-50"
-            }`}
-          >
-            <p
-              className={`text-xs font-medium ${
-                ecartNul
-                  ? "text-valide-600"
-                  : Math.abs(r.ecart) <= 1000
-                    ? "text-alerte-600"
-                    : "text-danger-600"
-              }`}
-            >
-              {ecartNul
-                ? "Caisse juste"
-                : r.ecart > 0
-                  ? "Excédent de caisse"
-                  : "Manquant en caisse"}
+        {especes !== null && (
+          <div className={`mt-3 rounded-lg px-4 py-3 ${ton(r.ecartEspeces).fond}`}>
+            <p className={`text-xs font-medium ${ton(r.ecartEspeces).texte}`}>
+              {r.ecartEspeces === 0 ? "Caisse juste" : r.ecartEspeces > 0 ? "Excédent de caisse" : "Manquant en caisse"}
             </p>
-            <p
-              className={`chiffres text-2xl font-bold ${
-                ecartNul
-                  ? "text-valide-600"
-                  : Math.abs(r.ecart) <= 1000
-                    ? "text-alerte-600"
-                    : "text-danger-600"
-              }`}
-            >
-              {r.ecart > 0 ? "+" : r.ecart < 0 ? "−" : ""} {fmt(Math.abs(r.ecart))}
+            <p className={`chiffres text-2xl font-bold ${ton(r.ecartEspeces).texte}`}>
+              {signe(r.ecartEspeces)}
+              {fmt(Math.abs(r.ecartEspeces))}
             </p>
           </div>
         )}
+
+        <p className="mt-3 text-xs text-[var(--encre-faible)]">
+          Commissions de la session : <span className="chiffres font-semibold text-valide-600">{fmt(soldes.commissions)} F</span>,
+          dues par les opérateurs — elles ne sont pas dans le tiroir.
+        </p>
       </section>
 
-      {/* ----------------------------------------------------------- float */}
       <section className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
         <h2 className="text-base font-semibold">Float par réseau</h2>
-        <p className="mt-0.5 text-xs text-[var(--encre-faible)]">
-          À confronter aux soldes affichés par chaque opérateur
-        </p>
+        <p className="mt-0.5 text-xs text-[var(--encre-faible)]">Relevez le solde affiché par chaque opérateur</p>
 
         <ul className="mt-3 divide-y divide-[var(--filet)]">
-          {RESEAUX.map((reseau) => {
-            const variation = reseau.float - reseau.floatOuverture;
-            return (
-              <li key={reseau.id} className="flex items-center justify-between gap-3 py-2.5">
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{reseau.nom}</span>
-                  <span className="chiffres block text-xs text-[var(--encre-faible)]">
-                    Ouverture {fmt(reseau.floatOuverture)}
-                  </span>
+          {r.floats.map((f) => (
+            <li key={f.reseau} className="flex items-center justify-between gap-3 py-2.5">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{NOM_RESEAU[f.reseau]}</span>
+                <span className="chiffres block text-xs text-[var(--encre-faible)]">
+                  Ouverture {fmt(ouvertures[f.reseau])} · attendu {fmt(f.attendu)}
                 </span>
-                <span className="shrink-0 text-right">
-                  <span className="chiffres block text-sm font-bold">
-                    {fmt(reseau.float)}
+              </span>
+              <span className="flex shrink-0 flex-col items-end gap-0.5">
+                <input
+                  value={releves[f.reseau]}
+                  onChange={(e) => setReleves((x) => ({ ...x, [f.reseau]: e.target.value }))}
+                  inputMode="numeric"
+                  placeholder="Relevé"
+                  aria-label={`Solde relevé ${NOM_RESEAU[f.reseau]}`}
+                  className={`${CLASSE_CHAMP} chiffres h-9 w-32 text-right`}
+                />
+                {f.ecart !== null && (
+                  <span className={`chiffres text-xs font-semibold ${ton(f.ecart).texte}`}>
+                    {f.ecart === 0 ? "Juste" : `${signe(f.ecart)}${fmt(Math.abs(f.ecart))}`}
                   </span>
-                  <span
-                    className={`chiffres block text-xs ${
-                      variation >= 0 ? "text-valide-600" : "text-danger-600"
-                    }`}
-                  >
-                    {variation >= 0 ? "+" : "−"} {fmt(Math.abs(variation))}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
+                )}
+              </span>
+            </li>
+          ))}
         </ul>
 
-        <dl className="mt-3 space-y-2 border-t border-[var(--filet)] pt-3 text-sm">
-          <div className="flex justify-between gap-3">
-            <dt className="text-[var(--encre-faible)]">Float à l&apos;ouverture</dt>
-            <dd className="chiffres">{fmt(r.floatOuverture)}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="font-semibold">Float actuel</dt>
-            <dd className="chiffres text-lg font-bold">{fmt(r.floatActuel)}</dd>
-          </div>
-        </dl>
-
         <p className="mt-3 rounded-lg bg-[var(--surface-creuse)] px-3 py-2.5 text-xs text-[var(--encre-douce)]">
-          Hors commissions, ce que le float perd, la caisse le gagne. Un écart sur
-          l&apos;un sans écart correspondant sur l&apos;autre signale une opération
-          non enregistrée.
+          Ce que le float perd, la caisse le gagne. Un écart sur un réseau sans écart inverse en caisse signale une
+          opération non enregistrée : retrouvez-la dans l&apos;historique de l&apos;opérateur et saisissez-la avant de clôturer.
         </p>
+
+        <label className="mt-4 block">
+          <span className="mb-1.5 block text-xs font-semibold text-[var(--encre-faible)]">Observations</span>
+          <input value={observations} onChange={(e) => setObservations(e.target.value)} className={CLASSE_CHAMP} />
+        </label>
+
+        <button
+          type="button"
+          disabled={!autorise || especes === null || op.enCours}
+          onClick={() =>
+            op.lancer(() =>
+              cloturerGuichet({
+                especesComptees: especes,
+                releves: Object.fromEntries(RESEAUX.map((x) => [x, entierOuNul(releves[x])])),
+                observations: observations || undefined,
+              }),
+            )
+          }
+          className="sans-selection mt-4 h-touche w-full rounded-xl bg-marque-600 text-base font-bold text-white hover:bg-marque-700 disabled:opacity-40"
+        >
+          {autorise ? "Clôturer la session" : "Votre rôle ne permet pas de clôturer"}
+        </button>
+        {op.resultat && <Retour resultat={op.resultat} />}
       </section>
     </div>
   );

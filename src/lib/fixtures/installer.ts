@@ -30,6 +30,10 @@ import { amorcerDocuments } from "./documents";
 import { amorcerMissions, type RepereMissions } from "./missions";
 import { amorcerReservations } from "./reservations";
 import { aUneRessource } from "@/modules/reservations/requetes";
+import { amorcerBilletterie } from "./billetterie";
+import { amorcerGuichet } from "./monnaie";
+import { aUneLigne } from "@/modules/billetterie/requetes";
+import { aUneSession } from "@/modules/monnaie/requetes";
 import { amorcerPersonnel } from "./rh";
 import { amorcerStock, type ArticleAAmorcer } from "./stock";
 
@@ -96,6 +100,9 @@ export interface ResultatInstallation {
   formulaires: number;
   ressources: number;
   locations: number;
+  departs: number;
+  billets: number;
+  operationsGuichet: number;
 }
 
 /** Code de famille sur trois lettres, désambiguïsé si deux catégories collent. */
@@ -131,6 +138,8 @@ export async function installerJeuDemonstration(
     const pieces = await completerDocuments(organizationId, userId);
     const terrain = await completerMissions(organizationId, userId);
     const louables = await completerReservations(organizationId, userId);
+    const transport = await completerBilletterie(organizationId, userId);
+    const guichet = await completerGuichet(organizationId, userId);
 
     return {
       deja: true,
@@ -144,6 +153,8 @@ export async function installerJeuDemonstration(
       ...pieces,
       ...terrain,
       ...louables,
+      ...transport,
+      ...guichet,
     };
   }
 
@@ -340,6 +351,11 @@ export async function installerJeuDemonstration(
         )
       : { ressources: 0, contrats: 0, adherents: 0 };
 
+    // Billetterie et guichet ne dépendent de rien : ils passent leurs
+    // écritures au nom de celui qui installe.
+    const transport = userId ? await amorcerBilletterie(tx, organizationId, userId) : { departs: 0, billets: 0 };
+    const guichet = userId ? await amorcerGuichet(tx, organizationId, userId) : { operations: 0 };
+
     return {
       deja: false,
       tiers: FOURNISSEURS.length + CLIENTS.length,
@@ -361,6 +377,9 @@ export async function installerJeuDemonstration(
       formulaires: terrain.formulaires,
       ressources: location.ressources,
       locations: location.contrats,
+      departs: transport.departs,
+      billets: transport.billets,
+      operationsGuichet: guichet.operations,
     };
   });
 }
@@ -669,6 +688,26 @@ async function completerReservations(
     amorcerReservations(tx, organizationId, clients, userId),
   );
   return { ressources, locations: contrats };
+}
+
+/** Verse lignes, départs et billets dans une entreprise amorcée avant la billetterie. */
+async function completerBilletterie(
+  organizationId: string,
+  userId?: string,
+): Promise<{ departs: number; billets: number }> {
+  if (!userId || (await aUneLigne(organizationId))) return { departs: 0, billets: 0 };
+  const { departs, billets } = await db.transaction((tx) => amorcerBilletterie(tx, organizationId, userId));
+  return { departs, billets };
+}
+
+/** Ouvre un guichet de démonstration dans une entreprise amorcée avant le module. */
+async function completerGuichet(
+  organizationId: string,
+  userId?: string,
+): Promise<{ operationsGuichet: number }> {
+  if (!userId || (await aUneSession(organizationId))) return { operationsGuichet: 0 };
+  const { operations } = await db.transaction((tx) => amorcerGuichet(tx, organizationId, userId));
+  return { operationsGuichet: operations };
 }
 
 /**

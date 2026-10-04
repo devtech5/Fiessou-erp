@@ -3,7 +3,8 @@ import Link from "next/link";
 import { definitionDroit, type Droit } from "@/lib/droits/catalogue";
 
 /**
- * Écran affiché quand le rôle ne porte pas le droit d'entrer.
+ * Écran affiché quand le rôle ne porte pas le droit d'entrer, ou que l'accès
+ * de la personne à ce module a été resserré ou coupé.
  *
  * Rendu à la place du module, dans sa coque : la barre latérale et le fil
  * d'Ariane restent là, et l'on repart d'un clic. Une page d'erreur plein écran
@@ -22,13 +23,14 @@ export function AccesRefuse({ droit }: { droit: Droit }) {
       <h1 className="text-lg font-semibold">Accès réservé</h1>
 
       <p className="mt-3 text-sm text-[var(--encre-douce)]">
-        Votre rôle ne donne pas accès à cette partie du logiciel. Le droit
-        manquant est <strong>{definition.libelle}</strong>.
+        Votre rôle ou vos accès ne couvrent pas cette partie du logiciel. Le
+        droit manquant est <strong>{definition.libelle}</strong>.
       </p>
 
       <p className="mt-2 text-sm text-[var(--encre-douce)]">
-        Le responsable de l&apos;entreprise peut vous l&apos;accorder en
-        changeant votre rôle.
+        Le responsable de l&apos;entreprise peut vous l&apos;ouvrir depuis
+        Administration → Utilisateurs : en changeant votre rôle, ou votre
+        niveau d&apos;accès à ce module.
       </p>
 
       <Link

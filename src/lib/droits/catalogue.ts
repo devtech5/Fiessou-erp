@@ -304,15 +304,56 @@ export const DROITS = [
       "celui qui prépare le contrat n'est pas forcément celui qui l'engage.",
   },
 
-  // ------------------------------------------------- modules en préparation
-  // Ces écrans montrent encore des données d'exemple ; le droit gouverne leur
-  // accès dès maintenant, pour que l'ouverture du module ne soit pas le moment
-  // où l'on découvre que tout le monde y entre.
-  { cle: "billetterie.consulter", moduleKey: "billetterie", libelle: "Consulter la billetterie" },
+  // ---------------------------------------------------------- billetterie
+  {
+    cle: "billetterie.consulter",
+    moduleKey: "billetterie",
+    libelle: "Consulter la billetterie",
+    description: "Voir les lignes, les départs, leur remplissage et les billets émis.",
+  },
+  {
+    cle: "billetterie.depart.gerer",
+    moduleKey: "billetterie",
+    libelle: "Programmer les départs",
+    description: "Ouvrir une ligne, fixer son tarif, programmer un départ, ouvrir l'embarquement, faire partir le car.",
+  },
+  {
+    cle: "billetterie.billet.vendre",
+    moduleKey: "billetterie",
+    libelle: "Vendre et contrôler les billets",
+    description: "Émettre un billet au plan de places, encaisser, contrôler le passager à la montée.",
+  },
+  {
+    cle: "billetterie.billet.annuler",
+    moduleKey: "billetterie",
+    libelle: "Annuler et rembourser",
+    description: "Annuler un billet ou un départ entier. Contrepasse la recette : à réserver.",
+  },
+
+  // ------------------------------------------------- valeur électronique
   {
     cle: "valeur_electronique.consulter",
     moduleKey: "valeur_electronique",
     libelle: "Consulter le guichet",
+    description: "Voir les floats, le journal des opérations et les clôtures.",
+  },
+  {
+    cle: "valeur_electronique.operation.saisir",
+    moduleKey: "valeur_electronique",
+    libelle: "Tenir le guichet",
+    description: "Ouvrir la session, enregistrer dépôts, retraits, ventes de crédit et approvisionnements.",
+  },
+  {
+    cle: "valeur_electronique.operation.annuler",
+    moduleKey: "valeur_electronique",
+    libelle: "Annuler une opération",
+    description: "Retirer du journal une opération saisie par erreur, motif à l'appui.",
+  },
+  {
+    cle: "valeur_electronique.session.cloturer",
+    moduleKey: "valeur_electronique",
+    libelle: "Clôturer le guichet",
+    description: "Compter le tiroir, relever les soldes opérateur et passer l'écriture de la journée.",
   },
 
   // --------------------------------------------------------- organisation

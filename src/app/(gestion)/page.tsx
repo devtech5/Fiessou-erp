@@ -13,6 +13,8 @@ import {
 } from "@/modules/actifs/requetes";
 import { etatMissions } from "@/modules/missions/requetes";
 import { etatReservations } from "@/modules/reservations/requetes";
+import { NOM_RESEAU } from "@/modules/monnaie/calcul";
+import { floatsBas } from "@/modules/monnaie/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -112,6 +114,7 @@ export default async function PageTableauDeBord() {
     echeances,
     missions,
     reservations,
+    floats,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -123,6 +126,7 @@ export default async function PageTableauDeBord() {
     listerEcheances(session.organizationId),
     etatMissions(session.organizationId),
     etatReservations(session.organizationId),
+    floatsBas(session.organizationId),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -134,7 +138,7 @@ export default async function PageTableauDeBord() {
   }, {
     echeancesDepassees: echeances.filter((e) => e.gravite === "depassee").length,
     indisponibles: resumeParc(parc).indisponibles,
-  }, missions, reservations);
+  }, missions, reservations, floats.map((r) => NOM_RESEAU[r]));
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une

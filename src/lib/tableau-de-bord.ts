@@ -1,5 +1,4 @@
 import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
-import { RESEAUX, SEUIL_FLOAT_BAS } from "@/lib/fixtures/monnaie";
 import { etatCourant } from "@/lib/approbation/circuit";
 import type { SoldeCompte } from "@/lib/comptabilite/etats";
 
@@ -102,7 +101,7 @@ export interface EtatStock {
  * Classé par gravité, pas par module : quelqu'un qui ouvre son application le
  * matin veut savoir ce qui brûle, pas parcourir un sommaire.
  *
- * Facturation, stock, parc et missions viennent de la base — les autres
+ * Facturation, stock, parc, missions, réservations et guichet viennent de la base — les autres
  * sources sont encore des fixtures, en attendant leurs modules.
  */
 export function alertes(
@@ -111,6 +110,8 @@ export function alertes(
   parc: EtatParc,
   missions: EtatMissions,
   reservations: EtatReservations,
+  /** Réseaux dont le float est bas au guichet ouvert, déjà nommés. */
+  floatsBas: string[] = [],
 ): Alerte[] {
   const liste: Alerte[] = [];
 
@@ -160,17 +161,16 @@ export function alertes(
   }
 
   // ----------------------------------------------------------- guichet
-  const floatBas = RESEAUX.filter((r) => r.float < SEUIL_FLOAT_BAS);
-  if (floatBas.length > 0) {
+  if (floatsBas.length > 0) {
     liste.push({
       id: "float-bas",
       gravite: "critique",
-      source: "fixture",
+      source: "base",
       module: "Guichet",
       titre: "Float insuffisant",
-      detail: floatBas.map((r) => r.nom).join(", "),
+      detail: floatsBas.join(", "),
       href: "/monnaie",
-      nombre: floatBas.length,
+      nombre: floatsBas.length,
     });
   }
 
@@ -346,16 +346,18 @@ export function tresorerie(soldes: SoldeCompte[]): Tresorerie[] {
   // au 5711 « Caisse Mobile Money » : c'est de l'argent électronique, pas des
   // billets dans le tiroir. Le compter en caisse ferait chercher au caissier,
   // le soir, des espèces qui n'ont jamais existé.
-  const mobile = cumul("5711");
+  // Le float du guichet de transfert (5712) est lui aussi de la monnaie
+  // électronique, détenue chez les opérateurs.
+  const mobile = cumul("5711") + cumul("5712");
 
   return [
     { libelle: "Banque", montant: cumul("52"), detail: "Comptes 52" },
     {
       libelle: "Mobile money",
       montant: cumul("53") + mobile,
-      detail: "Comptes 53 et 5711",
+      detail: "Comptes 53, 5711 et 5712",
     },
-    { libelle: "Caisse", montant: cumul("57") - mobile, detail: "Comptes 57, hors 5711" },
+    { libelle: "Caisse", montant: cumul("57") - mobile, detail: "Comptes 57, hors 5711 et 5712" },
   ];
 }
 

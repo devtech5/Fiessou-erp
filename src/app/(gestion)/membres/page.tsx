@@ -8,7 +8,7 @@ import { fmtDateIso } from "@/lib/format";
 import { FormulaireMembre } from "./formulaire-membre";
 import { ListeMembres, type LigneMembre } from "./liste-membres";
 
-export const metadata: Metadata = { title: "Membres" };
+export const metadata: Metadata = { title: "Utilisateurs" };
 
 export default async function PageMembres() {
   const session = await exigerEntreprise();

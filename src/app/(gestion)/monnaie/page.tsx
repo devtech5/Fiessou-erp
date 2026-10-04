@@ -1,19 +1,54 @@
 import type { Metadata } from "next";
 
+import { BoutonDemonstration } from "@/components/bouton-demonstration";
 import { EnTetePage } from "@/components/ui/primitives";
-import { BandeauFloat, Guichet } from "./guichet";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
+import { guichetOuvert, soldesDerniereCloture } from "@/modules/monnaie/requetes";
+
+import { BandeauFloat, Guichet, OuvertureGuichet } from "./guichet";
 
 export const metadata: Metadata = { title: "Guichet" };
 
-export default function PageGuichet() {
+const HEURE = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "UTC",
+});
+
+export default async function PageGuichet() {
+  const session = await exigerEntreprise();
+  const [guichet, saisir] = await Promise.all([
+    guichetOuvert(session.organizationId),
+    peut("valeur_electronique.operation.saisir"),
+  ]);
+
+  if (!guichet) {
+    const proposition = await soldesDerniereCloture(session.organizationId);
+    return (
+      <>
+        <EnTetePage
+          titre="Guichet"
+          sousTitre="Transfert d'argent et vente de crédit — guichet fermé"
+          actions={proposition ? undefined : <BoutonDemonstration libelle="Installer le jeu de démonstration" />}
+        />
+        <OuvertureGuichet proposition={proposition} autorise={saisir} />
+      </>
+    );
+  }
+
   return (
     <>
       <EnTetePage
         titre="Guichet"
-        sousTitre="Transfert d'argent et vente de crédit"
+        sousTitre={`Session ${guichet.session.numero} ouverte le ${HEURE.format(guichet.session.ouverteLe)} · ${
+          guichet.operations.filter((o) => !o.annulee).length
+        } opérations`}
       />
-      <BandeauFloat />
-      <Guichet />
+      <BandeauFloat soldes={guichet.soldes} ouvertures={guichet.ouvertures} fondCaisse={guichet.session.fondCaisse} />
+      <Guichet soldes={guichet.soldes} autorise={saisir} />
     </>
   );
 }

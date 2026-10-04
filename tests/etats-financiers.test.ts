@@ -336,4 +336,11 @@ describe("trésorerie du tableau de bord", () => {
     // Rien ne se perd ni ne se compte deux fois.
     expect(mobile.montant + caisse.montant).toBe(positionComptable(comptes).tresorerie);
   });
+
+  it("range le float du guichet (5712) avec le mobile money", () => {
+    const comptes = [solde("571", 100_000, 0), solde("5711", 20_000, 0), solde("5712", 1_000_000, 0)];
+    const [, mobile, caisse] = tresorerie(comptes);
+    expect(mobile.montant).toBe(1_020_000);
+    expect(caisse.montant).toBe(100_000);
+  });
 });
