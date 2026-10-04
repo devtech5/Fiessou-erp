@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { refusDroit } from "@/lib/droits/garde";
 import type { Droit } from "@/lib/droits/catalogue";
+import { tracer } from "@/lib/audit";
 
 import {
   annulerFactureDans,
@@ -100,6 +101,12 @@ export async function enregistrerBrouillon(brouillon: BrouillonEntrant): Promise
     const { id } = await db.transaction((tx) =>
       enregistrerBrouillonDans(tx, organizationId, analyse.data, userId),
     );
+    await tracer({
+      action: analyse.data.id ? "brouillon.modifier" : "brouillon.creer",
+      entite: "piece_commerciale",
+      entiteId: id,
+      apres: { nature: analyse.data.nature, lignes: analyse.data.lignes.length },
+    });
     return { ok: true, id, message: "Brouillon enregistré." };
   });
 }
@@ -108,6 +115,7 @@ export async function supprimerBrouillon(pieceId: string): Promise<Resultat> {
   return operer("commercial.piece.gerer", async (organizationId) => {
     if (!UUID.test(pieceId)) return { ok: false, message: "Pièce introuvable." };
     const fait = await db.transaction((tx) => supprimerBrouillonDans(tx, organizationId, pieceId));
+    if (fait) await tracer({ action: "brouillon.supprimer", entite: "piece_commerciale", entiteId: pieceId });
     return fait
       ? { ok: true, message: "Brouillon supprimé." }
       : { ok: false, message: "Seul un brouillon se supprime." };
@@ -151,6 +159,7 @@ export async function convertirDevis(pieceId: string): Promise<Resultat> {
     const { id } = await db.transaction((tx) =>
       convertirDevisDans(tx, organizationId, pieceId, userId),
     );
+    await tracer({ action: "devis.convertir", entite: "piece_commerciale", entiteId: pieceId, apres: { facture: id } });
     return { ok: true, id, message: "Facture préparée en brouillon : relisez-la puis émettez-la." };
   });
 }
@@ -164,6 +173,7 @@ export async function annulerFacture(pieceId: string, motif: string): Promise<Re
     const { avoir } = await db.transaction((tx) =>
       annulerFactureDans(tx, organizationId, pieceId, motif.trim(), userId),
     );
+    await tracer({ action: "facture.annuler", entite: "piece_commerciale", entiteId: pieceId, apres: { avoir, motif: motif.trim() } });
     return { ok: true, numero: avoir, message: `Facture annulée par l'avoir ${avoir}.` };
   });
 }

@@ -56,6 +56,7 @@ const GROUPES: GroupeModules[] = [
     titre: "Ressources humaines",
     modules: [
       { href: "/rh", racine: "/rh", libelle: "Personnel", droit: "personnes.consulter" },
+      { href: "/taches", racine: "/taches", libelle: "Tâches", droit: "taches.consulter" },
       { href: "/documents", racine: "/documents", libelle: "Documents", droit: "documents.consulter" },
       { href: "/archives", racine: "/archives", libelle: "Archives", droit: "archives.consulter" },
     ],
@@ -64,6 +65,7 @@ const GROUPES: GroupeModules[] = [
     titre: "Administration",
     modules: [
       { href: "/membres", racine: "/membres", libelle: "Utilisateurs", droit: "organisation.membre.gerer" },
+      { href: "/journal", racine: "/journal", libelle: "Journal d'activité", droit: "organisation.journal.consulter" },
     ],
   },
 ];
@@ -76,6 +78,7 @@ const GROUPES: GroupeModules[] = [
  * qu'une entrée absente.
  */
 const RACCOURCIS_COMPTE: { href: string; libelle: string; module: string }[] = [
+  { href: "/taches", libelle: "Mes tâches", module: "taches" },
   { href: "/documents", libelle: "Mes documents", module: "documents" },
   { href: "/archives", libelle: "Mes archives", module: "archives" },
   { href: "/rh", libelle: "Ressources humaines", module: "personnes" },

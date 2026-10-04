@@ -137,6 +137,19 @@ export const MODULES: ModuleDefinition[] = [
       "Espace d'archivage de chaque utilisateur, intègre et tracé, consultable par l'administrateur légal.",
   },
 
+  {
+    key: "taches",
+    name: "Tâches",
+    layer: "socle",
+    // En base : tâches numérotées, créées pour soi ou attribuées, exécutées
+    // à faire → en cours → terminée avec compte rendu, annulation motivée,
+    // réattribution journalisée. Restent les tâches récurrentes, les
+    // sous-tâches et le rattachement à un projet ou à un client.
+    status: "en_cours",
+    requires: [],
+    description: "Liste de tâches de chacun, attribution à un membre, exécution suivie et tracée.",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",

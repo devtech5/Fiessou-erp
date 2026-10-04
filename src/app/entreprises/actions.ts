@@ -6,6 +6,7 @@ import { z } from "zod";
 import { exigerSession } from "@/lib/auth/dal";
 import { creerEntreprisePour } from "@/lib/auth/creation-entreprise";
 import { choisirEntreprise } from "@/lib/auth/session";
+import { tracerPour } from "@/lib/audit";
 
 export interface EtatCreation {
   erreur?: string;
@@ -45,6 +46,12 @@ export async function creerEntreprise(
   });
 
   await choisirEntreprise(session.sessionId, organizationId);
+  await tracerPour(organizationId, session.userId, {
+    action: "entreprise.creer",
+    entite: "organisation",
+    entiteId: organizationId,
+    apres: { nom: analyse.data.nom, pays: analyse.data.pays },
+  });
   redirect("/");
 }
 

@@ -9,6 +9,7 @@ import { exigerEntreprise } from "@/lib/auth/dal";
 import type { Droit } from "@/lib/droits/catalogue";
 import { refusDroit } from "@/lib/droits/garde";
 import { estDoublon } from "@/lib/erreurs-pg";
+import { tracer } from "@/lib/audit";
 
 import {
   annulerBilletDans,
@@ -104,6 +105,7 @@ export async function basculerLigne(ligneId: string): Promise<Resultat> {
       .where(and(eq(lignesTransport.id, ligneId), eq(lignesTransport.organizationId, organizationId)))
       .returning({ code: lignesTransport.code, active: lignesTransport.active });
     if (!ligne) return { ok: false, message: "Ligne introuvable." };
+    await tracer({ action: ligne.active ? "ligne.reprendre" : "ligne.suspendre", entite: "ligne", entiteId: ligneId, apres: { code: ligne.code } });
     return { ok: true, message: ligne.active ? `${ligne.code} de nouveau desservie.` : `${ligne.code} suspendue.` };
   });
 }

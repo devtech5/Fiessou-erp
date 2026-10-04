@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { tracer } from "@/lib/audit";
 import { installerJeuDemonstration } from "./installer";
 
 export interface EtatInstallation {
@@ -24,6 +25,8 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
     session.organizationId,
     session.userId,
   );
+
+  await tracer({ action: "demonstration.installer", entite: "organisation", apres: { deja: resultat.deja } });
 
   // Le jeu touche le catalogue, le fichier tiers et le tableau de bord :
   // revalider le layout plutôt que d'énumérer les routes concernées.

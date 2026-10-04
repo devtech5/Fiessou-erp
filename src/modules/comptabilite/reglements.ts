@@ -13,6 +13,7 @@ import {
   type LigneLettrable,
 } from "@/lib/comptabilite/lettrage";
 import { newId } from "@/lib/ids";
+import { tracer } from "@/lib/audit";
 
 export type Resultat =
   | { ok: true; numero: string; lettrage?: string }
@@ -125,6 +126,7 @@ export async function lettrerLignes(ligneIds: string[]): Promise<Resultat> {
     });
 
     revalidatePath("/comptabilite");
+    await tracer({ action: "lettrage.lettrer", entite: "lettrage", apres: { code, lignes: ligneIds.length } });
     return { ok: true, numero: code, lettrage: code };
   } catch (erreur) {
     const message = erreur instanceof Error ? erreur.message : String(erreur);

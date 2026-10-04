@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
+import { tracer } from "@/lib/audit";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
@@ -301,6 +302,18 @@ export async function enregistrerMouvement(
       ),
     );
 
+    await tracer({
+      action: `stock.${valeurs.type}`,
+      entite: "article",
+      entiteId: valeurs.articleId,
+      apres: {
+        article: article.designation,
+        depotId: valeurs.depotId,
+        quantite: sortie ? -valeurs.quantite : valeurs.quantite,
+        piece,
+        motif: valeurs.motif ?? null,
+      },
+    });
     revalidatePath("/stock", "layout");
     return {
       piece,

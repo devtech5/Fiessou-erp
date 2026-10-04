@@ -11,6 +11,7 @@ import { annulerVenteDans } from "./annulation";
 import { creerPosteCaisseDans, enregistrerVenteDans } from "./creation";
 import { postesCaisse } from "./schema";
 import { estDoublon, violeContrainte } from "@/lib/erreurs-pg";
+import { tracer } from "@/lib/audit";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -224,6 +225,7 @@ export async function creerPosteCaisse(
       ),
     );
 
+    await tracer({ action: "poste.creer", entite: "poste_caisse", apres: { code, nom: analyse.data.nom } });
     revalidatePath("/caisse");
     return { cree: code };
   } catch (erreur) {
@@ -258,4 +260,5 @@ export async function rattacherPoste(
         sql`${postesCaisse.deviceId} is null or ${postesCaisse.deviceId} = ${deviceId}`,
       ),
     );
+  await tracer({ action: "poste.rattacher", entite: "poste_caisse", entiteId: posteId, apres: { appareil: deviceId.slice(0, 12) } });
 }

@@ -9,6 +9,7 @@ import { auditLogs } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
+import { tracer } from "@/lib/audit";
 
 import {
   creerActifDans,
@@ -273,6 +274,7 @@ export async function enregistrerReleve(
       ),
     );
 
+    await tracer({ action: "actif.releve", entite: "actif", entiteId: analyse.data.actifId, apres: { valeur: analyse.data.valeur } });
     revalidatePath("/actifs", "layout");
     return { message: `Compteur relevé à ${analyse.data.valeur}.` };
   } catch (erreur) {

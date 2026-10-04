@@ -25,6 +25,7 @@ import {
   lireSession,
   ouvrirSession,
 } from "./session";
+import { tracerPartout } from "@/lib/audit";
 import { estDoublon } from "@/lib/erreurs-pg";
 
 export interface EtatConnexion {
@@ -72,6 +73,7 @@ export async function seConnecter(
     .limit(1);
 
   if (compte && estVerrouille(compte.lockedUntil)) {
+    await tracerPartout(compte.id, { action: "connexion.refusee", entite: "compte", entiteId: compte.id, apres: { motif: "verrouillé" } });
     return {
       email,
       erreur: `Trop d'essais infructueux. Réessayez dans ${DUREE_VERROU_MINUTES} minutes.`,
@@ -87,6 +89,14 @@ export async function seConnecter(
         .update(users)
         .set({ ...suite, updatedAt: new Date() })
         .where(eq(users.id, compte.id));
+      // Un mot de passe faux sur un compte connu se trace : une série d'échecs
+      // depuis une même adresse est la signature d'une tentative d'intrusion.
+      await tracerPartout(compte.id, {
+        action: "connexion.refusee",
+        entite: "compte",
+        entiteId: compte.id,
+        apres: { motif: "mot de passe incorrect", echecs: suite.failedLogins, verrouille: Boolean(suite.lockedUntil) },
+      });
     }
     return { email, erreur: REFUS_CONNEXION };
   }
@@ -104,6 +114,7 @@ export async function seConnecter(
     .where(eq(users.id, compte.id));
 
   await ouvrirSessionAvecContexte(compte.id);
+  await tracerPartout(compte.id, { action: "connexion.reussie", entite: "compte", entiteId: compte.id });
   redirect("/");
 }
 
@@ -186,6 +197,8 @@ export async function sInscrire(
   }
 
   await ouvrirSessionAvecContexte(userId);
+  await tracerPartout(userId, { action: "compte.inscrire", entite: "compte", entiteId: userId, apres: { email } });
+  await tracerPartout(userId, { action: "connexion.reussie", entite: "compte", entiteId: userId });
   redirect("/");
 }
 
@@ -257,11 +270,23 @@ export async function changerMotDePasse(
       );
   });
 
+  await tracerPartout(active.userId, {
+    action: "compte.mot_de_passe",
+    entite: "compte",
+    entiteId: active.userId,
+    apres: { provisoireRemplace: active.doitChangerMotDePasse, autresSessionsFermees: true },
+  });
+
   if (active.doitChangerMotDePasse) redirect("/");
   return { change: true };
 }
 
 export async function seDeconnecter(): Promise<void> {
+  // Lue AVANT la fermeture : après, il n'y a plus personne à qui l'attribuer.
+  const active = await lireSession();
+  if (active) {
+    await tracerPartout(active.userId, { action: "deconnexion", entite: "compte", entiteId: active.userId });
+  }
   await fermerSession();
   redirect("/connexion");
 }
@@ -295,6 +320,12 @@ export async function basculerEntreprise(organizationId: string): Promise<void> 
   }
 
   await choisirEntreprise(active.sessionId, organizationId);
+  await tracerPartout(active.userId, {
+    action: "entreprise.basculer",
+    entite: "compte",
+    entiteId: active.userId,
+    apres: { de: active.organizationNom, vers: organizationId },
+  });
 
   /**
    * Retour à l'accueil, et pas un simple rafraîchissement.

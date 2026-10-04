@@ -8,6 +8,7 @@ import { exigerEntreprise } from "@/lib/auth/dal";
 import type { Droit } from "@/lib/droits/catalogue";
 import { refusDroit } from "@/lib/droits/garde";
 import { estDoublon } from "@/lib/erreurs-pg";
+import { tracer } from "@/lib/audit";
 
 import { annulerOperationDans, cloturerSessionDans, enregistrerOperationDans, ouvrirSessionDans } from "./creation";
 
@@ -71,6 +72,11 @@ export async function enregistrerOperation(operation: unknown): Promise<Resultat
     const analyse = schemaOperation.safeParse(operation);
     if (!analyse.success) return { ok: false, message: analyse.error.issues[0].message };
     const { numero } = await db.transaction((tx) => enregistrerOperationDans(tx, organizationId, analyse.data, userId));
+    await tracer({
+      action: "guichet.operation",
+      entite: "operation_guichet",
+      apres: { numero, type: analyse.data.type, reseau: analyse.data.reseau, montant: analyse.data.montant },
+    });
     return { ok: true, message: `Opération ${numero} enregistrée.` };
   });
 }

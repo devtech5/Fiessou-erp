@@ -337,6 +337,28 @@ export const DROITS = [
       "Chaque ouverture est tracée.",
   },
 
+  // --------------------------------------------------------------- tâches
+  {
+    cle: "taches.consulter",
+    moduleKey: "taches",
+    libelle: "Consulter ses tâches",
+    description: "Voir les tâches qu'on exécute et celles qu'on a confiées.",
+  },
+  {
+    cle: "taches.executer",
+    moduleKey: "taches",
+    libelle: "Créer et exécuter ses tâches",
+    description: "Se créer une tâche, la commencer, la terminer avec son compte rendu.",
+  },
+  {
+    cle: "taches.attribuer",
+    moduleKey: "taches",
+    libelle: "Attribuer les tâches",
+    description:
+      "Confier une tâche à un autre membre, la réattribuer, voir toutes les tâches de " +
+      "l'entreprise et agir sur chacune.",
+  },
+
   // ------------------------------------------------------ projets et dépenses
   {
     cle: "projet.consulter",
@@ -429,6 +451,14 @@ export const DROITS = [
     moduleKey: TRANSVERSE,
     libelle: "Gérer les membres",
     description: "Inviter quelqu'un, changer son rôle, révoquer son accès.",
+  },
+  {
+    cle: "organisation.journal.consulter",
+    moduleKey: TRANSVERSE,
+    libelle: "Consulter le journal d'activité",
+    description:
+      "Voir qui s'est connecté, déconnecté, et qui a créé, modifié, attribué ou " +
+      "supprimé quoi, quand et depuis quel appareil. Exporter le journal.",
   },
   {
     cle: "organisation.parametres.gerer",
@@ -537,6 +567,9 @@ export interface PresetRole {
 /** Chacun archive ce qui le concerne ; l'administration — propriétaire et gérant — voit tout. */
 const ARCHIVAGE_PERSONNEL = ["archives.consulter", "archives.deposer"] as const satisfies readonly Droit[];
 
+/** Chacun tient sa liste de tâches ; attribuer aux autres reste à l'encadrement. */
+const TACHES_PERSONNELLES = ["taches.consulter", "taches.executer"] as const satisfies readonly Droit[];
+
 const CONSULTATION_COMMERCE = [
   "tiers.fiche.consulter",
   "stock.article.consulter",
@@ -573,6 +606,7 @@ export const PRESETS_ROLES = [
       "stock.article.consulter",
       "tiers.fiche.consulter",
       ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
     ],
   },
   {
@@ -586,6 +620,7 @@ export const PRESETS_ROLES = [
       "stock.mouvement.saisir",
       "tiers.fiche.consulter",
       ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
     ],
   },
   {
@@ -600,6 +635,7 @@ export const PRESETS_ROLES = [
       "comptabilite.ecriture.consulter",
       "comptabilite.ecriture.enregistrer",
       ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
     ],
   },
 ] as const satisfies readonly PresetRole[];

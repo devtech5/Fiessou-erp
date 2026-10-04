@@ -84,6 +84,7 @@ const TABLES_ATTENDUES = [
   "signataires",
   "sync_cursors",
   "sync_mutations",
+  "taches",
   "tiers",
   "users",
   "ventes",

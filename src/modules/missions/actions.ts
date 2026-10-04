@@ -21,6 +21,7 @@ import {
 import { preuvesMission } from "./schema";
 import { GABARITS, cleDeChamp } from "./suivi";
 import { estDoublon } from "@/lib/erreurs-pg";
+import { tracer } from "@/lib/audit";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const entierSigne = z.number().int();
@@ -331,6 +332,7 @@ export async function joindrePhoto(
       await supprimer(chemin);
       return resultat;
     }
+    await tracer({ action: "mission.photo", entite: "mission", entiteId: missionId, apres: { etapeId, preuve: id } });
     rafraichir();
     return { ok: true, deja: false };
   } catch (erreur) {

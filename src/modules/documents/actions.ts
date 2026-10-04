@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { refusDroit } from "@/lib/droits/garde";
 import { stockageConfigure } from "@/lib/stockage";
+import { tracer } from "@/lib/audit";
 
 import {
   creerDemandeSignatureDans,
@@ -298,5 +299,6 @@ export async function signer(donnees: FormData): Promise<void> {
   if (!id || !UUID.test(id)) return;
 
   await db.transaction((tx) => signerDans(tx, session.organizationId, id));
+  await tracer({ action: "signature.signer", entite: "signataire", entiteId: id });
   revalidatePath("/documents", "layout");
 }

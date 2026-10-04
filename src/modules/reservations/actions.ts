@@ -9,6 +9,7 @@ import { exigerEntreprise } from "@/lib/auth/dal";
 import type { Droit } from "@/lib/droits/catalogue";
 import { refusDroit } from "@/lib/droits/garde";
 import { estDoublon } from "@/lib/erreurs-pg";
+import { tracer } from "@/lib/audit";
 
 import {
   annulerContratDans,
@@ -112,6 +113,9 @@ export async function changerStatutRessource(
       .set({ statut, updatedAt: new Date(), version: sql`${ressources.version} + 1` })
       .where(and(eq(ressources.id, ressourceId), eq(ressources.organizationId, organizationId)))
       .returning({ code: ressources.code });
+    if (modifiee) {
+      await tracer({ action: "ressource.statut", entite: "ressource", entiteId: ressourceId, apres: { code: modifiee.code, statut } });
+    }
     return modifiee
       ? { ok: true, message: `${modifiee.code} : état mis à jour.` }
       : { ok: false, message: "Ressource introuvable." };
@@ -227,6 +231,7 @@ export async function enregistrerPassage(abonnementId: string): Promise<Resultat
     const { restantes } = await db.transaction((tx) =>
       enregistrerPassageDans(tx, organizationId, abonnementId, userId),
     );
+    await tracer({ action: "abonnement.passage", entite: "abonnement", entiteId: abonnementId, apres: { restantes } });
     return {
       ok: true,
       message:
