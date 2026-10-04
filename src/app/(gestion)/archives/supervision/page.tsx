@@ -44,7 +44,8 @@ function visibiliteJournal(etat: unknown): string {
 }
 
 /**
- * Supervision des archives, réservée à l'administrateur légal.
+ * Supervision des archives, réservée à l'administration : propriétaire et gérant
+ * par défaut, ou tout rôle composé qui porte `archives.superviser`.
  *
  * Il voit tout, retraits compris, et répond de ce qu'il ouvre : ses propres
  * consultations figurent au journal comme celles des autres, et l'auteur de

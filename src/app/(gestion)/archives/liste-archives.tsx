@@ -257,7 +257,7 @@ export function ListeArchives({
                     className="mt-3 rounded-lg border border-danger-500/40 bg-danger-50 p-3"
                   >
                     <p className="mb-2 text-xs text-danger-600">
-                      L&apos;archive disparaîtra de votre espace, mais l&apos;administrateur légal la conserve, avec ce motif.
+                      L&apos;archive disparaîtra de votre espace, mais l&apos;administration la conserve, avec ce motif.
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <input

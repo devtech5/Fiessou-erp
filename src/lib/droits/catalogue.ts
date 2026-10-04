@@ -330,10 +330,11 @@ export const DROITS = [
   {
     cle: "archives.superviser",
     moduleKey: "archives",
-    libelle: "Superviser les archives (administrateur légal)",
+    libelle: "Superviser les archives",
     description:
       "Voir et ouvrir les archives de tous les membres, retirées comprises, vérifier " +
-      "leur intégrité et lire le journal des accès. Chaque ouverture est tracée.",
+      "leur intégrité et lire le journal des accès. Propriétaire et gérant par défaut. " +
+      "Chaque ouverture est tracée.",
   },
 
   // ------------------------------------------------------ projets et dépenses
@@ -533,7 +534,7 @@ export interface PresetRole {
   droits: readonly Droit[];
 }
 
-/** Chacun archive ce qui le concerne ; seul l'administrateur légal voit tout. */
+/** Chacun archive ce qui le concerne ; l'administration — propriétaire et gérant — voit tout. */
 const ARCHIVAGE_PERSONNEL = ["archives.consulter", "archives.deposer"] as const satisfies readonly Droit[];
 
 const CONSULTATION_COMMERCE = [
@@ -555,11 +556,8 @@ export const PRESETS_ROLES = [
     nom: "Gérant",
     description:
       "Tient l'exploitation au quotidien. Tout sauf ce qui engage " +
-      "financièrement l'entreprise, et sauf la supervision des archives : " +
-      "elle appartient à l'administrateur légal.",
-    droits: TOUS_LES_DROITS.filter(
-      (cle) => cle !== "organisation.parametres.gerer" && cle !== "archives.superviser",
-    ),
+      "financièrement l'entreprise.",
+    droits: TOUS_LES_DROITS.filter((cle) => cle !== "organisation.parametres.gerer"),
   },
   {
     cle: "caissier",

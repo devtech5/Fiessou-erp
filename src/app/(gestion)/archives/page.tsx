@@ -114,9 +114,10 @@ export default async function PageMesArchives() {
       />
 
       <p className="mb-5 rounded-xl border-l-4 border-marque-500 bg-[var(--surface)] px-4 py-3 text-sm text-[var(--encre-douce)]">
-        Ce que vous archivez ici est <strong className="font-semibold text-[var(--encre)]">visible de l&apos;administrateur légal</strong> de
-        l&apos;entreprise, et chacune de ses ouvertures vous est signalée. Vous pouvez retirer une archive pendant{" "}
-        {DELAI_RETRAIT_HEURES} h ; elle disparaît alors de votre espace mais reste conservée pour lui. Passé ce délai, elle est scellée.
+        Ce que vous archivez ici est{" "}
+        <strong className="font-semibold text-[var(--encre)]">visible de l&apos;administration — propriétaire et gérant</strong> — de
+        l&apos;entreprise, et chacune de leurs ouvertures vous est signalée. Vous pouvez retirer une archive pendant{" "}
+        {DELAI_RETRAIT_HEURES} h ; elle disparaît alors de votre espace mais reste conservée pour eux. Passé ce délai, elle est scellée.
       </p>
 
       {!stockageActif && (

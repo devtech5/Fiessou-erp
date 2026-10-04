@@ -41,10 +41,10 @@ describe("rôles préréglés", () => {
     expect(presetRole("proprietaire")?.droits).toEqual(TOUS_LES_DROITS);
   });
 
-  it("retient l'abonnement et la supervision des archives au gérant, et rien d'autre", () => {
+  it("retient l'abonnement au gérant, et rien d'autre", () => {
     const gerant = presetRole("gerant")!;
     const manquants = TOUS_LES_DROITS.filter((cle) => !gerant.droits.includes(cle));
-    expect(manquants.sort()).toEqual(["archives.superviser", "organisation.parametres.gerer"]);
+    expect(manquants).toEqual(["organisation.parametres.gerer"]);
   });
 
   it("fournit toujours un rôle de propriétaire", () => {
