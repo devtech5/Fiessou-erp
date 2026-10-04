@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest";
+
+import { presetRole, resoudreDroits } from "@/lib/droits/catalogue";
+import {
+  ENVOI_MAX_OCTETS,
+  familleDe,
+  heuresAvantScellement,
+  partQuota,
+  QUOTA_OCTETS,
+  refusEnvoi,
+  retraitPossible,
+  tailleLisible,
+} from "@/modules/archives/calcul";
+import { empreinte } from "@/modules/archives/empreinte";
+
+const pdf = (taille: number, nom = "contrat.pdf") => ({ nom, typeMime: "application/pdf", taille });
+
+describe("empreinte", () => {
+  it("rend le SHA-256 de référence", () => {
+    expect(empreinte(new TextEncoder().encode("abc"))).toBe(
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    );
+  });
+
+  it("change au moindre octet", () => {
+    const a = new Uint8Array([1, 2, 3]);
+    const b = new Uint8Array([1, 2, 4]);
+    expect(empreinte(a)).not.toBe(empreinte(b));
+    expect(empreinte(a.buffer)).toBe(empreinte(new Uint8Array([1, 2, 3])));
+  });
+});
+
+describe("délai de retrait", () => {
+  const depot = new Date("2026-10-04T08:00:00Z");
+
+  it("reste ouvert 24 h, puis l'archive est scellée", () => {
+    expect(retraitPossible(depot, new Date("2026-10-05T07:59:59Z"))).toBe(true);
+    expect(retraitPossible(depot, new Date("2026-10-05T08:00:00Z"))).toBe(false);
+  });
+
+  it("compte les heures restantes, arrondies au-dessus", () => {
+    expect(heuresAvantScellement(depot, new Date("2026-10-04T08:00:00Z"))).toBe(24);
+    expect(heuresAvantScellement(depot, new Date("2026-10-05T07:30:00Z"))).toBe(1);
+    expect(heuresAvantScellement(depot, new Date("2026-10-06T08:00:00Z"))).toBe(0);
+  });
+});
+
+describe("contrôle d'un envoi", () => {
+  it("accepte un lot conforme", () => {
+    expect(refusEnvoi([pdf(1_000), { nom: "releve.csv", typeMime: "text/csv", taille: 500 }], 0)).toBeNull();
+  });
+
+  it("refuse un envoi vide, trop nombreux ou trop lourd", () => {
+    expect(refusEnvoi([], 0)).toMatch(/au moins un fichier/);
+    expect(refusEnvoi(Array.from({ length: 11 }, () => pdf(10)), 0)).toMatch(/10 fichiers au plus/);
+    expect(refusEnvoi([pdf(ENVOI_MAX_OCTETS), pdf(1)], 0)).toMatch(/trop lourd/);
+  });
+
+  it("refuse un format hors liste, même renommé", () => {
+    expect(refusEnvoi([{ nom: "facture.pdf.exe", typeMime: "application/x-msdownload", taille: 10 }], 0)).toMatch(
+      /format non accepté/,
+    );
+  });
+
+  it("refuse ce qui dépasse le quota de la personne", () => {
+    expect(refusEnvoi([pdf(2_000)], QUOTA_OCTETS - 1_000)).toMatch(/Espace insuffisant/);
+    expect(refusEnvoi([pdf(1_000)], QUOTA_OCTETS - 1_000)).toBeNull();
+  });
+});
+
+describe("présentation", () => {
+  it("range les formats par famille", () => {
+    expect(familleDe("application/pdf")).toBe("pdf");
+    expect(familleDe("text/csv")).toBe("tableur");
+    expect(familleDe("application/inconnu")).toBe("autre");
+  });
+
+  it("donne une taille et une part de quota lisibles", () => {
+    expect(tailleLisible(2_048)).toBe("2 Ko");
+    expect(tailleLisible(1_572_864)).toBe("1,5 Mo");
+    expect(tailleLisible(QUOTA_OCTETS)).toBe("500 Mo");
+    expect(partQuota(QUOTA_OCTETS / 4)).toBe(25);
+    expect(partQuota(QUOTA_OCTETS * 2)).toBe(100);
+  });
+});
+
+describe("droits d'archivage", () => {
+  it("laisse chacun archiver, et réserve la supervision à l'administrateur légal", () => {
+    const caissier = resoudreDroits({ cleRole: "caissier", estProprietaire: false });
+    expect(caissier.has("archives.deposer")).toBe(true);
+    expect(caissier.has("archives.superviser")).toBe(false);
+
+    expect(presetRole("gerant")?.droits).not.toContain("archives.superviser");
+    expect(resoudreDroits({ cleRole: null, estProprietaire: true }).has("archives.superviser")).toBe(true);
+  });
+});

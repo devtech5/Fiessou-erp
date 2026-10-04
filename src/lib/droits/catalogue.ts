@@ -304,6 +304,30 @@ export const DROITS = [
       "celui qui prépare le contrat n'est pas forcément celui qui l'engage.",
   },
 
+  // ------------------------------------------------------------- archives
+  {
+    cle: "archives.consulter",
+    moduleKey: "archives",
+    libelle: "Consulter ses archives",
+    description: "Voir son espace d'archivage et rouvrir ce qu'on y a déposé.",
+  },
+  {
+    cle: "archives.deposer",
+    moduleKey: "archives",
+    libelle: "Archiver des données",
+    description:
+      "Déposer des fichiers dans son espace, et retirer une archive pendant le délai " +
+      "de correction. Un retrait masque l'archive, il ne l'efface pas.",
+  },
+  {
+    cle: "archives.superviser",
+    moduleKey: "archives",
+    libelle: "Superviser les archives (administrateur légal)",
+    description:
+      "Voir et ouvrir les archives de tous les membres, retirées comprises, vérifier " +
+      "leur intégrité et lire le journal des accès. Chaque ouverture est tracée.",
+  },
+
   // ------------------------------------------------------ projets et dépenses
   {
     cle: "projet.consulter",
@@ -501,6 +525,9 @@ export interface PresetRole {
   droits: readonly Droit[];
 }
 
+/** Chacun archive ce qui le concerne ; seul l'administrateur légal voit tout. */
+const ARCHIVAGE_PERSONNEL = ["archives.consulter", "archives.deposer"] as const satisfies readonly Droit[];
+
 const CONSULTATION_COMMERCE = [
   "tiers.fiche.consulter",
   "stock.article.consulter",
@@ -520,8 +547,11 @@ export const PRESETS_ROLES = [
     nom: "Gérant",
     description:
       "Tient l'exploitation au quotidien. Tout sauf ce qui engage " +
-      "financièrement l'entreprise.",
-    droits: TOUS_LES_DROITS.filter((cle) => cle !== "organisation.parametres.gerer"),
+      "financièrement l'entreprise, et sauf la supervision des archives : " +
+      "elle appartient à l'administrateur légal.",
+    droits: TOUS_LES_DROITS.filter(
+      (cle) => cle !== "organisation.parametres.gerer" && cle !== "archives.superviser",
+    ),
   },
   {
     cle: "caissier",
@@ -536,6 +566,7 @@ export const PRESETS_ROLES = [
       "pos.session.cloturer",
       "stock.article.consulter",
       "tiers.fiche.consulter",
+      ...ARCHIVAGE_PERSONNEL,
     ],
   },
   {
@@ -548,6 +579,7 @@ export const PRESETS_ROLES = [
       "stock.depot.gerer",
       "stock.mouvement.saisir",
       "tiers.fiche.consulter",
+      ...ARCHIVAGE_PERSONNEL,
     ],
   },
   {
@@ -561,6 +593,7 @@ export const PRESETS_ROLES = [
       "tiers.fiche.gerer",
       "comptabilite.ecriture.consulter",
       "comptabilite.ecriture.enregistrer",
+      ...ARCHIVAGE_PERSONNEL,
     ],
   },
 ] as const satisfies readonly PresetRole[];

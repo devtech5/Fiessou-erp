@@ -44,12 +44,21 @@ export function ChoixFichiers({
   libelle,
   requis = false,
   camera = false,
+  accept = "image/*,application/pdf",
+  reduirePhotos = true,
 }: {
   name?: string;
   libelle: string;
   requis?: boolean;
   /** Sur téléphone, propose directement l'appareil photo. */
   camera?: boolean;
+  /** Formats proposés par le sélecteur. Le serveur revérifie de toute façon. */
+  accept?: string;
+  /**
+   * Réduire les photos avant l'envoi. À couper pour une archive : elle doit
+   * garder l'original, octet pour octet, sinon son empreinte ne prouve rien.
+   */
+  reduirePhotos?: boolean;
 }) {
   const champ = useRef<HTMLInputElement>(null);
   const [choisis, setChoisis] = useState<Choisi[]>([]);
@@ -67,7 +76,7 @@ export function ChoixFichiers({
   async function choisir(nouveaux: File[]) {
     if (nouveaux.length === 0) return;
     setPreparation(true);
-    const reduits = await Promise.all(nouveaux.map(reduire));
+    const reduits = reduirePhotos ? await Promise.all(nouveaux.map(reduire)) : nouveaux;
     // On AJOUTE aux fichiers déjà choisis : prendre trois photos d'un reçu se
     // fait en trois gestes, pas en une sélection multiple.
     const tous = [...choisis.map((c) => c.fichier), ...reduits];
@@ -93,7 +102,7 @@ export function ChoixFichiers({
         name={name}
         type="file"
         multiple
-        accept="image/*,application/pdf"
+        accept={accept}
         required={requis && choisis.length === 0}
         // Le navigateur remplace la sélection à chaque choix : `choisir` la
         // recompose avec les fichiers déjà retenus.
@@ -108,7 +117,9 @@ export function ChoixFichiers({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={c.apercu} alt={c.fichier.name} className="size-full object-cover" />
             ) : (
-              <span className="flex size-full items-center justify-center text-[10px] font-semibold text-[var(--encre-faible)]">PDF</span>
+              <span className="flex size-full items-center justify-center px-1 text-center text-[10px] font-semibold uppercase text-[var(--encre-faible)]">
+                {c.fichier.name.includes(".") ? c.fichier.name.split(".").pop()!.slice(0, 5) : "Fichier"}
+              </span>
             )}
             <button
               type="button"

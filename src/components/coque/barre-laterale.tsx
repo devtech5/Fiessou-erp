@@ -53,10 +53,11 @@ const GROUPES: GroupeModules[] = [
     ],
   },
   {
-    titre: "Équipe",
+    titre: "Ressources humaines",
     modules: [
       { href: "/rh", racine: "/rh", libelle: "Personnel", droit: "personnes.consulter" },
       { href: "/documents", racine: "/documents", libelle: "Documents", droit: "documents.consulter" },
+      { href: "/archives", racine: "/archives", libelle: "Archives", droit: "archives.consulter" },
     ],
   },
   {
@@ -76,7 +77,8 @@ const GROUPES: GroupeModules[] = [
  */
 const RACCOURCIS_COMPTE: { href: string; libelle: string; module: string }[] = [
   { href: "/documents", libelle: "Mes documents", module: "documents" },
-  { href: "/rh", libelle: "Mon équipe", module: "personnes" },
+  { href: "/archives", libelle: "Mes archives", module: "archives" },
+  { href: "/rh", libelle: "Ressources humaines", module: "personnes" },
   { href: "/mot-de-passe", libelle: "Changer de mot de passe", module: "organisation" },
 ];
 

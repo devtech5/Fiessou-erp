@@ -105,6 +105,20 @@ export async function urlSignee(
 }
 
 /**
+ * Relit un fichier côté serveur, pour en recalculer l'empreinte.
+ *
+ * Jamais pour le servir au navigateur : celui-ci passe par une URL signée.
+ * Rend `null` si le fichier est absent ou le dépôt muet.
+ */
+export async function lireFichier(chemin: string): Promise<Uint8Array | null> {
+  if (!stockageConfigure()) return null;
+  if (!supabaseConfigure()) return (await import("./local")).lireLocal(chemin);
+
+  const { lireSupabase } = await import("./supabase");
+  return lireSupabase(chemin);
+}
+
+/**
  * Retire un fichier du dépôt.
  *
  * Appelée quand la ligne en base est supprimée, jamais l'inverse : un fichier

@@ -26,6 +26,7 @@ export * from "@/modules/comptabilite/schema";
 export * from "@/modules/personnes/schema";
 export * from "@/modules/actifs/schema";
 export * from "@/modules/documents/schema";
+export * from "@/modules/archives/schema";
 export * from "@/modules/missions/schema";
 export * from "@/modules/facturation/schema";
 export * from "@/modules/reservations/schema";

@@ -122,6 +122,21 @@ export const MODULES: ModuleDefinition[] = [
       "Pièces rattachées aux entités métier, permissions, signature électronique.",
   },
 
+  {
+    key: "archives",
+    name: "Archives numériques",
+    layer: "socle",
+    // En base : espace d'archivage par personne, empreinte SHA-256 au dépôt,
+    // retrait masquant pendant 24 h puis scellement, supervision par
+    // l'administrateur légal avec vérification d'intégrité et journal des
+    // accès. Restent la durée de conservation légale par nature de pièce et
+    // l'export horodaté d'un dossier complet.
+    status: "en_cours",
+    requires: [],
+    description:
+      "Espace d'archivage de chaque utilisateur, intègre et tracé, consultable par l'administrateur légal.",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",

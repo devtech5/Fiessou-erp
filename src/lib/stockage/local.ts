@@ -68,6 +68,14 @@ export async function lireSigne(chemin: string, expire: number, sig: string): Pr
   }
 }
 
+export async function lireLocal(chemin: string): Promise<Uint8Array | null> {
+  try {
+    return new Uint8Array(await readFile(emplacement(chemin)));
+  } catch {
+    return null;
+  }
+}
+
 export async function supprimerLocal(chemin: string): Promise<boolean> {
   try {
     await rm(emplacement(chemin), { force: true });

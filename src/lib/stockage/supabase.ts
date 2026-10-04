@@ -70,6 +70,12 @@ export async function urlSigneeSupabase(
   return data.signedUrl;
 }
 
+export async function lireSupabase(chemin: string): Promise<Uint8Array | null> {
+  const { data, error } = await stockage().storage.from(env.SUPABASE_BUCKET).download(chemin);
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
 export async function supprimerSupabase(chemin: string): Promise<boolean> {
   const { error } = await stockage()
     .storage.from(env.SUPABASE_BUCKET)
