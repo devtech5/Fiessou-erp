@@ -112,6 +112,7 @@ export function alertes(
   reservations: EtatReservations,
   /** Réseaux dont le float est bas au guichet ouvert, déjà nommés. */
   floatsBas: string[] = [],
+  depenses: { aApprouver: number; montantAApprouver: number; sansPreuve: number } = { aApprouver: 0, montantAApprouver: 0, sansPreuve: 0 },
 ): Alerte[] {
   const liste: Alerte[] = [];
 
@@ -157,6 +158,32 @@ export function alertes(
       detail: "Le délai fournisseur ne sera pas tenu au-delà",
       href: "/stock/reapprovisionnement",
       nombre: stock.aCommanderVite,
+    });
+  }
+
+  // ----------------------------------------------------------- dépenses
+  if (depenses.aApprouver > 0) {
+    liste.push({
+      id: "depenses-a-approuver",
+      gravite: "attention",
+      source: "base",
+      module: "Projets",
+      titre: "Dépenses à approuver",
+      detail: `${depenses.montantAApprouver.toLocaleString("fr-FR")} FCFA en attente de décision`,
+      href: "/projets/depenses",
+      nombre: depenses.aApprouver,
+    });
+  }
+  if (depenses.sansPreuve > 0) {
+    liste.push({
+      id: "depenses-sans-preuve",
+      gravite: "attention",
+      source: "base",
+      module: "Projets",
+      titre: "Dépenses payées sans preuve",
+      detail: "Joignez le reçu ou la capture du transfert",
+      href: "/projets/depenses",
+      nombre: depenses.sansPreuve,
     });
   }
 

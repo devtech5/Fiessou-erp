@@ -31,3 +31,4 @@ export * from "@/modules/facturation/schema";
 export * from "@/modules/reservations/schema";
 export * from "@/modules/billetterie/schema";
 export * from "@/modules/monnaie/schema";
+export * from "@/modules/projets/schema";

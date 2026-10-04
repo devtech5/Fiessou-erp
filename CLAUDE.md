@@ -222,6 +222,11 @@ Deux limites à connaître : un seul processus ouvre le dossier (les scripts
 `db.execute` y rend `{ rows }` — `src/db/pglite.ts` le ramène au tableau que
 rend postgres-js. Jamais en production.
 
+Les pièces jointes (photos de projet, preuves de paiement, documents) vont
+alors dans `.pglite/fichiers/` : `STOCKAGE_LOCAL` active un adaptateur disque
+(`src/lib/stockage/local.ts`) servi par `/fichiers/…` avec une URL signée HMAC
+qui expire, comme celle de Supabase. Ignoré en production.
+
 Après un arrêt brutal pendant une installation, Turbopack peut servir des
 404 sur toutes les routes : supprimer `.next/dev` et relancer.
 

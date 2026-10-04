@@ -61,7 +61,16 @@ export function cheminDe(
  * variable oubliée ne doit pas fermer un module entier.
  */
 export function stockageConfigure(): boolean {
+  return supabaseConfigure() || localActif();
+}
+
+function supabaseConfigure(): boolean {
   return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+/** Le dépôt sur disque ne sert qu'au développement, jamais en production. */
+function localActif(): boolean {
+  return Boolean(env.STOCKAGE_LOCAL) && env.NODE_ENV !== "production";
 }
 
 const RAISON_NON_CONFIGURE =
@@ -70,6 +79,7 @@ const RAISON_NON_CONFIGURE =
 
 export async function deposer(fichier: FichierADeposer): Promise<ResultatDepot> {
   if (!stockageConfigure()) return { ok: false, raison: RAISON_NON_CONFIGURE };
+  if (!supabaseConfigure()) return (await import("./local")).deposerLocal(fichier);
 
   const { deposerSupabase } = await import("./supabase");
   return deposerSupabase(fichier);
@@ -88,6 +98,7 @@ export async function urlSignee(
   secondes = 300,
 ): Promise<string | null> {
   if (!stockageConfigure()) return null;
+  if (!supabaseConfigure()) return (await import("./local")).urlSigneeLocale(chemin, secondes);
 
   const { urlSigneeSupabase } = await import("./supabase");
   return urlSigneeSupabase(chemin, secondes);
@@ -102,6 +113,7 @@ export async function urlSignee(
  */
 export async function supprimer(chemin: string): Promise<boolean> {
   if (!stockageConfigure()) return false;
+  if (!supabaseConfigure()) return (await import("./local")).supprimerLocal(chemin);
 
   const { supprimerSupabase } = await import("./supabase");
   return supprimerSupabase(chemin);

@@ -120,6 +120,13 @@
       "when": 1791099768621,
       "tag": "0016_material_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791101181187,
+      "tag": "0017_square_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,12 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   /** Bucket PRIVÉ. Public, il rendrait tout contrat lisible par qui devine l'URL. */
   SUPABASE_BUCKET: z.string().default("documents"),
+  /**
+   * Dépôt sur disque, pour le développement sans Supabase (`pnpm dev:local`).
+   * Ignoré en production : un disque de serveur n'est ni sauvegardé ni
+   * partagé entre instances.
+   */
+  STOCKAGE_LOCAL: z.string().optional(),
 
   /**
    * Modules à ouvrir malgré leurs écrans sur jeu d'essai.

@@ -207,7 +207,17 @@ export const MODULES: ModuleDefinition[] = [
   { key: "livraison", name: "Livraison", layer: "metier", status: "planifie", requires: ["missions"], description: "Colis, déménagement, transfert." },
   { key: "flotte", name: "Gestion de flotte", layer: "metier", status: "planifie", requires: ["actifs"], description: "Véhicules, entretiens, assurance, visite technique." },
   { key: "fitness", name: "Fitness", layer: "metier", status: "planifie", requires: ["reservation", "pos"], description: "Adhérents, formules, contrôle d'accès." },
-  { key: "projet", name: "Gestion de projet", layer: "metier", status: "planifie", requires: ["missions"], description: "Projets, affectations, suivi d'avancement." },
+  {
+    key: "projet",
+    name: "Projets et dépenses",
+    layer: "metier",
+    // En base : projets affectés à un responsable, budget suivi, dépenses en
+    // circuit (demande, approbation par un autre, paiement avec écriture),
+    // photos et preuves de paiement jointes. Restent les tâches et le planning.
+    status: "en_cours",
+    requires: [],
+    description: "Projets, affectation, budget, dépenses tracées de la demande au paiement, photos et preuves.",
+  },
   { key: "collecte", name: "Collecte de données terrain", layer: "metier", status: "planifie", requires: ["missions"], description: "Formulaires hors connexion. Le cas qui exige le plus la synchronisation différée." },
 ];
 

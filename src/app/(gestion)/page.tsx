@@ -15,6 +15,7 @@ import { etatMissions } from "@/modules/missions/requetes";
 import { etatReservations } from "@/modules/reservations/requetes";
 import { NOM_RESEAU } from "@/modules/monnaie/calcul";
 import { floatsBas } from "@/modules/monnaie/requetes";
+import { etatDepenses } from "@/modules/projets/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -86,6 +87,7 @@ const DROIT_PAR_RACINE: [string, Droit][] = [
   ["/monnaie", "valeur_electronique.consulter"],
   ["/actifs", "actifs.consulter"],
   ["/missions", "missions.consulter"],
+  ["/projets", "projet.consulter"],
   ["/rh", "personnes.consulter"],
   ["/documents", "documents.consulter"],
 ];
@@ -115,6 +117,7 @@ export default async function PageTableauDeBord() {
     missions,
     reservations,
     floats,
+    depenses,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -127,6 +130,7 @@ export default async function PageTableauDeBord() {
     etatMissions(session.organizationId),
     etatReservations(session.organizationId),
     floatsBas(session.organizationId),
+    etatDepenses(session.organizationId),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -138,7 +142,7 @@ export default async function PageTableauDeBord() {
   }, {
     echeancesDepassees: echeances.filter((e) => e.gravite === "depassee").length,
     indisponibles: resumeParc(parc).indisponibles,
-  }, missions, reservations, floats.map((r) => NOM_RESEAU[r]));
+  }, missions, reservations, floats.map((r) => NOM_RESEAU[r]), depenses);
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une

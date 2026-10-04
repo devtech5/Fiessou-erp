@@ -304,6 +304,40 @@ export const DROITS = [
       "celui qui prépare le contrat n'est pas forcément celui qui l'engage.",
   },
 
+  // ------------------------------------------------------ projets et dépenses
+  {
+    cle: "projet.consulter",
+    moduleKey: "projet",
+    libelle: "Consulter les projets et dépenses",
+    description: "Voir les projets, leur budget consommé, leurs photos et le circuit de chaque dépense.",
+  },
+  {
+    cle: "projet.gerer",
+    moduleKey: "projet",
+    libelle: "Gérer les projets",
+    description: "Créer un projet, l'affecter à un responsable, changer son statut, ajouter photos et pièces.",
+  },
+  {
+    cle: "depense.demander",
+    moduleKey: "projet",
+    libelle: "Demander une dépense",
+    description: "Saisir un achat à faire, avec son devis, et joindre les justificatifs.",
+  },
+  {
+    cle: "depense.approuver",
+    moduleKey: "projet",
+    libelle: "Approuver une dépense",
+    description:
+      "Accepter ou rejeter une demande. Jamais la sienne, sauf pour le propriétaire : " +
+      "celui qui demande n'est pas celui qui autorise.",
+  },
+  {
+    cle: "depense.payer",
+    moduleKey: "projet",
+    libelle: "Payer une dépense",
+    description: "Sortir l'argent d'une dépense approuvée, joindre la preuve. Passe l'écriture.",
+  },
+
   // ---------------------------------------------------------- billetterie
   {
     cle: "billetterie.consulter",

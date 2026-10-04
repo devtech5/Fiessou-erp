@@ -39,6 +39,7 @@ const GROUPES: GroupeModules[] = [
   {
     titre: "Terrain",
     modules: [
+      { href: "/projets", racine: "/projets", libelle: "Projets", droit: "projet.consulter" },
       { href: "/missions", racine: "/missions", libelle: "Missions", droit: "missions.consulter" },
       { href: "/actifs", racine: "/actifs", libelle: "Actifs", droit: "actifs.consulter" },
       { href: "/billetterie", racine: "/billetterie", libelle: "Billetterie", droit: "billetterie.consulter" },

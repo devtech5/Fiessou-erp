@@ -81,6 +81,10 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
       };
     }
 
+    if (resultat.projets > 0) {
+      return { message: `${resultat.projets} projets et ${resultat.depenses} dépenses ajoutés.` };
+    }
+
     if (resultat.departs > 0 || resultat.operationsGuichet > 0) {
       return {
         message:
