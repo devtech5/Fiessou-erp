@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { EnTetePage } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
 import { listerDepots } from "@/modules/stock/requetes";
 import {
   derniersTickets,
@@ -31,12 +32,13 @@ export default async function PageVentes() {
   const debutJournee = new Date();
   debutJournee.setHours(0, 0, 0, 0);
 
-  const [tickets, journee, postes, depots, clotures] = await Promise.all([
+  const [tickets, journee, postes, depots, clotures, peutAnnuler] = await Promise.all([
     derniersTickets(session.organizationId, 25),
     journeeCaisse(session.organizationId, debutJournee),
     listerPostes(session.organizationId),
     listerDepots(session.organizationId),
     historiqueSessions(session.organizationId, 8),
+    peut("pos.vente.annuler"),
   ]);
 
   return (
@@ -65,6 +67,7 @@ export default async function PageVentes() {
         }))}
         depots={depots.map((depot) => ({ id: depot.id, nom: depot.nom }))}
         clotures={clotures}
+        peutAnnuler={peutAnnuler}
       />
     </>
   );

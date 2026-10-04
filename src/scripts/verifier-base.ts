@@ -26,6 +26,7 @@ if (!url) {
 
 const TABLES_ATTENDUES = [
   "abonnements",
+  "acces_modules",
   "actifs",
   "articles",
   "audit_logs",

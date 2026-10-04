@@ -1,12 +1,13 @@
 import "server-only";
 
 import { cache } from "react";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { rolePermissions } from "@/db/schema";
+import { accesModules, memberships, organizationModules, rolePermissions } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import type { SessionActive } from "@/lib/auth/session";
+import { appliquerRestrictions, type NiveauAcces } from "./acces";
 import { type Droit, definitionDroit, presetRole, resoudreDroits } from "./catalogue";
 
 export type SessionEntreprise = SessionActive & { organizationId: string };
@@ -31,12 +32,22 @@ export type SessionEntreprise = SessionActive & { organizationId: string };
 /**
  * Droits effectifs de la session courante, dédupliqués pour la durée du rendu.
  *
- * Un rôle préréglé ne coûte aucune requête : ses droits sont dans le code. Seul
- * un rôle créé par l'entreprise fait descendre dans `role_permissions`.
+ * Deux étages : le rôle donne le plafond (dans le code pour un rôle préréglé,
+ * dans `role_permissions` pour un rôle composé), puis les restrictions le
+ * resserrent — modules coupés pour l'entreprise, niveau de la personne par
+ * module (`src/lib/droits/acces.ts`). Une restriction ne peut rien ajouter.
  */
 export const droitsActifs = cache(async (): Promise<Set<Droit>> => {
   const session = await exigerEntreprise();
+  const [duRole, restrictions] = await Promise.all([
+    droitsDuRole(session),
+    restrictionsDe(session),
+  ]);
+  return appliquerRestrictions(duRole, restrictions);
+});
 
+/** Droits que le rôle accorde, avant toute restriction par module. */
+async function droitsDuRole(session: SessionEntreprise): Promise<Set<Droit>> {
   if (session.estProprietaire || presetRole(session.roleCle)) {
     return resoudreDroits({
       cleRole: session.roleCle,
@@ -56,7 +67,43 @@ export const droitsActifs = cache(async (): Promise<Set<Droit>> => {
     estProprietaire: false,
     accords: accords.map((a) => a.cle),
   });
-});
+}
+
+/**
+ * Modules coupés pour l'entreprise et niveaux de la personne.
+ * Deux requêtes indexées par rendu, dédupliquées par `cache`.
+ */
+async function restrictionsDe(session: SessionEntreprise) {
+  const [coupes, niveaux] = await Promise.all([
+    db
+      .select({ cle: organizationModules.moduleKey })
+      .from(organizationModules)
+      .where(
+        and(
+          eq(organizationModules.organizationId, session.organizationId),
+          eq(organizationModules.enabled, false),
+        ),
+      ),
+    session.estProprietaire
+      ? Promise.resolve([] as { cle: string; niveau: NiveauAcces }[])
+      : db
+          .select({ cle: accesModules.moduleKey, niveau: accesModules.niveau })
+          .from(accesModules)
+          .innerJoin(memberships, eq(memberships.id, accesModules.membershipId))
+          .where(
+            and(
+              eq(memberships.organizationId, session.organizationId),
+              eq(memberships.userId, session.userId),
+            ),
+          ),
+  ]);
+
+  return {
+    modulesCoupes: new Set(coupes.map((c) => c.cle)),
+    niveaux: new Map(niveaux.map((n) => [n.cle, n.niveau])),
+    estProprietaire: session.estProprietaire,
+  };
+}
 
 /** Vrai si la session courante détient ce droit. */
 export async function peut(droit: Droit): Promise<boolean> {

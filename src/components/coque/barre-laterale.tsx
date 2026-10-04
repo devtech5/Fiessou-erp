@@ -58,6 +58,12 @@ const GROUPES: GroupeModules[] = [
       { href: "/documents", racine: "/documents", libelle: "Documents", droit: "documents.consulter" },
     ],
   },
+  {
+    titre: "Administration",
+    modules: [
+      { href: "/membres", racine: "/membres", libelle: "Utilisateurs", droit: "organisation.membre.gerer" },
+    ],
+  },
 ];
 
 /**
@@ -70,6 +76,7 @@ const GROUPES: GroupeModules[] = [
 const RACCOURCIS_COMPTE: { href: string; libelle: string; module: string }[] = [
   { href: "/documents", libelle: "Mes documents", module: "documents" },
   { href: "/rh", libelle: "Mon équipe", module: "personnes" },
+  { href: "/mot-de-passe", libelle: "Changer de mot de passe", module: "organisation" },
 ];
 
 /**
@@ -114,7 +121,8 @@ export function BarreLaterale({
   const chemin = usePathname();
   const [replies, setReplies] = useState<string[]>([]);
   const accordes = new Set(droits);
-  const ouverts = new Set(modulesOuverts);
+  // Le transverse (utilisateurs, mot de passe) n'est pas un module : toujours ouvert.
+  const ouverts = new Set([...modulesOuverts, "organisation"]);
 
   /** Une entrée s'affiche si le rôle l'autorise ET si le module est ouvert. */
   const affichable = (entree: EntreeModule) =>
@@ -337,7 +345,7 @@ function MenuCompte({
               // ce n'est pas une activité de l'entreprise, c'est son
               // administration.
               ...(gereLesMembres
-                ? [{ href: "/membres", libelle: "Membres et accès" }]
+                ? [{ href: "/membres", libelle: "Utilisateurs et accès" }]
                 : []),
             ].map((entree) => (
               <li key={entree.href}>

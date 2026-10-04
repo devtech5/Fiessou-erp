@@ -98,9 +98,9 @@ export function ModalePaiement({ net, lignes, onAnnuler, onValider }: Props) {
           <div>
             <h2 className="text-base font-semibold">Encaissement</h2>
             <p className="text-xs text-[var(--encre-faible)]">
-              {lignes.length} ligne{lignes.length > 1 ? "s" : ""} ·{" "}
-              {lignes.reduce((s, l) => s + l.quantite, 0)} article
-              {lignes.reduce((s, l) => s + l.quantite, 0) > 1 ? "s" : ""}
+              {/* Le nombre de lignes, pas une somme de quantités : celles-ci
+                  sont en millièmes et mêlent kilos et pièces. */}
+              {lignes.length} ligne{lignes.length > 1 ? "s" : ""}
             </p>
           </div>
           <button

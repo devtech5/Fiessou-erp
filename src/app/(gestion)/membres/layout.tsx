@@ -3,8 +3,9 @@ import { SousNavigation } from "@/components/coque/sous-navigation";
 import { peut } from "@/lib/droits/garde";
 
 const SECTIONS = [
-  { href: "/membres", libelle: "Membres" },
+  { href: "/membres", libelle: "Utilisateurs" },
   { href: "/membres/roles", libelle: "Rôles" },
+  { href: "/membres/modules", libelle: "Modules" },
 ];
 
 export default async function LayoutMembres({

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { EnTetePage } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { restrictionsParMembre } from "@/lib/auth/acces";
 import { listerMembres, rolesAttribuables } from "@/lib/auth/membres";
 import { fmtDateIso } from "@/lib/format";
 import { FormulaireMembre } from "./formulaire-membre";
@@ -12,9 +13,10 @@ export const metadata: Metadata = { title: "Membres" };
 export default async function PageMembres() {
   const session = await exigerEntreprise();
 
-  const [membres, roles] = await Promise.all([
+  const [membres, roles, restrictions] = await Promise.all([
     listerMembres(session.organizationId),
     rolesAttribuables(session.organizationId),
+    restrictionsParMembre(session.organizationId),
   ]);
 
   const actifs = membres.filter((membre) => membre.statut === "actif").length;
@@ -31,6 +33,7 @@ export default async function PageMembres() {
     roleNom: membre.roleNom,
     statut: membre.statut,
     proprietaire: membre.proprietaire,
+    restrictions: restrictions.get(membre.membershipId) ?? 0,
     depuis: membre.rejointLe
       ? fmtDateIso(membre.rejointLe.toISOString().slice(0, 10))
       : null,
@@ -39,7 +42,7 @@ export default async function PageMembres() {
   return (
     <>
       <EnTetePage
-        titre="Membres"
+        titre="Utilisateurs"
         sousTitre={
           membres.length === 1
             ? "Vous êtes seul à ouvrir le logiciel"

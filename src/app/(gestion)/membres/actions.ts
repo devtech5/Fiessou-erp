@@ -5,13 +5,22 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { auditLogs, memberships, roles, sessions, users } from "@/db/schema";
+import {
+  accesModules,
+  auditLogs,
+  memberships,
+  organizationModules,
+  roles,
+  sessions,
+  users,
+} from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { normaliserEmail } from "@/lib/auth/identifiants";
 import { compteExclusifA, rattachementDe } from "@/lib/auth/membres";
 import { genererMotDePasseProvisoire, hacherMotDePasse } from "@/lib/auth/mot-de-passe";
 import { exigerDroit, refusDroit } from "@/lib/droits/garde";
 import { newId } from "@/lib/ids";
+import { getModule } from "@/modules/registry";
 import { estDoublon } from "@/lib/erreurs-pg";
 
 export interface EtatMembre {
@@ -326,4 +335,117 @@ export async function changerStatutMembre(donnees: FormData): Promise<void> {
   });
 
   revalidatePath("/membres");
+}
+
+// ---------------------------------------------------------- accès par module
+
+export type ResultatAcces = { ok: true; message: string } | { ok: false; message: string };
+
+const NIVEAUX = ["aucun", "consultation", "complet"] as const;
+
+/**
+ * Fixe le niveau d'accès d'un membre à un module.
+ *
+ * Le niveau RESSERRE ce que le rôle accorde, il n'ajoute rien. Ni le
+ * propriétaire ni soi-même ne se règlent ici : le premier n'est jamais
+ * restreint, et se fermer un module à soi-même ne laisserait personne pour le
+ * rouvrir si l'on était seul à le tenir.
+ */
+export async function definirAcces(
+  membershipId: string,
+  moduleKey: string,
+  niveau: string,
+): Promise<ResultatAcces> {
+  const session = await exigerEntreprise();
+  const refus = await refusDroit("organisation.membre.gerer");
+  if (refus) return { ok: false, message: refus.erreur };
+
+  if (!getModule(moduleKey)) return { ok: false, message: "Module inconnu." };
+  if (!NIVEAUX.includes(niveau as (typeof NIVEAUX)[number])) {
+    return { ok: false, message: "Niveau inconnu." };
+  }
+
+  const rattachement = await rattachementDe(session.organizationId, membershipId);
+  if (!rattachement) return { ok: false, message: "Membre introuvable." };
+  if (rattachement.proprietaire) {
+    return { ok: false, message: "Le propriétaire a toujours accès à tout." };
+  }
+  if (rattachement.userId === session.userId) {
+    return { ok: false, message: "On ne règle pas ses propres accès." };
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(accesModules)
+      .values({
+        id: newId(),
+        organizationId: session.organizationId,
+        membershipId,
+        moduleKey,
+        niveau: niveau as (typeof NIVEAUX)[number],
+      })
+      .onConflictDoUpdate({
+        target: [accesModules.membershipId, accesModules.moduleKey],
+        set: { niveau: niveau as (typeof NIVEAUX)[number], updatedAt: new Date() },
+      });
+
+    await tx.insert(auditLogs).values({
+      id: newId(),
+      organizationId: session.organizationId,
+      userId: session.userId,
+      action: "membre.acces",
+      entityType: "membership",
+      entityId: rattachement.userId,
+      after: { module: moduleKey, niveau },
+    });
+  });
+
+  revalidatePath("/membres", "layout");
+  return { ok: true, message: "Accès mis à jour." };
+}
+
+/**
+ * Active ou coupe un module pour toute l'entreprise.
+ *
+ * Réservé à qui gère les paramètres de l'entreprise : couper un module le
+ * retire à tout le monde, propriétaire compris, d'un seul geste.
+ */
+export async function basculerModule(moduleKey: string, actif: boolean): Promise<ResultatAcces> {
+  const session = await exigerEntreprise();
+  const refus = await refusDroit("organisation.parametres.gerer");
+  if (refus) return { ok: false, message: refus.erreur };
+
+  const definition = getModule(moduleKey);
+  if (!definition) return { ok: false, message: "Module inconnu." };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(organizationModules)
+      .values({
+        id: newId(),
+        organizationId: session.organizationId,
+        moduleKey,
+        enabled: actif,
+      })
+      .onConflictDoUpdate({
+        target: [organizationModules.organizationId, organizationModules.moduleKey],
+        set: { enabled: actif, updatedAt: new Date() },
+      });
+
+    await tx.insert(auditLogs).values({
+      id: newId(),
+      organizationId: session.organizationId,
+      userId: session.userId,
+      action: actif ? "module.activer" : "module.couper",
+      entityType: "module",
+      entityId: session.organizationId,
+      after: { module: moduleKey },
+    });
+  });
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: actif ? `${definition.name} activé.` : `${definition.name} coupé pour toute l'entreprise.`,
+  };
 }

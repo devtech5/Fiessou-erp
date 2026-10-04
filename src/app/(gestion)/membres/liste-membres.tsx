@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Link from "next/link";
 
 import { Pastille, Tableau, Td, Th } from "@/components/ui/primitives";
 import type { RoleAttribuable } from "@/lib/auth/membres";
@@ -23,6 +24,8 @@ export interface LigneMembre {
   proprietaire: boolean;
   /** Date de rattachement, déjà mise en forme par le serveur. */
   depuis: string | null;
+  /** Modules restreints (consultation ou aucun) pour cette personne. */
+  restrictions: number;
 }
 
 const TONS = {
@@ -110,7 +113,9 @@ export function ListeMembres({
             return (
               <tr key={membre.membershipId}>
                 <Td>
-                  <span className="block font-medium">{membre.nom}</span>
+                  <Link href={`/membres/${membre.membershipId}`} className="block font-medium hover:underline">
+                  {membre.nom}
+                </Link>
                   <span className="block text-xs text-[var(--encre-faible)]">
                     {membre.email ?? "Sans adresse — ne peut pas se connecter"}
                     {membre.depuis && ` · depuis le ${membre.depuis}`}
@@ -141,6 +146,12 @@ export function ListeMembres({
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1">
+                      <Link
+                        href={`/membres/${membre.membershipId}`}
+                        className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-marque-600 hover:bg-[var(--surface-creuse)]"
+                      >
+                        Accès{membre.restrictions > 0 ? ` (${membre.restrictions} restreint${membre.restrictions > 1 ? "s" : ""})` : ""}
+                      </Link>
                       <button
                         type="button"
                         disabled={enCours || !membre.email}

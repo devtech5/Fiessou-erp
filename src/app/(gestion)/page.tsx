@@ -4,6 +4,8 @@ import { CarteIndicateur, EnTetePage } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
 import { apercuActif } from "@/lib/modules/garde";
+import { droitsActifs } from "@/lib/droits/garde";
+import type { Droit } from "@/lib/droits/catalogue";
 import {
   listerActifs,
   listerEcheances,
@@ -64,6 +66,33 @@ const GRILLE = "grid gap-3 sm:grid-cols-2 xl:grid-cols-4";
  */
 const DELAI_REACTION_JOURS = 3;
 
+/**
+ * Droit de consultation qu'exige chaque destination d'alerte.
+ *
+ * Le tableau de bord traverse tous les modules : sans ce filtre, un caissier
+ * y lirait les soldes bancaires et les échéances du parc qu'aucun de ses
+ * écrans ne lui montre. L'alerte suit le droit de l'écran vers lequel elle
+ * mène — la plus longue racine l'emporte (/commercial/factures avant
+ * /commercial).
+ */
+const DROIT_PAR_RACINE: [string, Droit][] = [
+  ["/commercial/factures", "commercial.piece.consulter"],
+  ["/commercial", "tiers.fiche.consulter"],
+  ["/stock", "stock.article.consulter"],
+  ["/reservations", "reservation.consulter"],
+  ["/comptabilite", "comptabilite.ecriture.consulter"],
+  ["/monnaie", "valeur_electronique.consulter"],
+  ["/actifs", "actifs.consulter"],
+  ["/missions", "missions.consulter"],
+  ["/rh", "personnes.consulter"],
+  ["/documents", "documents.consulter"],
+];
+
+function droitRequis(href: string): Droit | null {
+  const entree = DROIT_PAR_RACINE.find(([racine]) => href === racine || href.startsWith(`${racine}/`));
+  return entree ? entree[1] : null;
+}
+
 export default async function PageTableauDeBord() {
   const session = await exigerEntreprise();
 
@@ -108,10 +137,18 @@ export default async function PageTableauDeBord() {
   }, missions, reservations);
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
-  // enverrait l'exploitant relancer une facture qui n'existe pas.
-  const liste = apercuActif()
-    ? toutesLesAlertes
-    : toutesLesAlertes.filter((alerte) => alerte.source === "base");
+  // enverrait l'exploitant relancer une facture qui n'existe pas. Et une
+  // alerte ne s'affiche qu'à qui peut ouvrir l'écran vers lequel elle mène.
+  const droits = await droitsActifs();
+  const voitLaTresorerie = droits.has("comptabilite.ecriture.consulter");
+  const liste = (
+    apercuActif()
+      ? toutesLesAlertes
+      : toutesLesAlertes.filter((alerte) => alerte.source === "base")
+  ).filter((alerte) => {
+    const droit = droitRequis(alerte.href);
+    return droit === null || droits.has(droit);
+  });
 
   // Les créances sont la somme des encours non lettrés, tous clients
   // confondus : ce que l'entreprise a facturé et n'a pas encore reçu.
@@ -138,61 +175,69 @@ export default async function PageTableauDeBord() {
       />
 
       {/* ------------------------------------------------------ trésorerie */}
-      <section className="mb-6">
-        <div className="mb-2.5 flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-semibold">Où est l&apos;argent</h2>
-          <span className="chiffres text-sm font-bold">
-            {fmt(total)}{" "}
-            <span className="text-xs font-medium text-[var(--encre-faible)]">
-              FCFA au total
+      {/* Les soldes et l'activité chiffrée relèvent de la comptabilité : un
+          caissier n'a pas à lire le solde bancaire de son employeur. */}
+      {voitLaTresorerie && (
+        <section className="mb-6">
+          <div className="mb-2.5 flex items-baseline justify-between gap-3">
+            <h2 className="text-base font-semibold">Où est l&apos;argent</h2>
+            <span className="chiffres text-sm font-bold">
+              {fmt(total)}{" "}
+              <span className="text-xs font-medium text-[var(--encre-faible)]">
+                FCFA au total
+              </span>
             </span>
-          </span>
-        </div>
+          </div>
 
-        <div className={GRILLE}>
-          {soldes.map((solde) => (
-            <CarteIndicateur
-              key={solde.libelle}
-              libelle={solde.libelle}
-              valeur={fmt(solde.montant)}
-              unite="FCFA"
-              precision={solde.detail}
-            />
-          ))}
-        </div>
+          <div className={GRILLE}>
+            {soldes.map((solde) => (
+              <CarteIndicateur
+                key={solde.libelle}
+                libelle={solde.libelle}
+                valeur={fmt(solde.montant)}
+                unite="FCFA"
+                precision={solde.detail}
+              />
+            ))}
+          </div>
 
-        <p className="mt-2 max-w-[70ch] text-xs text-[var(--encre-faible)]">
-          Ces montants sont la somme de vos écritures, pas un solde tenu à part.
-          Ce qui n&apos;est pas passé en comptabilité n&apos;y figure pas.
-        </p>
-      </section>
+          <p className="mt-2 max-w-[70ch] text-xs text-[var(--encre-faible)]">
+            Ces montants sont la somme de vos écritures, pas un solde tenu à part.
+            Ce qui n&apos;est pas passé en comptabilité n&apos;y figure pas.
+          </p>
+        </section>
+
+      )}
 
       {/* -------------------------------------------------------- activité */}
-      <section className="mb-6">
-        <h2 className="mb-2.5 text-base font-semibold">Activité</h2>
-        <div className={GRILLE}>
-          <CarteIndicateur
-            libelle="Encaissé aujourd'hui"
-            valeur={fmtCompact(activite.encaisse)}
-            unite="FCFA"
-            ton="valide"
-            precision={`${fmtEntier(activite.tickets)} ticket${activite.tickets > 1 ? "s" : ""} depuis minuit`}
-          />
-          <CarteIndicateur
-            libelle="Créances clients"
-            valeur={fmtCompact(activite.creances)}
-            unite="FCFA"
-            ton={activite.creances > 0 ? "alerte" : "valide"}
-            precision="Facturé, pas encore encaissé"
-          />
-          <CarteIndicateur
-            libelle="Valeur du stock"
-            valeur={fmtCompact(activite.valeurStock)}
-            unite="FCFA"
-            precision="Au coût moyen pondéré"
-          />
-        </div>
-      </section>
+      {voitLaTresorerie && (
+        <section className="mb-6">
+          <h2 className="mb-2.5 text-base font-semibold">Activité</h2>
+          <div className={GRILLE}>
+            <CarteIndicateur
+              libelle="Encaissé aujourd'hui"
+              valeur={fmtCompact(activite.encaisse)}
+              unite="FCFA"
+              ton="valide"
+              precision={`${fmtEntier(activite.tickets)} ticket${activite.tickets > 1 ? "s" : ""} depuis minuit`}
+            />
+            <CarteIndicateur
+              libelle="Créances clients"
+              valeur={fmtCompact(activite.creances)}
+              unite="FCFA"
+              ton={activite.creances > 0 ? "alerte" : "valide"}
+              precision="Facturé, pas encore encaissé"
+            />
+            <CarteIndicateur
+              libelle="Valeur du stock"
+              valeur={fmtCompact(activite.valeurStock)}
+              unite="FCFA"
+              precision="Au coût moyen pondéré"
+            />
+          </div>
+        </section>
+
+      )}
 
       {/* --------------------------------------------------------- à faire */}
       <section>

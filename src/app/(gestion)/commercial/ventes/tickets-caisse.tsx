@@ -5,6 +5,7 @@ import { fmt, fmtEntier } from "@/lib/format";
 import type { JourneeCaisse, TicketResume } from "@/modules/ventes/requetes";
 import type { SessionCaisse } from "@/modules/ventes/schema-session";
 import type { MoyenReglementVente } from "@/modules/ventes/schema";
+import { AnnulationTicket } from "./annulation-ticket";
 import { FormulairePoste } from "./formulaire-poste";
 
 const LIBELLE_MOYEN: Record<MoyenReglementVente, string> = {
@@ -25,9 +26,8 @@ const horodatage = new Intl.DateTimeFormat("fr-FR", {
 /**
  * Encaissements de caisse, en face des pièces commerciales.
  *
- * Ce sont deux flux de vente, et il n'y en a qu'un en base pour l'instant : le
- * ticket. La facture et le devis restent des données de démonstration — les
- * mêler sans le dire ferait croire que tout est enregistré.
+ * Un ticket annulé reste visible, marqué : l'annulation a posé un avoir
+ * (stock repris, écriture contrepassée), elle n'a rien effacé.
  */
 export function TicketsCaisse({
   tickets,
@@ -35,7 +35,9 @@ export function TicketsCaisse({
   postes,
   depots,
   clotures,
+  peutAnnuler,
 }: {
+  peutAnnuler: boolean;
   tickets: TicketResume[];
   journee: JourneeCaisse;
   postes: { code: string; nom: string; depotNom: string; dernierNumero: number }[];
@@ -158,6 +160,11 @@ export function TicketsCaisse({
                   <span className="chiffres text-xs text-[var(--encre-faible)]">
                     {horodatage.format(ticket.encaisseeLe)}
                   </span>
+                  {peutAnnuler && ticket.statut === "encaissee" && (
+                    <span className="mt-1 block">
+                      <AnnulationTicket id={ticket.id} numero={ticket.numero} />
+                    </span>
+                  )}
                 </Td>
               </tr>
             ))}

@@ -1,7 +1,8 @@
 import { relations } from "drizzle-orm";
-import { boolean, pgTable, primaryKey, text, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgEnum, pgTable, primaryKey, text, unique, uuid } from "drizzle-orm/pg-core";
 
 import { primaryId, timestamps } from "./_shared";
+import { memberships, organizations } from "./tenancy";
 
 /**
  * Rôle.
@@ -67,3 +68,45 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
     references: [permissions.key],
   }),
 }));
+
+/**
+ * Niveau d'accès d'une personne à un module.
+ *
+ *   · aucun        — le module disparaît pour elle : ni menu, ni écran ;
+ *   · consultation — elle voit, sans rien pouvoir modifier ;
+ *   · complet      — son rôle décide, sans restriction de plus.
+ */
+export const niveauAcces = pgEnum("niveau_acces", ["aucun", "consultation", "complet"]);
+
+/**
+ * Restriction d'accès par module, pour une personne dans une entreprise.
+ *
+ * Le rôle donne le PLAFOND des droits ; cette table le resserre, module par
+ * module, sans créer un rôle par personne. Elle ne peut jamais AJOUTER un
+ * droit que le rôle n'a pas : un caissier réglé « complet » sur la
+ * comptabilité reste un caissier. L'absence de ligne vaut « complet ».
+ *
+ * Le propriétaire n'est jamais restreint : l'entreprise lui appartient, et une
+ * configuration malheureuse ne doit pas lui fermer sa propre porte.
+ */
+export const accesModules = pgTable(
+  "acces_modules",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    membershipId: uuid("membership_id")
+      .notNull()
+      .references(() => memberships.id, { onDelete: "cascade" }),
+    moduleKey: text("module_key").notNull(),
+    niveau: niveauAcces("niveau").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    unique("acces_modules_unique").on(t.membershipId, t.moduleKey),
+    index("acces_modules_org_idx").on(t.organizationId),
+  ],
+);
+
+export type NiveauAcces = (typeof accesModules.$inferSelect)["niveau"];
