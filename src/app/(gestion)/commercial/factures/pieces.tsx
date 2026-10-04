@@ -104,6 +104,7 @@ export function PiecesCommerciales({
     setEdition({
       nature,
       clientId: "",
+      projetId: null,
       datePiece: aujourdHui,
       echeance: null,
       depotId: null,
@@ -241,6 +242,7 @@ export function PiecesCommerciales({
                   id: selection.id,
                   nature: selection.nature === "devis" ? "devis" : "facture",
                   clientId: selection.clientId,
+                  projetId: selection.projetId,
                   datePiece: selection.datePiece,
                   echeance: selection.echeance,
                   depotId: selection.depotId,

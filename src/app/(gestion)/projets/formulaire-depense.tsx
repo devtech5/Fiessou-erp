@@ -1,3 +1,4 @@
+import { ChoixFichiers } from "@/components/ui/fichiers";
 import { FormulaireRepliable } from "@/components/ui/operations";
 import { Champ, CLASSE_CHAMP } from "@/components/ui/primitives";
 import { demanderDepense } from "@/modules/projets/actions";
@@ -61,9 +62,9 @@ export function FormulaireDepense({
         <Champ libelle="Nom du fournisseur de passage">
           <input name="fournisseurLibelle" placeholder="Quincaillerie du carrefour" className={CLASSE_CHAMP} />
         </Champ>
-        <Champ libelle="Devis ou facture (photo, PDF)">
-          <input name="fichier" type="file" accept="image/*,application/pdf" className="block w-full text-xs" />
-        </Champ>
+        <div className="sm:col-span-2">
+          <ChoixFichiers libelle="Devis ou facture du fournisseur (photos, PDF)" />
+        </div>
         <label className="flex items-center gap-2 self-end pb-2 text-sm">
           <input name="avecTva" type="checkbox" />
           Facture normalisée avec TVA 18 % (récupérable)

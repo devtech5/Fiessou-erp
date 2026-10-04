@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { urlSignee } from "@/lib/stockage";
 
-import { suiviBudget, type SuiviBudget } from "./calcul";
+import { bilanProjet, suiviBudget, type Bilan, type SuiviBudget } from "./calcul";
 import type { MoyenDepense, NaturePieceProjet, StatutDepense, StatutProjet } from "./schema";
 
 const iso = (v: unknown): string | null =>
@@ -22,10 +22,18 @@ export interface ProjetVue {
   responsableUserId: string | null;
   responsable: string | null;
   budget: number | null;
+  prixVente: number | null;
   debut: string | null;
   fin: string | null;
+  termineLe: string | null;
   statut: StatutProjet;
   suivi: SuiviBudget;
+  /** Facturé HT, encaissé TTC, coûts HT : la matière du bilan. */
+  facture: number;
+  encaisse: number;
+  coutEngageHt: number;
+  coutPayeHt: number;
+  bilan: Bilan;
   depenses: number;
   photos: number;
 }
@@ -39,24 +47,34 @@ type LigneProjet = {
   responsable_user_id: string | null;
   responsable: string | null;
   budget: string | null;
+  prix_vente: string | null;
   debut: string | Date | null;
   fin: string | Date | null;
+  termine_le: string | Date | null;
   statut: StatutProjet;
   engage: string;
+  engage_ht: string;
+  paye_ht: string;
+  facture: string;
+  encaisse: string;
   paye: string;
   en_attente: string;
   nb_depenses: string;
   photos: string;
 };
 
-function versVue(l: LigneProjet): ProjetVue {
+function versVue(l: LigneProjet, aujourdHui: string): ProjetVue {
   const budget = nombreOuNul(l.budget);
+  const prixVente = nombreOuNul(l.prix_vente);
   // Les sommes viennent de la base ; le suivi les relit par la même règle que les tests figent.
   const suivi = suiviBudget(budget, [
     { statut: "payee", montant: Number(l.paye) },
     { statut: "approuvee", montant: Number(l.engage) - Number(l.paye) },
     { statut: "demandee", montant: Number(l.en_attente) },
   ]);
+  const facture = Number(l.facture);
+  const coutEngageHt = Number(l.engage_ht);
+  const coutPayeHt = Number(l.paye_ht);
   return {
     id: l.id,
     code: l.code,
@@ -66,10 +84,30 @@ function versVue(l: LigneProjet): ProjetVue {
     responsableUserId: l.responsable_user_id,
     responsable: l.responsable,
     budget,
+    prixVente,
     debut: iso(l.debut),
     fin: iso(l.fin),
+    termineLe: iso(l.termine_le),
     statut: l.statut,
     suivi,
+    facture,
+    encaisse: Number(l.encaisse),
+    coutEngageHt,
+    coutPayeHt,
+    bilan: bilanProjet(
+      {
+        facture,
+        encaisse: Number(l.encaisse),
+        coutEngage: coutEngageHt,
+        coutPaye: coutPayeHt,
+        prixVente,
+        budget,
+        engageTtc: suivi.engage,
+        finPrevue: iso(l.fin),
+        termineLe: iso(l.termine_le),
+      },
+      aujourdHui,
+    ),
     depenses: Number(l.nb_depenses),
     photos: Number(l.photos),
   };
@@ -78,9 +116,16 @@ function versVue(l: LigneProjet): ProjetVue {
 function requeteProjets(organizationId: string, projetId?: string) {
   return sql`
     select p.id, p.code, p.nom, p.description, t.nom as client, p.responsable_user_id,
-           u.full_name as responsable, p.budget, p.debut, p.fin, p.statut,
+           u.full_name as responsable, p.budget, p.prix_vente, p.debut, p.fin, p.termine_le, p.statut,
            coalesce(sum(d.montant) filter (where d.statut in ('approuvee', 'payee')), 0) as engage,
            coalesce(sum(d.montant) filter (where d.statut = 'payee'), 0) as paye,
+           -- Coûts hors taxes : la TVA récupérée n'est pas une charge du projet.
+           coalesce(sum(round(d.montant * 10000.0 / (10000 + d.taux_tva))) filter (where d.statut in ('approuvee', 'payee')), 0) as engage_ht,
+           coalesce(sum(round(d.montant * 10000.0 / (10000 + d.taux_tva))) filter (where d.statut = 'payee'), 0) as paye_ht,
+           (select coalesce(sum(f.total_ht), 0) from pieces_commerciales f
+             where f.projet_id = p.id and f.nature = 'facture' and f.statut = 'emise' and f.deleted_at is null) as facture,
+           (select coalesce(sum(r.montant), 0) from reglements_piece r join pieces_commerciales f on f.id = r.piece_id
+             where f.projet_id = p.id and f.nature = 'facture' and f.statut = 'emise' and r.deleted_at is null) as encaisse,
            coalesce(sum(d.montant) filter (where d.statut = 'demandee'), 0) as en_attente,
            count(d.id) filter (where d.statut not in ('rejetee', 'annulee')) as nb_depenses,
            (select count(*) from pieces_projet x where x.projet_id = p.id and x.nature = 'photo') as photos
@@ -97,7 +142,8 @@ function requeteProjets(organizationId: string, projetId?: string) {
 
 export async function listerProjets(organizationId: string): Promise<ProjetVue[]> {
   const lignes = await db.execute<LigneProjet>(requeteProjets(organizationId));
-  return lignes.map(versVue);
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  return lignes.map((l) => versVue(l, aujourdHui));
 }
 
 export interface DepenseVue {
@@ -240,17 +286,59 @@ export async function piecesDuProjet(organizationId: string, projetId: string): 
   );
 }
 
+export interface FactureProjet {
+  id: string;
+  numero: string | null;
+  nature: string;
+  statut: string;
+  datePiece: string | null;
+  totalHt: number;
+  totalTtc: number;
+  regle: number;
+}
+
+/** Devis et factures rattachés au projet. */
+async function facturesDuProjet(organizationId: string, projetId: string): Promise<FactureProjet[]> {
+  const lignes = await db.execute<{
+    id: string;
+    numero: string | null;
+    nature: string;
+    statut: string;
+    date_piece: string | Date | null;
+    total_ht: string;
+    total_ttc: string;
+    regle: string;
+  }>(sql`
+    select p.id, p.numero, p.nature, p.statut, p.date_piece, p.total_ht, p.total_ttc,
+           (select coalesce(sum(r.montant), 0) from reglements_piece r where r.piece_id = p.id and r.deleted_at is null) as regle
+    from pieces_commerciales p
+    where p.organization_id = ${organizationId} and p.projet_id = ${projetId} and p.deleted_at is null
+    order by p.date_piece desc
+  `);
+  return lignes.map((l) => ({
+    id: l.id,
+    numero: l.numero,
+    nature: l.nature,
+    statut: l.statut,
+    datePiece: iso(l.date_piece),
+    totalHt: Number(l.total_ht),
+    totalTtc: Number(l.total_ttc),
+    regle: Number(l.regle),
+  }));
+}
+
 export async function ficheProjet(
   organizationId: string,
   projetId: string,
-): Promise<{ projet: ProjetVue; depenses: DepenseVue[]; pieces: PieceVue[] } | null> {
+): Promise<{ projet: ProjetVue; depenses: DepenseVue[]; pieces: PieceVue[]; factures: FactureProjet[] } | null> {
   const [ligne] = await db.execute<LigneProjet>(requeteProjets(organizationId, projetId));
   if (!ligne) return null;
-  const [depenses, pieces] = await Promise.all([
+  const [depenses, pieces, factures] = await Promise.all([
     listerDepenses(organizationId, projetId),
     piecesDuProjet(organizationId, projetId),
+    facturesDuProjet(organizationId, projetId),
   ]);
-  return { projet: versVue(ligne), depenses, pieces };
+  return { projet: versVue(ligne, new Date().toISOString().slice(0, 10)), depenses, pieces, factures };
 }
 
 /** Pièces d'une dépense hors projet, pour l'écran des dépenses. */

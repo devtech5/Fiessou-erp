@@ -20,6 +20,7 @@ export interface PieceListee {
   statut: StatutPiece;
   clientId: string;
   clientNom: string;
+  projetId: string | null;
   datePiece: string;
   echeance: string | null;
   totalHt: number;
@@ -50,6 +51,7 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
     statut: StatutPiece;
     client_id: string;
     client_nom: string;
+    projet_id: string | null;
     date_piece: string | Date;
     echeance: string | Date | null;
     total_ht: string;
@@ -63,7 +65,7 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
     notes: string | null;
   }>(sql`
     select
-      p.id, p.nature, p.numero, p.statut, p.client_id, p.client_nom,
+      p.id, p.nature, p.numero, p.statut, p.client_id, p.client_nom, p.projet_id,
       p.date_piece, p.echeance, p.total_ht, p.total_tva, p.total_ttc,
       coalesce(r.total, 0) as regle,
       (p.nature = 'facture' and p.statut = 'emise' and p.echeance < current_date
@@ -90,6 +92,7 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
     statut: l.statut,
     clientId: l.client_id,
     clientNom: l.client_nom,
+    projetId: l.projet_id,
     datePiece: enDateIso(l.date_piece) ?? "",
     echeance: enDateIso(l.echeance),
     totalHt: Number(l.total_ht),
@@ -208,6 +211,7 @@ export interface OptionsPiece {
   clients: { id: string; nom: string; compte: string | null }[];
   articles: ArticleFacturable[];
   depots: { id: string; nom: string }[];
+  projets: { id: string; libelle: string }[];
 }
 
 /**
@@ -218,7 +222,7 @@ export interface OptionsPiece {
  * facture entre entreprises se négocie.
  */
 export async function optionsPiece(organizationId: string): Promise<OptionsPiece> {
-  const [clients, articles, depots] = await Promise.all([
+  const [clients, articles, depots, projets] = await Promise.all([
     db.execute<{ id: string; nom: string; compte: string | null }>(sql`
       select id, nom, compte_client as compte from tiers
       where organization_id = ${organizationId} and est_client and actif
@@ -243,6 +247,11 @@ export async function optionsPiece(organizationId: string): Promise<OptionsPiece
       select id, nom from depots
       where organization_id = ${organizationId} and deleted_at is null
       order by created_at`),
+    db.execute<{ id: string; libelle: string }>(sql`
+      select id, code || ' · ' || nom as libelle from projets
+      where organization_id = ${organizationId} and deleted_at is null
+        and statut not in ('termine', 'annule')
+      order by code desc`),
   ]);
 
   return {
@@ -260,6 +269,7 @@ export async function optionsPiece(organizationId: string): Promise<OptionsPiece
       };
     }),
     depots: [...depots],
+    projets: [...projets],
   };
 }
 

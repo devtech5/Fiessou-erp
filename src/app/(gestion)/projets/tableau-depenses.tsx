@@ -4,6 +4,8 @@ import { CATEGORIES_DEPENSE, categorieConnue } from "@/modules/projets/calcul";
 import type { DepenseVue, PieceVue } from "@/modules/projets/requetes";
 import type { StatutDepense } from "@/modules/projets/schema";
 
+import { Visionneuse } from "@/components/ui/fichiers";
+
 import { ActionsDepense, AjoutPiece } from "./outils";
 
 const TON: Record<StatutDepense, TonPastille> = {
@@ -21,6 +23,8 @@ const LIBELLE: Record<StatutDepense, string> = {
   rejetee: "Rejetée",
   annulee: "Annulée",
 };
+
+const NATURE = { photo: "Photo", preuve_paiement: "Preuve de paiement", facture: "Facture", autre: "Pièce" } as const;
 
 const MOYEN = { especes: "espèces", mobile_money: "mobile money", banque: "banque" } as const;
 
@@ -98,19 +102,17 @@ export function TableauDepenses({
                 </ol>
               </Td>
               <Td>
-                <ul className="space-y-0.5 text-xs">
-                  {jointes.map((p) => (
-                    <li key={p.id}>
-                      {p.url ? (
-                        <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-marque-600 hover:underline">
-                          {p.nature === "preuve_paiement" ? "Preuve" : p.nature === "facture" ? "Facture" : "Pièce"} · {p.nomFichier}
-                        </a>
-                      ) : (
-                        <span>{p.nomFichier}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                {jointes.length > 0 && (
+                  <Visionneuse
+                    elements={jointes.map((p) => ({
+                      id: p.id,
+                      url: p.url,
+                      typeMime: p.typeMime,
+                      titre: `${NATURE[p.nature]} · ${d.numero}`,
+                      sousTitre: p.legende ?? p.nomFichier,
+                    }))}
+                  />
+                )}
                 {d.statut === "payee" && d.preuves === 0 && (
                   <p className="text-xs font-medium text-danger-600">Preuve de paiement manquante</p>
                 )}

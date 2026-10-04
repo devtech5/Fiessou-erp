@@ -67,14 +67,40 @@ const id = (donnees: FormData, champ: string) => {
 const TAILLE_MAX = 10 * 1024 * 1024;
 const TYPES_ACCEPTES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"]);
 
-async function lireFichier(donnees: FormData): Promise<FichierJoint | null | string> {
-  const brut = donnees.get("fichier");
-  if (!(brut instanceof File) || brut.size === 0) return null;
+/** Au plus dix pièces par envoi : le recto, le verso, les captures d'un transfert en plusieurs fois. */
+const NOMBRE_MAX = 10;
+
+/**
+ * Lit les fichiers joints au formulaire. Tous sont contrôlés AVANT le premier
+ * dépôt : un lot refusé à mi-chemin laisserait des pièces orphelines de leur
+ * explication.
+ */
+async function lireFichiers(donnees: FormData): Promise<FichierJoint[] | string> {
+  const bruts = donnees.getAll("fichier").filter((v): v is File => v instanceof File && v.size > 0);
+  if (bruts.length === 0) return [];
   if (!stockageConfigure()) return "Le dépôt de fichiers n'est pas configuré : la pièce ne peut pas être enregistrée.";
-  if (brut.size > TAILLE_MAX) return `Fichier trop lourd : ${Math.ceil(brut.size / 1024 / 1024)} Mo pour 10 Mo au plus.`;
-  if (!TYPES_ACCEPTES.has(brut.type)) return `Format non accepté (${brut.type || "inconnu"}) : photo ou PDF.`;
-  return { nom: brut.name, typeMime: brut.type, contenu: await brut.arrayBuffer() };
+  if (bruts.length > NOMBRE_MAX) return `${NOMBRE_MAX} fichiers au plus par envoi.`;
+  const total = bruts.reduce((s, f) => s + f.size, 0);
+  // Une action serveur accepte 11 Mo en tout : au-delà, la requête n'arrive pas.
+  if (total > TAILLE_MAX) return `Envoi trop lourd : ${Math.ceil(total / 1024 / 1024)} Mo pour 10 Mo au plus. Envoyez en plusieurs fois.`;
+  for (const brut of bruts) {
+    if (!TYPES_ACCEPTES.has(brut.type)) return `« ${brut.name} » : format non accepté (${brut.type || "inconnu"}), photo ou PDF.`;
+  }
+  return Promise.all(bruts.map(async (b) => ({ nom: b.name, typeMime: b.type, contenu: await b.arrayBuffer() })));
 }
+
+async function joindreTout(
+  organizationId: string,
+  cible: { projetId?: string | null; depenseId?: string | null },
+  nature: "photo" | "preuve_paiement" | "facture" | "autre",
+  fichiers: FichierJoint[],
+  userId: string,
+  legende?: string,
+) {
+  for (const fichier of fichiers) await joindrePiece(organizationId, cible, { nature, legende, fichier }, userId);
+}
+
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // ------------------------------------------------------------------ projets
 
@@ -82,6 +108,7 @@ const schemaProjet = z.object({
   nom: z.string().trim().min(2, "Indiquez le nom du projet."),
   description: z.string().max(1000).optional(),
   budget: z.number().int().min(0).nullable(),
+  prixVente: z.number().int().min(0).nullable(),
   debut: z.string().regex(DATE_ISO).optional(),
   fin: z.string().regex(DATE_ISO).optional(),
 });
@@ -92,6 +119,7 @@ export async function creerProjet(donnees: FormData): Promise<Resultat> {
       nom: donnees.get("nom"),
       description: texte(donnees, "description"),
       budget: montant(texte(donnees, "budget")),
+      prixVente: montant(texte(donnees, "prixVente")),
       debut: texte(donnees, "debut"),
       fin: texte(donnees, "fin"),
     });
@@ -112,6 +140,7 @@ const schemaModification = z.object({
   responsableUserId: z.string().regex(UUID).nullable().optional(),
   statut: z.enum(["preparation", "en_cours", "suspendu", "termine", "annule"]).optional(),
   budget: z.number().int().min(0).nullable().optional(),
+  prixVente: z.number().int().min(0).nullable().optional(),
   fin: z.string().regex(DATE_ISO).nullable().optional(),
 });
 
@@ -147,8 +176,8 @@ export async function demanderDepense(donnees: FormData): Promise<Resultat> {
       fournisseurLibelle: texte(donnees, "fournisseurLibelle"),
     });
     if (!analyse.success) return { ok: false, message: analyse.error.issues[0].message };
-    const fichier = await lireFichier(donnees);
-    if (typeof fichier === "string") return { ok: false, message: fichier };
+    const fichiers = await lireFichiers(donnees);
+    if (typeof fichiers === "string") return { ok: false, message: fichiers };
 
     const { id: depenseId, numero } = await db.transaction((tx) =>
       demanderDepenseDans(
@@ -158,8 +187,11 @@ export async function demanderDepense(donnees: FormData): Promise<Resultat> {
         userId,
       ),
     );
-    if (fichier) await joindrePiece(organizationId, { depenseId }, { nature: "facture", fichier }, userId);
-    return { ok: true, message: `Demande ${numero} enregistrée${fichier ? ", devis joint" : ""} — en attente d'approbation.` };
+    await joindreTout(organizationId, { depenseId }, "facture", fichiers, userId);
+    return {
+      ok: true,
+      message: `Demande ${numero} enregistrée${fichiers.length ? `, ${pluriel(fichiers.length, "pièce")} jointe${fichiers.length > 1 ? "s" : ""}` : ""} — en attente d'approbation.`,
+    };
   });
 }
 
@@ -188,16 +220,18 @@ export async function payerDepense(donnees: FormData): Promise<Resultat> {
     const depenseId = id(donnees, "depenseId");
     const moyen = z.enum(["especes", "mobile_money", "banque"]).safeParse(donnees.get("moyen"));
     if (!depenseId || !moyen.success) return { ok: false, message: "Choisissez le moyen de paiement." };
-    const fichier = await lireFichier(donnees);
-    if (typeof fichier === "string") return { ok: false, message: fichier };
+    const fichiers = await lireFichiers(donnees);
+    if (typeof fichiers === "string") return { ok: false, message: fichiers };
 
     const { numero, ecriture } = await db.transaction((tx) =>
       payerDepenseDans(tx, organizationId, depenseId, { moyen: moyen.data, reference: texte(donnees, "reference") }, userId),
     );
-    if (fichier) await joindrePiece(organizationId, { depenseId }, { nature: "preuve_paiement", fichier }, userId);
+    await joindreTout(organizationId, { depenseId }, "preuve_paiement", fichiers, userId);
     return {
       ok: true,
-      message: `${numero} payée (écriture ${ecriture})${fichier ? ", preuve jointe" : " — pensez à joindre la preuve de paiement"}.`,
+      message: `${numero} payée (écriture ${ecriture})${
+        fichiers.length ? `, ${pluriel(fichiers.length, "preuve")} jointe${fichiers.length > 1 ? "s" : ""}` : " — pensez à joindre la preuve de paiement"
+      }.`,
     };
   });
 }
@@ -213,17 +247,20 @@ export async function ajouterPiece(donnees: FormData): Promise<Resultat> {
   return operer(id(donnees, "depenseId") ? "depense.demander" : "projet.gerer", async ({ organizationId, userId }) => {
     const nature = z.enum(["photo", "preuve_paiement", "facture", "autre"]).safeParse(donnees.get("nature"));
     if (!nature.success) return { ok: false, message: "Choisissez la nature de la pièce." };
-    const fichier = await lireFichier(donnees);
-    if (fichier === null) return { ok: false, message: "Choisissez un fichier." };
-    if (typeof fichier === "string") return { ok: false, message: fichier };
+    const fichiers = await lireFichiers(donnees);
+    if (typeof fichiers === "string") return { ok: false, message: fichiers };
+    if (fichiers.length === 0) return { ok: false, message: "Choisissez au moins un fichier." };
 
-    await joindrePiece(
+    await joindreTout(
       organizationId,
       { projetId: id(donnees, "projetId"), depenseId: id(donnees, "depenseId") },
-      { nature: nature.data, legende: texte(donnees, "legende"), fichier },
+      nature.data,
+      fichiers,
       userId,
+      texte(donnees, "legende"),
     );
-    return { ok: true, message: nature.data === "photo" ? "Photo ajoutée." : "Pièce ajoutée." };
+    const mot = nature.data === "photo" ? "photo" : nature.data === "preuve_paiement" ? "preuve" : "pièce";
+    return { ok: true, message: `${pluriel(fichiers.length, mot)} ajoutée${fichiers.length > 1 ? "s" : ""}.` };
   });
 }
 

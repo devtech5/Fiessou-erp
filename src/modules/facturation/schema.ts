@@ -16,6 +16,7 @@ import { money, primaryId, quantity, rowVersion, timestamps } from "@/db/schema/
 import { organizations } from "@/db/schema/tenancy";
 import { articles } from "@/modules/catalogue/schema";
 import { depots } from "@/modules/stock/schema";
+import { projets } from "@/modules/projets/schema";
 import { tiers } from "@/modules/tiers/schema";
 
 /**
@@ -67,6 +68,11 @@ export const piecesCommerciales = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => tiers.id, { onDelete: "restrict" }),
+    /**
+     * Projet auquel la pièce se rattache : c'est ce qui permet de dire si un
+     * chantier a gagné ou perdu de l'argent.
+     */
+    projetId: uuid("projet_id").references(() => projets.id, { onDelete: "set null" }),
     /** Nom recopié à l'émission : une facture réimprimée dit à qui elle a été adressée. */
     clientNom: text("client_nom").notNull(),
 

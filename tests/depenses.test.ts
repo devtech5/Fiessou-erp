@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { estEquilibree } from "@/lib/comptabilite/ecritures";
 import {
+  bilanProjet,
   CATEGORIES_DEPENSE,
   categorieConnue,
   depasseBudget,
   ecritureDepense,
   refusApprobation,
   suiviBudget,
+  tauxReussitePortefeuille,
   transitionDepense,
 } from "@/modules/projets/calcul";
 
@@ -89,5 +91,82 @@ describe("écriture de paiement", () => {
 
   it("un virement passe au journal de banque", () => {
     expect(ecritureDepense({ ...base, moyen: "banque" }).journal).toBe("BQ");
+  });
+});
+
+describe("bilan d'un projet", () => {
+  const base = {
+    facture: 0,
+    encaisse: 0,
+    coutEngage: 0,
+    coutPaye: 0,
+    prixVente: null,
+    budget: null,
+    engageTtc: 0,
+    finPrevue: null,
+    termineLe: null,
+  };
+
+  it("donne le bénéfice et la marge sur le facturé, hors taxes", () => {
+    const b = bilanProjet({ ...base, facture: 2_400_000, coutEngage: 1_340_000, termineLe: "2026-10-04" }, "2026-10-04");
+    expect(b.resultat).toBe(1_060_000);
+    expect(b.margeBp).toBe(4417);
+  });
+
+  it("donne la perte quand les coûts dépassent la recette", () => {
+    const b = bilanProjet({ ...base, facture: 1_000_000, coutEngage: 1_250_000, termineLe: "2026-10-04" }, "2026-10-04");
+    expect(b.resultat).toBe(-250_000);
+    expect(b.criteres.find((c) => c.cle === "rentabilite")?.atteint).toBe(false);
+  });
+
+  it("juge un projet en cours sur son résultat prévu, pas sur sa facturation partielle", () => {
+    const b = bilanProjet({ ...base, facture: 1_500_000, coutEngage: 2_381_186, prixVente: 3_000_000 }, "2026-10-04");
+    expect(b.resultat).toBe(-881_186);
+    expect(b.resultatPrevu).toBe(618_814);
+    const rentable = b.criteres.find((c) => c.cle === "rentabilite")!;
+    expect(rentable.atteint).toBe(true);
+    expect(rentable.libelle).toBe("Rentable au prix convenu");
+    // Le reste à facturer n'est pas un échec tant que le projet court.
+    expect(b.criteres.some((c) => c.cle === "chiffre")).toBe(false);
+    expect(b.ecarts.chiffre).toBe(-1_500_000);
+  });
+
+  it("mesure les écarts : budget, chiffre, délai", () => {
+    const b = bilanProjet(
+      { ...base, facture: 2_400_000, coutEngage: 1_340_000, prixVente: 2_400_000, budget: 1_800_000, engageTtc: 1_538_000, finPrevue: "2026-09-24", termineLe: "2026-10-04" },
+      "2026-10-04",
+    );
+    expect(b.ecarts).toEqual({ budget: 262_000, chiffre: 0, delaiJours: 10 });
+    expect(b.criteres.map((c) => [c.cle, c.atteint])).toEqual([
+      ["budget", true],
+      ["rentabilite", true],
+      ["chiffre", true],
+      ["delai", false],
+    ]);
+    expect(b.tauxReussite).toBe(75);
+  });
+
+  it("ne juge pas le délai d'un projet en cours avant l'échéance", () => {
+    const avant = bilanProjet({ ...base, finPrevue: "2026-10-30" }, "2026-10-04");
+    expect(avant.ecarts.delaiJours).toBeNull();
+    expect(avant.criteres).toHaveLength(0);
+    expect(avant.tauxReussite).toBeNull();
+    const apres = bilanProjet({ ...base, finPrevue: "2026-10-01" }, "2026-10-04");
+    expect(apres.ecarts.delaiJours).toBe(3);
+    expect(apres.criteres[0]).toMatchObject({ cle: "delai", atteint: false });
+  });
+
+  it("compte la réussite du portefeuille sur les projets terminés seulement", () => {
+    const reussi = bilanProjet({ ...base, facture: 100, coutEngage: 50, termineLe: "2026-10-01" }, "2026-10-04");
+    const rate = bilanProjet({ ...base, facture: 100, coutEngage: 150, termineLe: "2026-10-01" }, "2026-10-04");
+    const enCours = bilanProjet({ ...base, facture: 100, coutEngage: 500 }, "2026-10-04");
+    expect(
+      tauxReussitePortefeuille([
+        { statut: "termine", bilan: reussi },
+        { statut: "termine", bilan: rate },
+        { statut: "en_cours", bilan: enCours },
+      ]),
+    ).toEqual({ evalues: 2, reussis: 1, taux: 50 });
+    expect(tauxReussitePortefeuille([{ statut: "en_cours", bilan: enCours }]).taux).toBeNull();
   });
 });

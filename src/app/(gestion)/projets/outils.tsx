@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { ChoixFichiers } from "@/components/ui/fichiers";
 import { Retour, useOperation } from "@/components/ui/operations";
 import { CLASSE_CHAMP } from "@/components/ui/primitives";
 import {
@@ -117,10 +118,7 @@ export function ActionsDepense({
             <option value="banque">Virement / chèque</option>
           </select>
           <input name="reference" placeholder="Référence (n° de chèque, transfert…)" aria-label="Référence du paiement" className={`${CLASSE_CHAMP} h-9`} />
-          <label className="block text-xs text-[var(--encre-faible)]">
-            Preuve de paiement (photo du reçu, capture du transfert)
-            <input name="fichier" type="file" accept="image/*,application/pdf" capture="environment" className="mt-1 block w-full text-xs" />
-          </label>
+          <ChoixFichiers libelle="Preuves de paiement : reçu, capture du transfert…" camera />
           <div className="flex gap-1.5">
             <button type="submit" disabled={op.enCours} className={`${PETIT} bg-marque-600 text-white`}>
               {op.enCours ? "Paiement…" : "Payer et passer l'écriture"}
@@ -150,7 +148,7 @@ export function AjoutPiece({
   projetId,
   depenseId,
   natures = ["photo", "preuve_paiement", "facture", "autre"],
-  libelle = "Ajouter une photo ou une pièce",
+  libelle = "Ajouter des photos ou des pièces",
 }: {
   projetId?: string;
   depenseId?: string;
@@ -198,7 +196,7 @@ export function AjoutPiece({
         </select>
         <input name="legende" placeholder="Légende : dalle coulée, reçu quincaillerie…" aria-label="Légende" className={`${CLASSE_CHAMP} h-9`} />
       </div>
-      <input name="fichier" type="file" required accept="image/*,application/pdf" aria-label="Fichier" className="block w-full text-xs" />
+      <ChoixFichiers libelle="Photos ou PDF" requis camera={natures[0] === "photo"} />
       <div className="flex gap-1.5">
         <button type="submit" disabled={op.enCours} className={`${PETIT} bg-marque-600 text-white`}>
           {op.enCours ? "Envoi…" : "Déposer"}
@@ -242,19 +240,23 @@ export function PilotageProjet({
   statut,
   responsableUserId,
   budget,
+  prixVente,
   membres,
 }: {
   id: string;
   statut: StatutProjet;
   responsableUserId: string | null;
   budget: number | null;
+  prixVente: number | null;
   membres: { userId: string; nom: string }[];
 }) {
   const op = useOperation();
   const [enveloppe, setEnveloppe] = useState(budget === null ? "" : String(budget));
+  const [prix, setPrix] = useState(prixVente === null ? "" : String(prixVente));
+  const lire = (v: string) => (v.trim() === "" ? null : Number(v.replace(/[\s  ]/g, "")));
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <label className="block">
         <span className="mb-1 block text-xs font-semibold text-[var(--encre-faible)]">Responsable</span>
         <select
@@ -301,7 +303,7 @@ export function PilotageProjet({
             disabled={op.enCours}
             onClick={() =>
               op.lancer(() =>
-                modifierProjet(id, { budget: enveloppe.trim() === "" ? null : Number(enveloppe.replace(/[\s  ]/g, "")) }),
+                modifierProjet(id, { budget: lire(enveloppe) }),
               )
             }
             className={`${PETIT} shrink-0 border border-[var(--filet)]`}
@@ -310,8 +312,28 @@ export function PilotageProjet({
           </button>
         </div>
       </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold text-[var(--encre-faible)]">Prix de vente HT</span>
+        <div className="flex gap-1.5">
+          <input
+            value={prix}
+            onChange={(e) => setPrix(e.target.value)}
+            inputMode="numeric"
+            placeholder="Projet interne"
+            className={`${CLASSE_CHAMP} chiffres h-9`}
+          />
+          <button
+            type="button"
+            disabled={op.enCours}
+            onClick={() => op.lancer(() => modifierProjet(id, { prixVente: lire(prix) }))}
+            className={`${PETIT} shrink-0 border border-[var(--filet)]`}
+          >
+            Fixer
+          </button>
+        </div>
+      </label>
       {op.resultat && (
-        <div className="sm:col-span-3">
+        <div className="sm:col-span-2 xl:col-span-4">
           <Retour resultat={op.resultat} />
         </div>
       )}

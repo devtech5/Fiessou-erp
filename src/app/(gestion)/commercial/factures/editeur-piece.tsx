@@ -13,6 +13,7 @@ export interface PieceAEditer {
   id?: string;
   nature: "devis" | "facture";
   clientId: string;
+  projetId: string | null;
   datePiece: string;
   echeance: string | null;
   depotId: string | null;
@@ -72,6 +73,7 @@ export function EditeurPiece({
 }) {
   const [nature, setNature] = useState(initiale.nature);
   const [clientId, setClientId] = useState(initiale.clientId);
+  const [projetId, setProjetId] = useState(initiale.projetId ?? "");
   const [datePiece, setDatePiece] = useState(initiale.datePiece);
   const [echeance, setEcheance] = useState(initiale.echeance ?? "");
   const [depotId, setDepotId] = useState(initiale.depotId ?? "");
@@ -131,6 +133,7 @@ export function EditeurPiece({
       id: initiale.id,
       nature,
       clientId,
+      projetId: projetId || null,
       datePiece,
       echeance: echeance || null,
       depotId: depotId || null,
@@ -189,6 +192,19 @@ export function EditeurPiece({
             ))}
           </select>
         </Champ>
+
+        {options.projets.length > 0 && (
+          <Champ libelle="Projet">
+            <select value={projetId} onChange={(e) => setProjetId(e.target.value)} className={CLASSE_CHAMP}>
+              <option value="">Aucun</option>
+              {options.projets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.libelle}
+                </option>
+              ))}
+            </select>
+          </Champ>
+        )}
 
         <Champ libelle="Date">
           <input

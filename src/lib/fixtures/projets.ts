@@ -1,15 +1,20 @@
 import "server-only";
 
+import { and, eq } from "drizzle-orm";
+
 import type { Transaction } from "@/lib/sequences";
+import { emettreDans, enregistrerBrouillonDans } from "@/modules/facturation/creation";
 import type { CategorieDepense } from "@/modules/projets/calcul";
 import {
   approuverDepenseDans,
   cloreDepenseDans,
   creerProjetDans,
   demanderDepenseDans,
+  modifierProjetDans,
   payerDepenseDans,
 } from "@/modules/projets/creation";
-import type { MoyenDepense } from "@/modules/projets/schema";
+import { tiers } from "@/modules/tiers/schema";
+import { projets, type MoyenDepense } from "@/modules/projets/schema";
 
 /**
  * Amorçage des projets et dépenses.
@@ -29,6 +34,9 @@ const PROJETS: {
   nom: string;
   description: string;
   budget: number | null;
+  /** Projet mené pour un client : son nom, le prix convenu HT et ce qui a été facturé. */
+  client?: { nom: string; prixVente: number; facture: number };
+  termine?: boolean;
   debut: number;
   fin: number;
   depenses: { objet: string; categorie: CategorieDepense; montant: number; tva?: boolean; fournisseur?: string; il_y_a: number; suite: Suite }[];
@@ -59,6 +67,22 @@ const PROJETS: {
       { objet: "Location salle de présentation", categorie: "location", montant: 75_000, fournisseur: "Hôtel du Centre Bouaké", il_y_a: 3, suite: "approuver" },
     ],
   },
+  {
+    // Projet client terminé, bénéficiaire, mais livré avec dix jours de retard :
+    // le taux de réussite le dit, et c'est exactement ce qu'il doit dire.
+    nom: "Réaménagement Pharmacie du Plateau",
+    description: "Comptoir neuf, rayonnages et climatisation de l'officine, livrés clés en main.",
+    budget: 1_800_000,
+    client: { nom: "Pharmacie du Plateau", prixVente: 2_400_000, facture: 2_400_000 },
+    termine: true,
+    debut: -60,
+    fin: -10,
+    depenses: [
+      { objet: "Comptoir sur mesure", categorie: "materiaux", montant: 708_000, tva: true, fournisseur: "Menuiserie Treichville", il_y_a: 50, suite: { payer: "banque", reference: "VIR 2026-0912" } },
+      { objet: "Climatiseurs split 2 × 1,5 CV", categorie: "materiaux", montant: 590_000, tva: true, fournisseur: "Froid Services", il_y_a: 40, suite: { payer: "banque", reference: "CHQ 0045702" } },
+      { objet: "Pose et finitions — équipe de 4", categorie: "main_oeuvre", montant: 240_000, il_y_a: 25, suite: { payer: "especes" } },
+    ],
+  },
 ];
 
 export async function amorcerProjets(
@@ -74,6 +98,30 @@ export async function amorcerProjets(
       { nom: p.nom, description: p.description, budget: p.budget, debut: jour(p.debut), fin: jour(p.fin), responsableUserId: userId },
       userId,
     );
+
+    if (p.client) {
+      const [client] = await tx
+        .select({ id: tiers.id })
+        .from(tiers)
+        .where(and(eq(tiers.organizationId, organizationId), eq(tiers.nom, p.client.nom)));
+      if (client) {
+        await tx.update(projets).set({ clientId: client.id, prixVente: p.client.prixVente }).where(eq(projets.id, projetId));
+        // La facture passe par la facturation réelle : numéro, écriture, rattachement au projet.
+        const { id: factureId } = await enregistrerBrouillonDans(
+          tx,
+          organizationId,
+          {
+            nature: "facture",
+            clientId: client.id,
+            projetId,
+            datePiece: jour(p.fin),
+            lignes: [{ articleId: null, designation: p.nom, quantite: 1000, prixUnitaireHt: p.client.facture }],
+          },
+          userId,
+        );
+        await emettreDans(tx, organizationId, factureId, userId);
+      }
+    }
 
     for (const d of p.depenses) {
       const le = new Date(Date.now() - d.il_y_a * JOUR);
@@ -102,6 +150,7 @@ export async function amorcerProjets(
       if (d.suite === "approuver") continue;
       await payerDepenseDans(tx, organizationId, id, { moyen: d.suite.payer, reference: d.suite.reference }, userId, new Date(le.getTime() + 26 * 3600 * 1000));
     }
+    if (p.termine) await modifierProjetDans(tx, organizationId, projetId, { statut: "termine" }, userId);
   }
   return { projets: PROJETS.length, depenses: nombre };
 }

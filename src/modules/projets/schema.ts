@@ -41,9 +41,13 @@ export const projets = pgTable(
     responsableUserId: uuid("responsable_user_id"),
     /** Enveloppe autorisée, TTC. Nulle : pas de plafond fixé. */
     budget: money("budget"),
+    /** Prix de vente convenu avec le client, HT. Nul : projet interne. */
+    prixVente: money("prix_vente"),
     debut: date("debut"),
     fin: date("fin"),
     statut: statutProjet("statut").notNull().default("preparation"),
+    /** Date de fin RÉELLE, posée au passage en « terminé » : c'est elle qui juge le délai. */
+    termineLe: date("termine_le"),
 
     ...timestamps,
     ...rowVersion,
@@ -51,6 +55,7 @@ export const projets = pgTable(
   (t) => [
     unique("projets_code_unique").on(t.organizationId, t.code),
     check("projets_budget", sql`${t.budget} IS NULL OR ${t.budget} >= 0`),
+    check("projets_prix_vente", sql`${t.prixVente} IS NULL OR ${t.prixVente} >= 0`),
     check("projets_periode", sql`${t.fin} IS NULL OR ${t.debut} IS NULL OR ${t.fin} >= ${t.debut}`),
     index("projets_org_idx").on(t.organizationId, t.statut),
   ],

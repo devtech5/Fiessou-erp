@@ -127,6 +127,13 @@
       "when": 1791101181187,
       "tag": "0017_square_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791102781893,
+      "tag": "0018_petite_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

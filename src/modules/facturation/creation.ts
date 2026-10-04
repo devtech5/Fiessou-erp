@@ -10,6 +10,7 @@ import type { CodeUnite } from "@/lib/quantite";
 import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
 import { enregistrerMouvementDans } from "@/modules/stock/creation";
 import { depots } from "@/modules/stock/schema";
+import { projets } from "@/modules/projets/schema";
 import { tiers } from "@/modules/tiers/schema";
 import { referentielArticles } from "@/modules/ventes/creation";
 
@@ -47,6 +48,7 @@ export interface BrouillonDemande {
   id?: string;
   nature: NaturePiece;
   clientId: string;
+  projetId?: string | null;
   datePiece: string;
   echeance?: string | null;
   depotId?: string | null;
@@ -106,6 +108,17 @@ async function client(tx: Transaction, organizationId: string, clientId: string)
   return fiche;
 }
 
+/** Le projet visé, s'il appartient à l'entreprise. Un projet clos garde ses pièces, il n'en reçoit plus. */
+async function projetOuvert(tx: Transaction, organizationId: string, projetId: string | null | undefined) {
+  if (!projetId) return null;
+  const [projet] = await tx
+    .select({ id: projets.id, statut: projets.statut })
+    .from(projets)
+    .where(and(eq(projets.id, projetId), eq(projets.organizationId, organizationId)));
+  if (!projet) throw new Error("Projet introuvable.");
+  return projet.id;
+}
+
 /**
  * Crée ou remplace un brouillon.
  *
@@ -134,6 +147,7 @@ export async function enregistrerBrouillonDans(
     nature: demande.nature,
     clientId: fiche.id,
     clientNom: fiche.nom,
+    projetId: await projetOuvert(tx, organizationId, demande.projetId),
     datePiece: demande.datePiece,
     echeance,
     depotId: demande.depotId ?? null,
@@ -402,6 +416,7 @@ export async function convertirDevisDans(
     {
       nature: "facture",
       clientId: piece.clientId,
+      projetId: piece.projetId,
       datePiece: aujourdHui,
       depotId: piece.depotId,
       notes: piece.notes,
@@ -460,6 +475,7 @@ export async function annulerFactureDans(
     {
       nature: "avoir",
       clientId: piece.clientId,
+      projetId: piece.projetId,
       datePiece: aujourdHui,
       depotId: piece.depotId,
       notes: `Annulation de la facture ${piece.numero} : ${motif}`,

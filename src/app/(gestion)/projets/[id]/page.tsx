@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { CarteIndicateur, EnTetePage, EtatVide, Pastille } from "@/components/ui/primitives";
+import { Visionneuse } from "@/components/ui/fichiers";
+import { CarteIndicateur, EnTetePage, EtatVide, Pastille, Tableau, Td, Th } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { peut } from "@/lib/droits/garde";
-import { fmt, fmtCompact } from "@/lib/format";
+import { fmt, fmtCompact, fmtTauxBp } from "@/lib/format";
 import { LIBELLE_STATUT_PROJET } from "@/modules/projets/calcul";
 import { ficheProjet, membresActifs, type PieceVue } from "@/modules/projets/requetes";
 import { listerTiers } from "@/modules/tiers/requetes";
@@ -18,6 +19,15 @@ export const metadata: Metadata = { title: "Projet" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOUR = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const NATURE_PIECE: Record<string, string> = { devis: "Devis", facture: "Facture", avoir: "Avoir" };
+const STATUT_PIECE: Record<string, string> = {
+  brouillon: "Brouillon",
+  emise: "Émise",
+  acceptee: "Acceptée",
+  refusee: "Refusée",
+  convertie: "Convertie",
+  annulee: "Annulée",
+};
 const NATURE = { photo: "Photo", preuve_paiement: "Preuve de paiement", facture: "Facture / devis", autre: "Pièce" } as const;
 
 /**
@@ -39,7 +49,11 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
     listerTiers(session.organizationId, "fournisseur"),
   ]);
   if (!fiche) notFound();
-  const { projet, depenses, pieces } = fiche;
+  const { projet, depenses, pieces, factures } = fiche;
+  const { bilan } = projet;
+  const benefice = bilan.resultat >= 0;
+  // Sans facture ni prix convenu, le projet ne doit rien rapporter : c'est un coût, pas une perte.
+  const interne = projet.facture === 0 && projet.prixVente === null;
 
   const photos = pieces.filter((p) => p.nature === "photo" && p.typeMime.startsWith("image/"));
   const autres = pieces.filter((p) => !photos.includes(p));
@@ -67,6 +81,132 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
         actions={<Pastille ton={projet.statut === "en_cours" ? "marque" : "neutre"}>{LIBELLE_STATUT_PROJET[projet.statut]}</Pastille>}
       />
       {projet.description && <p className="mb-4 max-w-[80ch] text-sm text-[var(--encre-douce)]">{projet.description}</p>}
+
+      <section className="mb-6 rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">Bilan du projet</h2>
+            <p className="text-xs text-[var(--encre-faible)]">Hors taxes : la TVA n&apos;est ni un gain ni une perte.</p>
+          </div>
+          {bilan.tauxReussite !== null && (
+            <div className="text-right">
+              <p className="text-xs text-[var(--encre-faible)]">
+                {projet.statut === "termine" ? "Taux de réussite" : "Taux de réussite à date"}
+              </p>
+              <p
+                className={`chiffres text-2xl font-bold ${
+                  bilan.tauxReussite === 100 ? "text-valide-600" : bilan.tauxReussite >= 50 ? "text-alerte-600" : "text-danger-600"
+                }`}
+              >
+                {bilan.tauxReussite} %
+              </p>
+            </div>
+          )}
+        </div>
+
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg bg-[var(--surface-creuse)] p-3">
+            <dt className="text-xs text-[var(--encre-faible)]">Facturé au client</dt>
+            <dd className="chiffres text-lg font-bold">{fmt(projet.facture)}</dd>
+            <dd className="chiffres text-xs text-[var(--encre-faible)]">{fmt(projet.encaisse)} F TTC encaissés</dd>
+          </div>
+          <div className="rounded-lg bg-[var(--surface-creuse)] p-3">
+            <dt className="text-xs text-[var(--encre-faible)]">Coûts engagés</dt>
+            <dd className="chiffres text-lg font-bold">{fmt(projet.coutEngageHt)}</dd>
+            <dd className="chiffres text-xs text-[var(--encre-faible)]">dont {fmt(projet.coutPayeHt)} payés</dd>
+          </div>
+          {interne ? (
+            <div className="rounded-lg bg-[var(--surface-creuse)] p-3">
+              <dt className="text-xs text-[var(--encre-faible)]">Coût du projet</dt>
+              <dd className="chiffres text-lg font-bold">{fmt(projet.coutEngageHt)}</dd>
+              <dd className="text-xs text-[var(--encre-faible)]">Projet interne : aucune recette attendue</dd>
+            </div>
+          ) : (
+          <div className={`rounded-lg p-3 ${benefice ? "bg-valide-50" : "bg-danger-50"}`}>
+            <dt className={`text-xs font-medium ${benefice ? "text-valide-600" : "text-danger-600"}`}>{benefice ? "Bénéfice" : "Perte"}</dt>
+            <dd className={`chiffres text-lg font-bold ${benefice ? "text-valide-600" : "text-danger-600"}`}>
+              {benefice ? "" : "− "}
+              {fmt(Math.abs(bilan.resultat))}
+            </dd>
+            <dd className="text-xs text-[var(--encre-faible)]">
+              {bilan.margeBp !== null ? `Marge ${fmtTauxBp(bilan.margeBp)}` : "Rien de facturé pour l'instant"}
+            </dd>
+          </div>
+          )}
+          <div className="rounded-lg bg-[var(--surface-creuse)] p-3">
+            <dt className="text-xs text-[var(--encre-faible)]">Résultat prévu</dt>
+            <dd className="chiffres text-lg font-bold">
+              {bilan.resultatPrevu === null ? "—" : `${bilan.resultatPrevu < 0 ? "− " : ""}${fmt(Math.abs(bilan.resultatPrevu))}`}
+            </dd>
+            <dd className="text-xs text-[var(--encre-faible)]">
+              {projet.prixVente === null ? "Fixez un prix de vente pour le calculer" : `Prix convenu ${fmt(projet.prixVente)} HT`}
+            </dd>
+          </div>
+        </dl>
+
+        <h3 className="mt-4 text-xs font-semibold text-[var(--encre-faible)]">Écarts avec le prévu</h3>
+        <ul className="mt-1.5 grid gap-2 text-sm sm:grid-cols-3">
+          <li className="rounded-lg border border-[var(--filet)] px-3 py-2">
+            <span className="block text-xs text-[var(--encre-faible)]">Budget (TTC)</span>
+            {bilan.ecarts.budget === null ? (
+              <span className="text-[var(--encre-faible)]">Pas de budget</span>
+            ) : (
+              <span className={`chiffres font-semibold ${bilan.ecarts.budget < 0 ? "text-danger-600" : "text-valide-600"}`}>
+                {bilan.ecarts.budget < 0 ? `${fmt(-bilan.ecarts.budget)} de dépassement` : `${fmt(bilan.ecarts.budget)} disponibles`}
+              </span>
+            )}
+          </li>
+          <li className="rounded-lg border border-[var(--filet)] px-3 py-2">
+            <span className="block text-xs text-[var(--encre-faible)]">Chiffre d&apos;affaires (HT)</span>
+            {bilan.ecarts.chiffre === null ? (
+              <span className="text-[var(--encre-faible)]">Pas de prix convenu</span>
+            ) : (
+              <span className={`chiffres font-semibold ${bilan.ecarts.chiffre < 0 ? "text-alerte-600" : "text-valide-600"}`}>
+                {bilan.ecarts.chiffre < 0
+                  ? `${fmt(-bilan.ecarts.chiffre)} à facturer`
+                  : bilan.ecarts.chiffre === 0
+                    ? "Tout facturé"
+                    : `${fmt(bilan.ecarts.chiffre)} au-delà du prix`}
+              </span>
+            )}
+          </li>
+          <li className="rounded-lg border border-[var(--filet)] px-3 py-2">
+            <span className="block text-xs text-[var(--encre-faible)]">Délai</span>
+            {projet.fin === null ? (
+              <span className="text-[var(--encre-faible)]">Pas d&apos;échéance</span>
+            ) : bilan.ecarts.delaiJours === null ? (
+              <span className="text-[var(--encre-douce)]">Échéance le {JOUR.format(new Date(projet.fin))}</span>
+            ) : (
+              <span className={`chiffres font-semibold ${bilan.ecarts.delaiJours > 0 ? "text-danger-600" : "text-valide-600"}`}>
+                {bilan.ecarts.delaiJours > 0
+                  ? `${bilan.ecarts.delaiJours} j de retard`
+                  : bilan.ecarts.delaiJours < 0
+                    ? `${-bilan.ecarts.delaiJours} j d'avance`
+                    : "À l'échéance"}
+              </span>
+            )}
+          </li>
+        </ul>
+
+        {bilan.criteres.length > 0 && (
+          <>
+            <h3 className="mt-4 text-xs font-semibold text-[var(--encre-faible)]">
+              Critères de réussite ({bilan.criteres.filter((c) => c.atteint).length} sur {bilan.criteres.length})
+            </h3>
+            <ul className="mt-1.5 space-y-1 text-sm">
+              {bilan.criteres.map((c) => (
+                <li key={c.cle} className="flex flex-wrap items-baseline gap-x-2">
+                  <span aria-hidden className={c.atteint ? "text-valide-600" : "text-danger-600"}>
+                    {c.atteint ? "✓" : "✗"}
+                  </span>
+                  <span className="font-medium">{c.libelle}</span>
+                  <span className="text-xs text-[var(--encre-faible)]">{c.detail}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CarteIndicateur
@@ -100,6 +240,7 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
             statut={projet.statut}
             responsableUserId={projet.responsableUserId}
             budget={projet.budget}
+            prixVente={projet.prixVente}
             membres={membres}
           />
         </section>
@@ -118,33 +259,17 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
             Aucune photo. Avant, pendant, après : la photo datée est la meilleure preuve de l&apos;avancement.
           </p>
         ) : (
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {photos.map((p) => (
-              <li key={p.id} className="overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
-                {p.url ? (
-                  <a href={p.url} target="_blank" rel="noopener noreferrer">
-                    {/* URL signée et éphémère : l'optimiseur d'images la mettrait en cache au-delà de son expiration. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.url} alt={p.legende ?? p.nomFichier} className="aspect-[4/3] w-full object-cover" loading="lazy" />
-                  </a>
-                ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center bg-[var(--surface-creuse)] text-xs text-[var(--encre-faible)]">
-                    Dépôt indisponible
-                  </div>
-                )}
-                <div className="flex items-start justify-between gap-2 p-2">
-                  <p className="min-w-0 text-xs">
-                    <span className="block truncate font-medium">{p.legende ?? p.nomFichier}</span>
-                    <span className="text-[var(--encre-faible)]">
-                      {JOUR.format(p.depose)}
-                      {p.auteur ? ` · ${p.auteur}` : ""}
-                    </span>
-                  </p>
-                  {gerer && <RetraitPiece id={p.id} />}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <Visionneuse
+            taille="grande"
+            elements={photos.map((p) => ({
+              id: p.id,
+              url: p.url,
+              typeMime: p.typeMime,
+              titre: p.legende ?? p.nomFichier,
+              sousTitre: `${JOUR.format(p.depose)}${p.auteur ? ` · ${p.auteur}` : ""}`,
+            }))}
+            pieds={gerer ? Object.fromEntries(photos.map((p) => [p.id, <RetraitPiece key={p.id} id={p.id} />])) : undefined}
+          />
         )}
       </section>
 
@@ -175,6 +300,49 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
           </ul>
         </section>
       )}
+
+      <section className="mb-6">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold">Devis et factures ({factures.length})</h2>
+          <Link href="/commercial/factures" className="text-xs font-semibold text-marque-600 hover:underline">
+            Facturer ce projet →
+          </Link>
+        </div>
+        {factures.length === 0 ? (
+          <p className="text-sm text-[var(--encre-faible)]">
+            Aucune pièce rattachée. Choisissez ce projet dans le champ « Projet » d&apos;un devis ou d&apos;une facture :
+            c&apos;est ce qui donne la recette du bilan.
+          </p>
+        ) : (
+          <Tableau>
+            <thead>
+              <tr>
+                <Th>Pièce</Th>
+                <Th>Date</Th>
+                <Th>Statut</Th>
+                <Th aligne="droite">HT</Th>
+                <Th aligne="droite">TTC</Th>
+                <Th aligne="droite">Réglé</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {factures.map((f) => (
+                <tr key={f.id}>
+                  <Td chiffres fort>
+                    {f.numero ?? "Brouillon"}
+                    <span className="block text-xs font-normal text-[var(--encre-faible)]">{NATURE_PIECE[f.nature] ?? f.nature}</span>
+                  </Td>
+                  <Td chiffres>{f.datePiece ? JOUR.format(new Date(f.datePiece)) : "—"}</Td>
+                  <Td>{STATUT_PIECE[f.statut] ?? f.statut}</Td>
+                  <Td aligne="droite" chiffres>{fmt(f.totalHt)}</Td>
+                  <Td aligne="droite" chiffres>{fmt(f.totalTtc)}</Td>
+                  <Td aligne="droite" chiffres>{fmt(f.regle)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </Tableau>
+        )}
+      </section>
 
       <section>
         <div className="mb-2 flex items-center justify-between gap-3">

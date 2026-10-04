@@ -155,3 +155,152 @@ export function ecritureDepense(depense: {
   if (!estEquilibree(ecriture)) throw new Error(`Écriture déséquilibrée sur ${depense.numero}.`);
   return ecriture;
 }
+
+// ------------------------------------------------------------------ bilan
+
+/**
+ * Bilan d'un projet : ce qu'il a rapporté, ce qu'il a coûté, l'écart avec ce
+ * qui était prévu, et s'il a réussi.
+ *
+ * Tout se compte HORS TAXES : la TVA collectée sur la facture et la TVA
+ * récupérée sur l'achat ne sont ni un gain ni une perte. Le budget, lui,
+ * reste en TTC — c'est l'argent qui sort de la caisse.
+ */
+export interface DonneesBilan {
+  /** Factures émises rattachées au projet, HT. */
+  facture: number;
+  /** Ce que les clients ont réellement payé sur ces factures, TTC. */
+  encaisse: number;
+  /** Dépenses approuvées ou payées, HT. */
+  coutEngage: number;
+  /** Dépenses payées, HT. */
+  coutPaye: number;
+  /** Prix de vente convenu, HT. Nul : projet interne ou pas de prix fixé. */
+  prixVente: number | null;
+  /** Budget TTC et ce qui l'engage, TTC. */
+  budget: number | null;
+  engageTtc: number;
+  /** Échéance prévue et date de fin réelle (ISO). */
+  finPrevue: string | null;
+  termineLe: string | null;
+}
+
+export interface Critere {
+  cle: "budget" | "rentabilite" | "delai" | "chiffre";
+  libelle: string;
+  atteint: boolean;
+  detail: string;
+}
+
+export interface Bilan {
+  /** Facturé moins coûts engagés : positif, bénéfice ; négatif, perte. */
+  resultat: number;
+  /** Résultat rapporté au facturé, en points de base ; nul sans facturation. */
+  margeBp: number | null;
+  /** Marge prévue : prix de vente moins coûts engagés. Nulle sans prix. */
+  resultatPrevu: number | null;
+  ecarts: {
+    /** Budget moins engagé (TTC) : négatif, dépassement. */
+    budget: number | null;
+    /** Facturé moins prix convenu (HT) : négatif, reste à facturer. */
+    chiffre: number | null;
+    /** Jours de retard (positif) ou d'avance (négatif) sur l'échéance. */
+    delaiJours: number | null;
+  };
+  criteres: Critere[];
+  /** Part des critères évaluables qui sont atteints, en %. Nul si aucun ne s'évalue. */
+  tauxReussite: number | null;
+}
+
+const JOUR_MS = 24 * 60 * 60 * 1000;
+
+function joursEntre(debutIso: string, finIso: string): number {
+  return Math.round((Date.parse(`${finIso}T12:00:00Z`) - Date.parse(`${debutIso}T12:00:00Z`)) / JOUR_MS);
+}
+
+const f = (n: number) => n.toLocaleString("fr-FR");
+
+export function bilanProjet(d: DonneesBilan, aujourdHui: string): Bilan {
+  const resultat = d.facture - d.coutEngage;
+  const margeBp = d.facture > 0 ? Math.round((resultat * 10_000) / d.facture) : null;
+  const resultatPrevu = d.prixVente === null ? null : d.prixVente - d.coutEngage;
+
+  const ecartBudget = d.budget === null ? null : d.budget - d.engageTtc;
+  const ecartChiffre = d.prixVente === null ? null : d.facture - d.prixVente;
+  // Un projet terminé se juge à sa date de fin ; un projet en cours, à aujourd'hui
+  // — mais seulement une fois l'échéance passée : avant, il n'est pas en retard.
+  const reference = d.termineLe ?? aujourdHui;
+  const ecartDelai =
+    d.finPrevue === null ? null : d.termineLe || reference > d.finPrevue ? joursEntre(d.finPrevue, reference) : null;
+
+  const criteres: Critere[] = [];
+  if (ecartBudget !== null) {
+    criteres.push({
+      cle: "budget",
+      libelle: "Budget tenu",
+      atteint: ecartBudget >= 0,
+      detail: ecartBudget >= 0 ? `${f(ecartBudget)} F de marge sur l'enveloppe` : `${f(-ecartBudget)} F de dépassement`,
+    });
+  }
+  // Un projet en cours se juge sur ce qu'il RAPPORTERA (prix convenu moins
+  // coûts engagés) : facturé à moitié, il paraîtrait en perte alors qu'il est
+  // simplement en chemin. Terminé, il se juge sur ce qu'il a réellement facturé.
+  const termine = d.termineLe !== null;
+  const realise = termine || d.prixVente === null;
+  if (d.facture > 0 || d.prixVente !== null) {
+    const base = realise ? resultat : (resultatPrevu ?? 0);
+    criteres.push({
+      cle: "rentabilite",
+      libelle: realise ? "Projet rentable" : "Rentable au prix convenu",
+      atteint: base >= 0,
+      detail: base >= 0 ? `${f(base)} F de bénéfice${realise ? "" : " prévu"}` : `${f(-base)} F de perte${realise ? "" : " prévue"}`,
+    });
+  }
+  // Facturer le prix convenu ne se juge qu'à la fin : avant, il reste à facturer, c'est normal.
+  if (ecartChiffre !== null && termine) {
+    criteres.push({
+      cle: "chiffre",
+      libelle: "Prix convenu facturé",
+      atteint: ecartChiffre >= 0,
+      detail: ecartChiffre >= 0 ? "Tout est facturé" : `${f(-ecartChiffre)} F HT jamais facturés`,
+    });
+  }
+  if (d.finPrevue !== null && (d.termineLe !== null || aujourdHui > d.finPrevue)) {
+    criteres.push({
+      cle: "delai",
+      libelle: "Délai tenu",
+      atteint: (ecartDelai ?? 0) <= 0,
+      detail:
+        (ecartDelai ?? 0) <= 0
+          ? ecartDelai && ecartDelai < 0
+            ? `Terminé ${-ecartDelai} j en avance`
+            : "Terminé à l'échéance"
+          : `${ecartDelai} j de retard`,
+    });
+  }
+
+  const atteints = criteres.filter((c) => c.atteint).length;
+  return {
+    resultat,
+    margeBp,
+    resultatPrevu,
+    ecarts: { budget: ecartBudget, chiffre: ecartChiffre, delaiJours: ecartDelai },
+    criteres,
+    tauxReussite: criteres.length === 0 ? null : Math.round((atteints * 100) / criteres.length),
+  };
+}
+
+/**
+ * Taux de réussite du portefeuille : parmi les projets TERMINÉS qui
+ * s'évaluent, la part qui a tenu tous ses critères. Un projet en cours n'a
+ * pas encore réussi ni échoué.
+ */
+export function tauxReussitePortefeuille(projets: readonly { statut: StatutProjet; bilan: Bilan }[]): {
+  evalues: number;
+  reussis: number;
+  taux: number | null;
+} {
+  const evalues = projets.filter((p) => p.statut === "termine" && p.bilan.criteres.length > 0);
+  const reussis = evalues.filter((p) => p.bilan.criteres.every((c) => c.atteint)).length;
+  return { evalues: evalues.length, reussis, taux: evalues.length === 0 ? null : Math.round((reussis * 100) / evalues.length) };
+}

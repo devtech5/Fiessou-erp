@@ -70,6 +70,7 @@ const schemaBrouillon = z.object({
   id: z.string().regex(UUID).optional(),
   nature: z.enum(["devis", "facture"]),
   clientId: z.string().regex(UUID, "Choisissez un client."),
+  projetId: z.string().regex(UUID).nullable().optional(),
   datePiece: z.string().regex(DATE_ISO, "Date invalide."),
   echeance: z.string().regex(DATE_ISO).nullable().optional(),
   depotId: z.string().regex(UUID).nullable().optional(),

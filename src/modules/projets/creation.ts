@@ -69,6 +69,7 @@ export interface NouveauProjet {
   clientId?: string | null;
   responsableUserId?: string | null;
   budget?: number | null;
+  prixVente?: number | null;
   debut?: string | null;
   fin?: string | null;
 }
@@ -95,6 +96,7 @@ export async function creerProjetDans(
     clientId: donnees.clientId ?? null,
     responsableUserId: donnees.responsableUserId ?? null,
     budget: donnees.budget ?? null,
+    prixVente: donnees.prixVente ?? null,
     debut: donnees.debut ?? null,
     fin: donnees.fin ?? null,
     statut: donnees.debut && donnees.debut <= jourIso(new Date()) ? "en_cours" : "preparation",
@@ -107,6 +109,7 @@ export interface ModificationProjet {
   responsableUserId?: string | null;
   statut?: StatutProjet;
   budget?: number | null;
+  prixVente?: number | null;
   fin?: string | null;
 }
 
@@ -119,9 +122,15 @@ export async function modifierProjetDans(
   userId: string,
 ): Promise<{ code: string }> {
   if (modification.responsableUserId !== undefined) await verifierMembre(tx, organizationId, modification.responsableUserId);
+  // La fin réelle se pose au passage en « terminé » et tombe si on rouvre :
+  // c'est elle, et non l'échéance prévue, qui juge le délai.
+  const termine =
+    modification.statut === undefined
+      ? {}
+      : { termineLe: modification.statut === "termine" ? new Date().toISOString().slice(0, 10) : null };
   const [modifie] = await tx
     .update(projets)
-    .set({ ...modification, updatedAt: new Date(), version: sql`${projets.version} + 1` })
+    .set({ ...modification, ...termine, updatedAt: new Date(), version: sql`${projets.version} + 1` })
     .where(and(eq(projets.id, projetId), eq(projets.organizationId, organizationId)))
     .returning({ code: projets.code });
   if (!modifie) throw new Error("Projet introuvable.");

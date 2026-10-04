@@ -16,7 +16,7 @@ import { exigerEntreprise } from "@/lib/auth/dal";
 import { peut } from "@/lib/droits/garde";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
 import { creerProjet } from "@/modules/projets/actions";
-import { LIBELLE_STATUT_PROJET } from "@/modules/projets/calcul";
+import { LIBELLE_STATUT_PROJET, tauxReussitePortefeuille } from "@/modules/projets/calcul";
 import { listerProjets, membresActifs } from "@/modules/projets/requetes";
 import type { StatutProjet } from "@/modules/projets/schema";
 import { listerTiers } from "@/modules/tiers/requetes";
@@ -49,6 +49,8 @@ export default async function PageProjets() {
   const engage = actifs.reduce((s, p) => s + p.suivi.engage, 0);
   const enAttente = projets.reduce((s, p) => s + p.suivi.enAttente, 0);
   const depasses = actifs.filter((p) => p.suivi.reste !== null && p.suivi.reste < 0).length;
+  const resultatCumule = projets.filter((p) => p.statut !== "annule").reduce((s, p) => s + p.bilan.resultat, 0);
+  const portefeuille = tauxReussitePortefeuille(projets);
 
   return (
     <>
@@ -87,6 +89,9 @@ export default async function PageProjets() {
                   <Champ libelle="Budget TTC" precision="Vide : pas de plafond.">
                     <input name="budget" inputMode="numeric" placeholder="2 500 000" className={`${CLASSE_CHAMP} chiffres`} />
                   </Champ>
+                  <Champ libelle="Prix de vente HT" precision="Ce que le client paiera. Vide : projet interne.">
+                    <input name="prixVente" inputMode="numeric" placeholder="3 200 000" className={`${CLASSE_CHAMP} chiffres`} />
+                  </Champ>
                   <Champ libelle="Début">
                     <input name="debut" type="date" className={CLASSE_CHAMP} />
                   </Champ>
@@ -113,15 +118,37 @@ export default async function PageProjets() {
       ) : (
         <>
           <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <CarteIndicateur libelle="Projets actifs" valeur={fmtEntier(actifs.length)} precision={`${projets.length} au total`} />
-            <CarteIndicateur libelle="Engagé sur les projets actifs" valeur={fmtCompact(engage)} unite="FCFA" />
+            <CarteIndicateur
+              libelle="Projets actifs"
+              valeur={fmtEntier(actifs.length)}
+              precision={`${projets.length} au total${depasses > 0 ? ` · ${depasses} hors budget` : ""}`}
+              ton={depasses > 0 ? "alerte" : "neutre"}
+            />
+            <CarteIndicateur
+              libelle={resultatCumule >= 0 ? "Bénéfice cumulé" : "Perte cumulée"}
+              valeur={`${resultatCumule < 0 ? "− " : ""}${fmtCompact(Math.abs(resultatCumule))}`}
+              unite="FCFA"
+              ton={resultatCumule >= 0 ? "valide" : "danger"}
+              precision={`HT · ${fmtCompact(engage)} F engagés sur les projets actifs`}
+            />
+            <CarteIndicateur
+              libelle="Taux de réussite"
+              valeur={portefeuille.taux === null ? "—" : `${portefeuille.taux}`}
+              unite={portefeuille.taux === null ? undefined : "%"}
+              ton={portefeuille.taux === null ? "neutre" : portefeuille.taux >= 70 ? "valide" : "alerte"}
+              precision={
+                portefeuille.evalues === 0
+                  ? "Aucun projet terminé à juger"
+                  : `${portefeuille.reussis} sur ${portefeuille.evalues} projets terminés ont tenu tous leurs critères`
+              }
+            />
             <CarteIndicateur
               libelle="Demandes à approuver"
               valeur={fmtCompact(enAttente)}
               unite="FCFA"
               ton={enAttente > 0 ? "alerte" : "valide"}
             />
-            <CarteIndicateur libelle="Budgets dépassés" valeur={fmtEntier(depasses)} ton={depasses > 0 ? "danger" : "valide"} />
+
           </section>
 
           <ul className="grid gap-2 lg:grid-cols-2">
@@ -169,6 +196,28 @@ export default async function PageProjets() {
                             style={{ width: `${Math.min(100, taux)}%` }}
                           />
                         </div>
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-[var(--filet)] pt-2 text-xs">
+                      {p.facture > 0 || p.prixVente !== null ? (
+                        <span className={`chiffres font-semibold ${p.bilan.resultat >= 0 ? "text-valide-600" : "text-danger-600"}`}>
+                          {p.bilan.resultat >= 0 ? "Bénéfice " : "Perte "}
+                          {fmt(Math.abs(p.bilan.resultat))} HT
+                        </span>
+                      ) : (
+                        <span className="text-[var(--encre-faible)]">Projet interne · coût {fmt(p.coutEngageHt)} HT</span>
+                      )}
+                      {p.bilan.tauxReussite !== null && (
+                        <span className="text-[var(--encre-douce)]">
+                          Réussite{" "}
+                          <span
+                            className={`chiffres font-semibold ${
+                              p.bilan.tauxReussite === 100 ? "text-valide-600" : p.bilan.tauxReussite >= 50 ? "text-alerte-600" : "text-danger-600"
+                            }`}
+                          >
+                            {p.bilan.tauxReussite} %
+                          </span>
+                        </span>
                       )}
                     </div>
                     {p.suivi.enAttente > 0 && (
