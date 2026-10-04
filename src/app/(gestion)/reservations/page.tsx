@@ -17,7 +17,7 @@ import { BoutonDemonstration } from "@/components/bouton-demonstration";
 import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { peut } from "@/lib/droits/garde";
-import { fmt, fmtCompact, fmtDateIso, fmtEntier } from "@/lib/format";
+import { fmt, fmtCompact, fmtEntier, fmtPeriode } from "@/lib/format";
 import { reserver } from "@/modules/reservations/actions";
 import { joursEntre } from "@/modules/reservations/calcul";
 import { listerContrats, listerRessources, type ContratVue } from "@/modules/reservations/requetes";
@@ -159,12 +159,14 @@ export default async function PageContrats() {
                   <tr key={contrat.id}>
                     <Td chiffres fort>{contrat.numero}</Td>
                     <Td>
-                      {contrat.ressource}
+                      <span className="block min-w-40">{contrat.ressource}</span>
                       <span className="chiffres block text-xs text-[var(--encre-faible)]">{contrat.codeRessource}</span>
                     </Td>
-                    <Td>{contrat.client}</Td>
+                    <Td>
+                      <span className="block min-w-32">{contrat.client}</span>
+                    </Td>
                     <Td chiffres>
-                      {fmtDateIso(contrat.debut)} → {fmtDateIso(contrat.fin)}
+                      {fmtPeriode(contrat.debut, contrat.fin)}
                       <span className="block text-xs text-[var(--encre-faible)]">
                         {jours} jour{jours > 1 ? "s" : ""} · tarif {contrat.baseTarif}
                       </span>

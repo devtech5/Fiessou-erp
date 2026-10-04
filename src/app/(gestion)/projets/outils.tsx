@@ -40,9 +40,9 @@ export function ActionsDepense({
   if (statut === "payee" || statut === "rejetee" || statut === "annulee") return null;
 
   return (
-    <div className="min-w-56 text-left">
+    <div className={panneau === null ? "text-left" : "min-w-56 text-left"}>
       {panneau === null && (
-        <div className="flex flex-wrap justify-end gap-1.5">
+        <div className="flex justify-end gap-1.5 whitespace-nowrap">
           {statut === "demandee" && droits.approuver && (
             <>
               <button

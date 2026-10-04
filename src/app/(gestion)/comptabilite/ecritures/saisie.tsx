@@ -306,9 +306,15 @@ export function SaisieEcriture() {
           </tbody>
         </table>
 
-        <p className="mt-3 rounded-lg bg-valide-50 px-3 py-2 text-xs font-medium text-valide-600">
-          Équilibrée — débit égal au crédit
-        </p>
+        {montant > 0 ? (
+          <p className="mt-3 rounded-lg bg-valide-50 px-3 py-2 text-xs font-medium text-valide-600">
+            Équilibrée — débit égal au crédit
+          </p>
+        ) : (
+          <p className="mt-3 rounded-lg bg-[var(--surface-creuse)] px-3 py-2 text-xs text-[var(--encre-faible)]">
+            Saisissez un montant : l&apos;écriture se construit ici.
+          </p>
+        )}
       </aside>
     </form>
   );

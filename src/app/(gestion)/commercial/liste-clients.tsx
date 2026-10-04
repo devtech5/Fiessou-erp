@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { BoutonPrincipal, BoutonSecondaire, Pastille } from "@/components/ui/primitives";
+import { Pastille } from "@/components/ui/primitives";
 import { fmt, fmtDateIso } from "@/lib/format";
 import type { FicheTiers } from "@/modules/tiers/requetes";
 
@@ -192,9 +193,14 @@ export function ListeClients({ clients }: { clients: FicheTiers[] }) {
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <Pastille ton={mouvement.lettree ? "valide" : "alerte"}>
-                        {mouvement.lettree ? "Lettré" : "Ouvert"}
-                      </Pastille>
+                      {/* « Soldé » : la ligne est rapprochée de ce qui la compense
+                          (règlement, avoir). Une facture non soldée reste
+                          « À régler » ; un règlement isolé n'a pas d'étiquette. */}
+                      {mouvement.lettree ? (
+                        <Pastille ton="valide">Soldé</Pastille>
+                      ) : mouvement.debit > 0 ? (
+                        <Pastille ton="alerte">À régler</Pastille>
+                      ) : null}
                       <span className="chiffres w-24 text-right font-semibold">
                         {fmt(mouvement.debit || mouvement.credit)}
                       </span>
@@ -205,8 +211,18 @@ export function ListeClients({ clients }: { clients: FicheTiers[] }) {
             )}
 
             <div className="mt-4 flex gap-2">
-              <BoutonSecondaire>Devis</BoutonSecondaire>
-              <BoutonPrincipal>Facture</BoutonPrincipal>
+              <Link
+                href={`/commercial/factures?nouvelle=devis&client=${selection.id}`}
+                className="h-cible inline-flex items-center rounded-lg border border-[var(--filet)] px-3.5 text-sm font-semibold hover:bg-[var(--surface-creuse)]"
+              >
+                Devis
+              </Link>
+              <Link
+                href={`/commercial/factures?nouvelle=facture&client=${selection.id}`}
+                className="h-cible inline-flex items-center rounded-lg bg-marque-600 px-3.5 text-sm font-semibold text-white hover:bg-marque-700"
+              >
+                Facture
+              </Link>
             </div>
           </div>
         </aside>

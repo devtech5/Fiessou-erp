@@ -19,8 +19,19 @@ export const metadata: Metadata = { title: "Devis et factures" };
  * facture, une facture se corrige par un avoir. Les séparer en trois onglets
  * obligerait à traverser l'application pour suivre une seule affaire.
  */
-export default async function PageFactures() {
+export default async function PageFactures({
+  searchParams,
+}: {
+  searchParams: Promise<{ nouvelle?: string; client?: string }>;
+}) {
   const session = await exigerEntreprise();
+  // Depuis la fiche client : « Devis » ou « Facture » ouvre l'éditeur déjà
+  // adressé au client, au lieu de laisser chercher son nom une seconde fois.
+  const demande = await searchParams;
+  const nouvelle =
+    (demande.nouvelle === "devis" || demande.nouvelle === "facture") && demande.client && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(demande.client)
+      ? { nature: demande.nouvelle as "devis" | "facture", clientId: demande.client }
+      : undefined;
 
   if (!(await peut("commercial.piece.consulter"))) {
     return <AccesRefuse droit="commercial.piece.consulter" />;
@@ -86,6 +97,7 @@ export default async function PageFactures() {
         options={options}
         aujourdHui={aujourdHui}
         droits={{ gerer, annuler, encaisser }}
+        ouvrir={gerer ? nouvelle : undefined}
       />
     </>
   );

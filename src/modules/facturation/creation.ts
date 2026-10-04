@@ -7,6 +7,7 @@ import { ecritureReglement } from "@/lib/comptabilite/ecritures";
 import { newId } from "@/lib/ids";
 import { prochainNumero, type Transaction } from "@/lib/sequences";
 import type { CodeUnite } from "@/lib/quantite";
+import { lettrerPiecesSoldees } from "@/modules/comptabilite/lettrage-auto";
 import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
 import { enregistrerMouvementDans } from "@/modules/stock/creation";
 import { depots } from "@/modules/stock/schema";
@@ -493,6 +494,10 @@ export async function annulerFactureDans(
 
   const { numero } = await emettreDans(tx, organizationId, avoirId, userId);
 
+  // La facture et son avoir se compensent au 411 : on les rapproche tout de suite.
+  const fiche = await client(tx, organizationId, piece.clientId);
+  if (fiche.compte) await lettrerPiecesSoldees(tx, organizationId, [factureId, avoirId], fiche.compte);
+
   await tx
     .update(piecesCommerciales)
     .set({
@@ -591,6 +596,11 @@ export async function encaisserDans(
     entityId: piece.id,
     after: { facture: piece.numero, reglement: numero, montant: reglement.montant },
   });
+
+  // Soldée, la facture se lettre avec ses règlements : plus rien d'ouvert au 411.
+  if (reste - reglement.montant === 0) {
+    await lettrerPiecesSoldees(tx, organizationId, [piece.id], fiche.compte);
+  }
 
   return { numero, reste: reste - reglement.montant };
 }

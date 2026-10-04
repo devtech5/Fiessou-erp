@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { BoutonDemonstration } from "@/components/bouton-demonstration";
 import {
   CarteIndicateur,
+  CLASSE_CHAMP_COMPACT,
   EnTetePage,
   EtatVide,
   Pastille,
@@ -20,12 +21,19 @@ import {
 } from "@/modules/catalogue/requetes";
 import { stocksParArticle } from "@/modules/stock/requetes";
 import { listerTiers } from "@/modules/tiers/requetes";
+import { correspond, Recherche } from "@/components/ui/recherche";
+
 import { FormulaireArticle } from "./formulaire-article";
 
 export const metadata: Metadata = { title: "Articles" };
 
-export default async function PageArticles() {
+export default async function PageArticles({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; famille?: string }>;
+}) {
   const session = await exigerEntreprise();
+  const { q = "", famille = "" } = await searchParams;
 
   const [catalogue, familles, fournisseurs, codes, stocks] = await Promise.all([
     listerArticles(session.organizationId),
@@ -36,6 +44,13 @@ export default async function PageArticles() {
   ]);
 
   const marchandises = catalogue.filter((a) => a.type === "marchandise");
+  // Le code-barres se cherche aussi : scanner un article au clavier le retrouve.
+  const affiches = catalogue.filter(
+    (a) =>
+      (!famille || a.familleNom === famille) &&
+      correspond(q, [a.designation, a.reference, a.familleNom, ...(codes.get(a.id) ?? [])]),
+  );
+  const filtre = q.trim() !== "" || famille !== "";
   const services = catalogue.length - marchandises.length;
 
   /**
@@ -108,6 +123,28 @@ export default async function PageArticles() {
             />
           </section>
 
+          <Recherche
+            chemin="/stock/articles"
+            valeur={q}
+            placeholder="Désignation, référence ou code-barres"
+            resultats={filtre ? `${affiches.length} sur ${catalogue.length}` : undefined}
+            filtres={
+              <select name="famille" defaultValue={famille} aria-label="Famille" className={CLASSE_CHAMP_COMPACT}>
+                <option value="">Toutes les familles</option>
+                {familles.map((f) => (
+                  <option key={f.id} value={f.nom}>
+                    {f.nom}
+                  </option>
+                ))}
+              </select>
+            }
+          />
+
+          {affiches.length === 0 ? (
+            <p className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] px-4 py-8 text-center text-sm text-[var(--encre-douce)]">
+              Aucun article ne correspond à cette recherche.
+            </p>
+          ) : (
           <Tableau>
             <thead>
               <tr>
@@ -122,7 +159,7 @@ export default async function PageArticles() {
               </tr>
             </thead>
             <tbody>
-              {catalogue.map((article) => (
+              {affiches.map((article) => (
                 <tr key={article.id}>
                   <Td fort>
                     {article.designation}
@@ -207,6 +244,7 @@ export default async function PageArticles() {
               ))}
             </tbody>
           </Tableau>
+          )}
 
           <p className="mt-3 max-w-[70ch] text-xs text-[var(--encre-faible)]">
             La colonne « en stock » totalise tous les dépôts. Le détail par lieu

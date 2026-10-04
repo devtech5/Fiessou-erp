@@ -161,8 +161,10 @@ export function Td({
     <td
       className={`border-b border-[var(--filet)] px-3.5 py-2.5 ${
         aligne === "droite" ? "text-right" : "text-left"
-      } ${chiffres ? "chiffres" : ""} ${fort ? "font-semibold" : ""}`}
+      } ${chiffres ? "chiffres whitespace-nowrap" : ""} ${fort ? "font-semibold" : ""}`}
     >
+      {/* Un montant, un numéro ou une date ne se coupent jamais : « 1 770 »
+          sur une ligne et « 000 » sur la suivante se lit 1 770. */}
       {children}
     </td>
   );
@@ -262,3 +264,7 @@ export function Champ({
 /** Classe commune aux entrées de formulaire, pour ne pas la recopier partout. */
 export const CLASSE_CHAMP =
   "h-cible w-full rounded-lg border border-[var(--filet)] bg-[var(--fond)] px-3.5 text-sm outline-none focus:border-marque-500";
+
+/** Même habillage, sans prendre toute la largeur : un filtre posé à côté d'une recherche. */
+export const CLASSE_CHAMP_COMPACT =
+  "h-cible rounded-lg border border-[var(--filet)] bg-[var(--fond)] px-3 text-sm outline-none focus:border-marque-500";

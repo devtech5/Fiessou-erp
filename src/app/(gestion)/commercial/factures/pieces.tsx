@@ -69,6 +69,7 @@ export function PiecesCommerciales({
   options,
   aujourdHui,
   droits,
+  ouvrir,
 }: {
   pieces: PieceListee[];
   lignes: Record<string, LignePieceVue[]>;
@@ -76,10 +77,25 @@ export function PiecesCommerciales({
   options: OptionsPiece;
   aujourdHui: string;
   droits: { gerer: boolean; annuler: boolean; encaisser: boolean };
+  /** Pièce à ouvrir d'emblée, demandée depuis la fiche d'un client. */
+  ouvrir?: { nature: "devis" | "facture"; clientId: string };
 }) {
   const [filtre, setFiltre] = useState<Filtre>("tout");
   const [selectionId, setSelectionId] = useState<string | null>(pieces[0]?.id ?? null);
-  const [edition, setEdition] = useState<PieceAEditer | null>(null);
+  const [edition, setEdition] = useState<PieceAEditer | null>(() =>
+    ouvrir
+      ? {
+          nature: ouvrir.nature,
+          clientId: ouvrir.clientId,
+          projetId: null,
+          datePiece: aujourdHui,
+          echeance: null,
+          depotId: null,
+          notes: null,
+          lignes: [],
+        }
+      : null,
+  );
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
   const [enCours, demarrer] = useTransition();
   const routeur = useRouter();

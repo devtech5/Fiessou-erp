@@ -726,7 +726,7 @@ function Catalogue({
             Aucun article ne correspond.
           </p>
         ) : (
-          <ul className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-1.5 xl:grid-cols-3">
             {resultats.map((article) => (
               <li key={article.id}>
                 <BoutonArticle article={article} onChoisir={onChoisir} />
@@ -804,7 +804,7 @@ function BoutonArticle({
     >
       <span className="text-sm font-medium leading-snug">{article.designation}</span>
 
-      <span className="flex items-end justify-between gap-2">
+      <span className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
         <span className="chiffres text-base font-bold">
           {fmt(article.prix)}
           <span className="ml-1 text-xs font-medium text-[var(--encre-faible)]">FCFA</span>

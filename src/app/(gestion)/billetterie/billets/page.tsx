@@ -16,6 +16,8 @@ import { fmt, fmtEntier } from "@/lib/format";
 import { listerBillets } from "@/modules/billetterie/requetes";
 import type { StatutBillet } from "@/modules/billetterie/schema";
 
+import { correspond, Recherche } from "@/components/ui/recherche";
+
 import { AnnulationBillet, ControleEmbarquement } from "../outils";
 
 export const metadata: Metadata = { title: "Billets" };
@@ -49,8 +51,9 @@ const MOMENT = new Intl.DateTimeFormat("fr-FR", {
  * à la montée. Un billet resté « valide » au départ du car devient « non
  * présenté » : la place est perdue, la recette reste.
  */
-export default async function PageBillets() {
+export default async function PageBillets({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const session = await exigerEntreprise();
+  const { q = "" } = await searchParams;
   const [billets, controler, annuler] = await Promise.all([
     listerBillets(session.organizationId),
     peut("billetterie.billet.vendre"),
@@ -62,6 +65,7 @@ export default async function PageBillets() {
   const embarques = billets.filter((b) => b.statut === "embarque");
   const absents = billets.filter((b) => b.statut === "non_presente");
   const recette = actifs.reduce((s, b) => s + b.montant, 0);
+  const affiches = billets.filter((b) => correspond(q, [b.numero, b.passager, b.telephone, b.piece, b.trajet, b.reference, b.siege]));
 
   return (
     <>
@@ -98,6 +102,12 @@ export default async function PageBillets() {
             />
           </section>
 
+          <Recherche
+            chemin="/billetterie/billets"
+            valeur={q}
+            placeholder="Numéro, passager, téléphone, pièce, trajet"
+            resultats={q.trim() ? `${affiches.length} sur ${billets.length}` : undefined}
+          />
           <Tableau>
             <thead>
               <tr>
@@ -112,7 +122,7 @@ export default async function PageBillets() {
               </tr>
             </thead>
             <tbody>
-              {billets.map((billet) => (
+              {affiches.map((billet) => (
                 <tr key={billet.id}>
                   <Td chiffres fort>
                     {billet.numero}

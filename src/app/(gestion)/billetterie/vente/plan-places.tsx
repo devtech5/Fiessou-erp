@@ -97,18 +97,20 @@ export function PlanPlaces({ departs, vendre }: { departs: DepartEnVente[]; vend
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
-      <div className="rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
-        <fieldset className="mb-4">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
+      <div className="min-w-0 rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4">
+        <fieldset className="mb-4 min-w-0">
           <legend className="mb-2 text-xs font-semibold text-[var(--encre-faible)]">Départ</legend>
-          <div className="grid gap-1.5 sm:grid-cols-2">
+          {/* Sur téléphone, les départs défilent à l'horizontale : empilés, ils
+              repoussaient le plan de places hors de l'écran. */}
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0">
             {departs.map((d) => (
               <button
                 key={d.id}
                 type="button"
                 onClick={() => changerDepart(d.id)}
                 aria-pressed={depart.id === d.id}
-                className={`rounded-lg border px-3 py-2 text-left text-sm ${
+                className={`w-56 shrink-0 rounded-lg border px-3 py-2 text-left text-sm sm:w-auto ${
                   depart.id === d.id
                     ? "border-marque-600 bg-marque-600 text-white"
                     : "border-[var(--filet)] hover:bg-[var(--surface-creuse)]"
@@ -186,7 +188,24 @@ export function PlanPlaces({ departs, vendre }: { departs: DepartEnVente[]; vend
         </div>
       </div>
 
-      <aside className="h-fit rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4 lg:sticky lg:top-6">
+      {/* Rappel collé en bas d'écran sur téléphone : les passagers et le bouton
+          d'émission sont sous les quinze rangées du plan. */}
+      {selection.length > 0 && (
+        <a
+          href="#recapitulatif-vente"
+          className="fixed inset-x-3 bottom-3 z-30 flex items-center justify-between gap-3 rounded-xl bg-marque-600 px-4 py-3 text-sm font-semibold text-white shadow-lg lg:hidden"
+        >
+          <span>
+            {selection.length} siège{selection.length > 1 ? "s" : ""} · {selection.join(", ")}
+          </span>
+          <span className="chiffres">{fmt(total)} F →</span>
+        </a>
+      )}
+
+      <aside
+        id="recapitulatif-vente"
+        className="h-fit scroll-mt-4 rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4 lg:sticky lg:top-6"
+      >
         <h2 className="text-base font-semibold">{depart.trajet}</h2>
         <p className="chiffres mt-0.5 text-xs text-[var(--encre-faible)]">
           {depart.reference} · {MOMENT.format(new Date(depart.partLe))}

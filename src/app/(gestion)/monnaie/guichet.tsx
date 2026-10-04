@@ -337,7 +337,9 @@ export function BandeauFloat({ soldes, ouvertures, fondCaisse }: { soldes: Solde
             </div>
             <p className={`chiffres mt-1 text-xl font-bold ${c.bas ? "text-alerte-600" : ""}`}>{fmt(c.valeur)}</p>
             <p className="chiffres mt-0.5 text-xs text-[var(--encre-faible)]">
-              {variation >= 0 ? "+" : "−"} {fmt(Math.abs(variation))} depuis l&apos;ouverture
+              {variation === 0
+                ? "Inchangé depuis l'ouverture"
+                : `${variation > 0 ? "+" : "−"} ${fmt(Math.abs(variation))} depuis l'ouverture`}
             </p>
           </li>
         );

@@ -140,6 +140,12 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Un fieldset prend par défaut la largeur de son contenu : une rangée
+     défilante à l'intérieur élargissait toute la page sur téléphone. */
+  fieldset {
+    min-inline-size: 0;
+  }
+
   /* Les montants et les quantités s'alignent toujours en colonne. */
   .chiffres {
     font-variant-numeric: tabular-nums;

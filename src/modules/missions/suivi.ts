@@ -139,7 +139,8 @@ export const PREFIXE_MISSION: Record<NatureMission, string> = {
   livraison: "LIV",
   chantier: "CHT",
   collecte: "COL",
-  projet: "PRJ",
+  // « PRJ » est le numéro des projets eux-mêmes : une mission de projet en prend un autre.
+  projet: "MPR",
   intervention: "INT",
 };
 

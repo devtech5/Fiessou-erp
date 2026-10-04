@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { CarteIndicateur, EnTetePage, EtatVide } from "@/components/ui/primitives";
+import { CarteIndicateur, CLASSE_CHAMP_COMPACT, EnTetePage, EtatVide } from "@/components/ui/primitives";
+import { correspond, Recherche } from "@/components/ui/recherche";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { peut } from "@/lib/droits/garde";
 import { fmtCompact, fmtEntier } from "@/lib/format";
@@ -16,8 +17,13 @@ export const metadata: Metadata = { title: "Dépenses" };
  * Toutes les dépenses de l'entreprise, rattachées à un projet ou non. Celles
  * qui attendent une décision remontent en tête.
  */
-export default async function PageDepenses() {
+export default async function PageDepenses({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; statut?: string }>;
+}) {
   const session = await exigerEntreprise();
+  const { q = "", statut = "" } = await searchParams;
   const [depenses, pieces, projets, fournisseurs, approuver, payer, demander] = await Promise.all([
     listerDepenses(session.organizationId),
     piecesParDepense(session.organizationId),
@@ -31,6 +37,12 @@ export default async function PageDepenses() {
   const somme = (statut: string) => depenses.filter((d) => d.statut === statut).reduce((s, d) => s + d.montant, 0);
   const demandes = depenses.filter((d) => d.statut === "demandee").length;
   const sansPreuve = depenses.filter((d) => d.statut === "payee" && d.preuves === 0).length;
+  const affichees = depenses.filter(
+    (d) =>
+      (!statut || d.statut === statut) &&
+      correspond(q, [d.numero, d.objet, d.fournisseur, d.projet, d.demandeur, d.referencePaiement]),
+  );
+  const filtre = q.trim() !== "" || statut !== "";
   const ouverts = projets.filter((p) => p.statut !== "termine" && p.statut !== "annule");
 
   return (
@@ -73,7 +85,23 @@ export default async function PageDepenses() {
             />
           </section>
 
-          <TableauDepenses depenses={depenses} pieces={pieces} droits={{ approuver, payer, demander }} afficherProjet />
+          <Recherche
+            chemin="/projets/depenses"
+            valeur={q}
+            placeholder="Numéro, objet, fournisseur, projet"
+            resultats={filtre ? `${affichees.length} sur ${depenses.length}` : undefined}
+            filtres={
+              <select name="statut" defaultValue={statut} aria-label="Étape" className={CLASSE_CHAMP_COMPACT}>
+                <option value="">Toutes les étapes</option>
+                <option value="demandee">À approuver</option>
+                <option value="approuvee">À payer</option>
+                <option value="payee">Payées</option>
+                <option value="rejetee">Rejetées</option>
+                <option value="annulee">Annulées</option>
+              </select>
+            }
+          />
+          <TableauDepenses depenses={affichees} pieces={pieces} droits={{ approuver, payer, demander }} afficherProjet />
         </>
       )}
     </>

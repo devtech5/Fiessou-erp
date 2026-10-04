@@ -59,3 +59,14 @@ export function fmtDateIso(iso: string): string {
  */
 export const fmtRetenue = (montant: number) =>
   montant === 0 ? "—" : `− ${nombre.format(montant)}`;
+
+/**
+ * Période courte : « 03/10 → 06/10/2026 » dans une même année, les deux
+ * années sinon. La même année répétée deux fois ne dit rien de plus.
+ */
+export function fmtPeriode(debutIso: string, finIso: string): string {
+  if (debutIso.slice(0, 4) === finIso.slice(0, 4)) {
+    return `${fmtDateIso(debutIso).slice(0, 5)} → ${fmtDateIso(finIso)}`;
+  }
+  return `${fmtDateIso(debutIso)} → ${fmtDateIso(finIso)}`;
+}

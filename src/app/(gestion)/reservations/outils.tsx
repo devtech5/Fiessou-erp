@@ -36,9 +36,9 @@ export function ActionsContrat({
   if (statut === "restitue" || statut === "annule") return null;
 
   return (
-    <div className="min-w-48 text-left">
+    <div className={panneau === null ? "text-left" : "min-w-48 text-left"}>
       {panneau === null && (
-        <div className="flex flex-wrap justify-end gap-1.5">
+        <div className="flex justify-end gap-1.5 whitespace-nowrap">
           {statut === "reserve" && (
             <>
               <button type="button" onClick={() => setPanneau("remettre")} className={`${PETIT} bg-marque-600 text-white`}>

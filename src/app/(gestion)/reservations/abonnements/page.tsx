@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { peut } from "@/lib/droits/garde";
-import { fmt, fmtCompact, fmtDateIso, fmtEntier } from "@/lib/format";
+import { fmt, fmtCompact, fmtEntier, fmtPeriode } from "@/lib/format";
 import { inscrireAdherent } from "@/modules/reservations/actions";
 import { accesAbonnement, ajouterJours } from "@/modules/reservations/calcul";
 import { listerAbonnements } from "@/modules/reservations/requetes";
@@ -139,7 +139,7 @@ export default async function PageAbonnements() {
                   </Td>
                   <Td>{a.formule}</Td>
                   <Td chiffres>
-                    {fmtDateIso(a.debut)} → {fmtDateIso(a.fin)}
+                    {fmtPeriode(a.debut, a.fin)}
                   </Td>
                   <Td aligne="droite" chiffres>
                     {a.seancesIncluses === null ? `${a.seancesConsommees} · illimité` : `${a.seancesConsommees} / ${a.seancesIncluses}`}
