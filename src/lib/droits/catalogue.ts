@@ -445,6 +445,52 @@ export const DROITS = [
     description: "Compter le tiroir, relever les soldes opérateur et passer l'écriture de la journée.",
   },
 
+  // ------------------------------------------------------------ trésorerie
+  {
+    cle: "tresorerie.consulter",
+    moduleKey: "tresorerie",
+    libelle: "Consulter la trésorerie",
+    description: "Voir les caisses, banques et portefeuilles, leurs soldes, les virements, les avances et le plan de trésorerie.",
+  },
+  {
+    cle: "tresorerie.compte.gerer",
+    moduleKey: "tresorerie",
+    libelle: "Gérer les comptes de trésorerie",
+    description: "Ouvrir une caisse, une banque, un portefeuille mobile money ; fixer son seuil et son responsable.",
+  },
+  {
+    cle: "tresorerie.virement.saisir",
+    moduleKey: "tresorerie",
+    libelle: "Virements internes",
+    description: "Alimenter une caisse, verser en banque, transférer d'un compte à l'autre, constater l'arrivée.",
+  },
+  {
+    cle: "tresorerie.bon.demander",
+    moduleKey: "tresorerie",
+    libelle: "Demander un bon de caisse",
+    description: "Demander une dépense payée par la petite caisse, et suivre sa propre demande.",
+  },
+  {
+    cle: "tresorerie.bon.approuver",
+    moduleKey: "tresorerie",
+    libelle: "Approuver les bons de caisse",
+    description:
+      "Accepter ou refuser une demande de dépense de caisse. Jamais la sienne, sauf pour le " +
+      "propriétaire : celui qui demande n'est pas celui qui autorise.",
+  },
+  {
+    cle: "tresorerie.caisse.tenir",
+    moduleKey: "tresorerie",
+    libelle: "Tenir la caisse de dépenses",
+    description: "Décaisser les bons approuvés, remettre et régulariser les avances, arrêter une caisse. Passe les écritures.",
+  },
+  {
+    cle: "tresorerie.rapprocher",
+    moduleKey: "tresorerie",
+    libelle: "Rapprochement bancaire",
+    description: "Importer un relevé, pointer ses lignes face aux écritures, comptabiliser frais et intérêts bancaires.",
+  },
+
   // --------------------------------------------------------- organisation
   {
     cle: "organisation.membre.gerer",
@@ -567,6 +613,15 @@ export interface PresetRole {
 /** Chacun archive ce qui le concerne ; l'administration — propriétaire et gérant — voit tout. */
 const ARCHIVAGE_PERSONNEL = ["archives.consulter", "archives.deposer"] as const satisfies readonly Droit[];
 
+/** Le comptable tient la trésorerie ; il n'en approuve pas les dépenses. */
+const TRESORERIE_COMPTABLE = [
+  "tresorerie.consulter",
+  "tresorerie.virement.saisir",
+  "tresorerie.bon.demander",
+  "tresorerie.caisse.tenir",
+  "tresorerie.rapprocher",
+] as const satisfies readonly Droit[];
+
 /** Chacun tient sa liste de tâches ; attribuer aux autres reste à l'encadrement. */
 const TACHES_PERSONNELLES = ["taches.consulter", "taches.executer"] as const satisfies readonly Droit[];
 
@@ -605,6 +660,7 @@ export const PRESETS_ROLES = [
       "pos.session.cloturer",
       "stock.article.consulter",
       "tiers.fiche.consulter",
+      "tresorerie.bon.demander",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
     ],
@@ -619,6 +675,7 @@ export const PRESETS_ROLES = [
       "stock.depot.gerer",
       "stock.mouvement.saisir",
       "tiers.fiche.consulter",
+      "tresorerie.bon.demander",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
     ],
@@ -634,6 +691,7 @@ export const PRESETS_ROLES = [
       "tiers.fiche.gerer",
       "comptabilite.ecriture.consulter",
       "comptabilite.ecriture.enregistrer",
+      ...TRESORERIE_COMPTABLE,
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
     ],

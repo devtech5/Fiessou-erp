@@ -150,6 +150,21 @@ export const MODULES: ModuleDefinition[] = [
     description: "Liste de tâches de chacun, attribution à un membre, exécution suivie et tracée.",
   },
 
+  {
+    key: "tresorerie",
+    name: "Trésorerie",
+    layer: "socle",
+    // En base : caisses, banques et portefeuilles adossés à un compte de
+    // classe 5, soldes lus dans les écritures ; virements internes en deux
+    // temps par le 585 ; bons de caisse approuvés puis décaissés ; avances au
+    // personnel (4251) justifiées ou remboursées ; arrêtés de caisse ;
+    // rapprochement bancaire par import CSV ; plan de trésorerie à 13
+    // semaines. Restent l'import OFX et les relevés mobile money.
+    status: "en_cours",
+    requires: ["comptabilite"],
+    description: "Caisses, banques, mobile money, virements internes, petite caisse, avances, rapprochement bancaire, prévisions.",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",

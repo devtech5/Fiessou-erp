@@ -3,7 +3,7 @@ import { SousNavigation } from "@/components/coque/sous-navigation";
 import { peut } from "@/lib/droits/garde";
 
 /**
- * Quatre sections. Le concurrent en aligne vingt-sept, sur quatre lignes.
+ * Quatre sections — la caisse de dépenses est partie en Trésorerie. Le concurrent en aligne vingt-sept, sur quatre lignes.
  *
  * Ce qui a été absorbé plutôt qu'ajouté : le grand livre, la balance et les
  * journaux sont des vues du même écran d'écritures, pas trois onglets ; le
@@ -13,7 +13,6 @@ import { peut } from "@/lib/droits/garde";
 const SECTIONS = [
   { href: "/comptabilite", libelle: "Vue d'ensemble" },
   { href: "/comptabilite/ecritures", libelle: "Écritures" },
-  { href: "/comptabilite/caisse", libelle: "Caisse" },
   { href: "/comptabilite/etats", libelle: "États financiers" },
   { href: "/comptabilite/fiscalite", libelle: "Fiscalité" },
 ];

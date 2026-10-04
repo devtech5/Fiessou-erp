@@ -20,6 +20,7 @@ import { floatsBas } from "@/modules/monnaie/requetes";
 import { etatDepenses } from "@/modules/projets/requetes";
 import { LIBELLE_PRIORITE, joursAvantEcheance } from "@/modules/taches/calcul";
 import { tachesEnRetard } from "@/modules/taches/requetes";
+import { etatTresorerie, planDeTresorerie } from "@/modules/tresorerie/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -97,6 +98,7 @@ const DROIT_PAR_RACINE: [string, Droit][] = [
   ["/rh", "personnes.consulter"],
   ["/documents", "documents.consulter"],
   ["/taches", "taches.consulter"],
+  ["/tresorerie", "tresorerie.consulter"],
 ];
 
 function droitRequis(href: string): Droit | null {
@@ -118,6 +120,7 @@ export default async function PageTableauDeBord() {
   const voitSesTaches = moduleOuvert("taches") && droits.has("taches.consulter");
   const voitLEquipe = voitSesTaches && droits.has("taches.attribuer");
   const aujourdhui = new Date().toISOString().slice(0, 10);
+  const voitLaTresorerieInterne = moduleOuvert("tresorerie") && droits.has("tresorerie.consulter");
 
   const [
     facturation,
@@ -133,6 +136,8 @@ export default async function PageTableauDeBord() {
     floats,
     depenses,
     retards,
+    caisses,
+    plan,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -149,6 +154,8 @@ export default async function PageTableauDeBord() {
     voitSesTaches
       ? tachesEnRetard(session.organizationId, session.userId, voitLEquipe, aujourdhui)
       : Promise.resolve({ liste: [], miennes: 0, autres: 0 }),
+    voitLaTresorerieInterne ? etatTresorerie(session.organizationId) : Promise.resolve(null),
+    voitLaTresorerieInterne ? planDeTresorerie(session.organizationId, aujourdhui) : Promise.resolve(null),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -163,7 +170,9 @@ export default async function PageTableauDeBord() {
   }, missions, reservations, floats.map((r) => NOM_RESEAU[r]), depenses, {
     miennesEnRetard: retards.miennes,
     equipeEnRetard: retards.autres,
-  });
+  }, caisses
+    ? { ...caisses, premierDecouvert: plan && plan.comptes > 0 ? plan.premierDecouvert : null }
+    : undefined);
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une

@@ -18,7 +18,11 @@ export type OrigineEcriture =
   | "bon_caisse"
   | "vente_pos"
   | "bon_paiement"
-  | "saisie";
+  | "saisie"
+  | "virement"
+  | "avance"
+  | "arrete_caisse"
+  | "releve";
 
 export interface ContexteEcriture {
   organizationId: string;

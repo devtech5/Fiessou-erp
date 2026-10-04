@@ -11,6 +11,7 @@ import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
 import { tiers } from "@/modules/tiers/schema";
 
 import { categorieConnue, depasseBudget, ecritureDepense, refusApprobation, suiviBudget, transitionDepense } from "./calcul";
+import { compteTresorerieDe } from "@/modules/tresorerie/creation";
 import {
   depenses,
   piecesProjet,
@@ -271,7 +272,7 @@ export async function payerDepenseDans(
   tx: Transaction,
   organizationId: string,
   depenseId: string,
-  paiement: { moyen: MoyenDepense; reference?: string | null },
+  paiement: { moyen: MoyenDepense; reference?: string | null; compteTresorerieId?: string | null },
   userId: string,
   le: Date = new Date(),
 ): Promise<{ numero: string; ecriture: string }> {
@@ -282,6 +283,9 @@ export async function payerDepenseDans(
   if (!categorieConnue(depense.categorie)) throw new Error("Nature de dépense inconnue.");
 
   const date = jourIso(le);
+  // Le compte choisi en trésorerie remplace le compte par défaut du moyen.
+  const compte = paiement.compteTresorerieId ? await compteTresorerieDe(tx, organizationId, paiement.compteTresorerieId) : null;
+  if (paiement.compteTresorerieId && !compte) throw new Error("Compte de trésorerie introuvable ou fermé.");
   const ecriture = await enregistrerEcritureDans(
     tx,
     ecritureDepense({
@@ -293,6 +297,7 @@ export async function payerDepenseDans(
       tauxTvaBp: depense.tauxTva,
       moyen: paiement.moyen,
       projet: projetNom,
+      tresorerie: compte ? { numero: compte.numero, libelle: compte.libelle, journal: compte.nature === "banque" ? "BQ" : "CA" } : null,
     }),
     { organizationId, userId, origine: "bon_caisse", pieceId: depense.id, exercice: date.slice(0, 4), dateIso: date },
   );

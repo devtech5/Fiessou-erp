@@ -14,6 +14,7 @@ import { depots } from "@/modules/stock/schema";
 import { projets } from "@/modules/projets/schema";
 import { tiers } from "@/modules/tiers/schema";
 import { referentielArticles } from "@/modules/ventes/creation";
+import { compteTresorerieDe } from "@/modules/tresorerie/creation";
 
 import {
   PREFIXE_PIECE,
@@ -527,6 +528,8 @@ export async function encaisserDans(
     moyen: MoyenReglementPiece;
     date: string;
     reference?: string | null;
+    /** Compte de trésorerie qui reçoit l'argent ; absent, celui du moyen. */
+    compteTresorerieId?: string | null;
   },
   userId: string,
 ): Promise<{ numero: string; reste: number }> {
@@ -556,6 +559,9 @@ export async function encaisserDans(
     periode: reglement.date.slice(0, 4),
   });
 
+  const tresorerie = reglement.compteTresorerieId ? await compteTresorerieDe(tx, organizationId, reglement.compteTresorerieId) : null;
+  if (reglement.compteTresorerieId && !tresorerie) throw new Error("Compte de trésorerie introuvable ou fermé.");
+
   const ecriture = ecritureReglement({
     numero,
     date: reglement.date,
@@ -563,6 +569,9 @@ export async function encaisserDans(
     compteAuxiliaire: fiche.compte,
     montant: reglement.montant,
     moyen: reglement.moyen,
+    tresorerie: tresorerie
+      ? { numero: tresorerie.numero, libelle: tresorerie.libelle, journal: tresorerie.nature === "banque" ? "BQ" : "CA" }
+      : null,
   });
 
   const numeroEcriture = await enregistrerEcritureDans(tx, ecriture, {

@@ -224,7 +224,13 @@ export async function payerDepense(donnees: FormData): Promise<Resultat> {
     if (typeof fichiers === "string") return { ok: false, message: fichiers };
 
     const { numero, ecriture } = await db.transaction((tx) =>
-      payerDepenseDans(tx, organizationId, depenseId, { moyen: moyen.data, reference: texte(donnees, "reference") }, userId),
+      payerDepenseDans(
+        tx,
+        organizationId,
+        depenseId,
+        { moyen: moyen.data, reference: texte(donnees, "reference"), compteTresorerieId: id(donnees, "compteTresorerieId") },
+        userId,
+      ),
     );
     await joindreTout(organizationId, { depenseId }, "preuve_paiement", fichiers, userId);
     return {

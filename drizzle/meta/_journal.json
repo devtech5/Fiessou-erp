@@ -162,6 +162,13 @@
       "when": 1791132747772,
       "tag": "0022_thankful_wraith",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791138967291,
+      "tag": "0023_solid_payback",
+      "breakpoints": true
     }
   ]
 }

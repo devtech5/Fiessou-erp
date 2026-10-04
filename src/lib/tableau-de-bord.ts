@@ -1,5 +1,3 @@
-import { BONS, CAISSES, aRegulariser, reliquat } from "@/lib/fixtures/caisse-depenses";
-import { etatCourant } from "@/lib/approbation/circuit";
 import type { SoldeCompte } from "@/lib/comptabilite/etats";
 
 /**
@@ -81,6 +79,28 @@ export interface EtatReservations {
   abonnementsEpuises: number;
 }
 
+/** Ce que la trésorerie a d'urgent, réduit à des nombres. */
+export interface EtatTresorerieAlertes {
+  caissesSousSeuil: string[];
+  bonsAApprouver: number;
+  bonsADecaisser: number;
+  avancesEchues: number;
+  montantAvancesEchues: number;
+  virementsEnTransit: number;
+  /** Premier jour où le plan de trésorerie passe sous zéro. */
+  premierDecouvert: string | null;
+}
+
+const TRESORERIE_VIDE: EtatTresorerieAlertes = {
+  caissesSousSeuil: [],
+  bonsAApprouver: 0,
+  bonsADecaisser: 0,
+  avancesEchues: 0,
+  montantAvancesEchues: 0,
+  virementsEnTransit: 0,
+  premierDecouvert: null,
+};
+
 /**
  * Tâches dont l'échéance est passée. `equipe` ne compte que celles confiées
  * à d'autres, et n'est renseigné que pour qui attribue les tâches.
@@ -123,6 +143,7 @@ export function alertes(
   floatsBas: string[] = [],
   depenses: { aApprouver: number; montantAApprouver: number; sansPreuve: number } = { aApprouver: 0, montantAApprouver: 0, sansPreuve: 0 },
   taches: EtatTaches = { miennesEnRetard: 0, equipeEnRetard: 0 },
+  tresorerie: EtatTresorerieAlertes = TRESORERIE_VIDE,
 ): Alerte[] {
   const liste: Alerte[] = [];
 
@@ -238,52 +259,76 @@ export function alertes(
     });
   }
 
-  // -------------------------------------------------------------- caisse
-  const bonsEnAttente = BONS.filter((bon) => {
-    const etat = etatCourant(bon.circuit, Boolean(bon.decaisseLe));
-    return etat === "soumise" || etat === "en_validation";
-  });
-  if (bonsEnAttente.length > 0) {
+  // ---------------------------------------------------------- trésorerie
+  if (tresorerie.premierDecouvert) {
     liste.push({
-      id: "bons-attente",
-      gravite: "attention",
-      source: "fixture",
-      module: "Comptabilité",
-      titre: "Bons de caisse à valider",
-      detail: "Quelqu'un attend une signature pour être payé",
-      href: "/comptabilite/caisse",
-      nombre: bonsEnAttente.length,
+      id: "tresorerie-decouvert",
+      gravite: "critique",
+      source: "base",
+      module: "Trésorerie",
+      titre: "Trésorerie à découvert",
+      detail: `Le plan prévoit un solde négatif à partir du ${new Date(`${tresorerie.premierDecouvert}T00:00:00Z`).toLocaleDateString("fr-FR", { timeZone: "UTC" })}`,
+      href: "/tresorerie/previsions",
     });
   }
-
-  const sansJustificatif = BONS.filter(aRegulariser);
-  const reliquats = BONS.map(reliquat).filter(
-    (r): r is number => r !== null && r > 0,
-  );
-  if (sansJustificatif.length > 0 || reliquats.length > 0) {
-    liste.push({
-      id: "avances",
-      gravite: "attention",
-      source: "fixture",
-      module: "Comptabilité",
-      titre: "Avances non soldées",
-      detail: `${reliquats.reduce((s, r) => s + r, 0).toLocaleString("fr-FR")} FCFA à récupérer ou justifier`,
-      href: "/comptabilite/caisse",
-      nombre: sansJustificatif.length + reliquats.length,
-    });
-  }
-
-  const caissesBasses = CAISSES.filter((c) => c.solde < c.seuilAlerte);
-  if (caissesBasses.length > 0) {
+  if (tresorerie.caissesSousSeuil.length > 0) {
     liste.push({
       id: "caisse-basse",
       gravite: "attention",
-      source: "fixture",
-      module: "Comptabilité",
+      source: "base",
+      module: "Trésorerie",
       titre: "Caisse à réalimenter",
-      detail: caissesBasses.map((c) => c.nom).join(", "),
-      href: "/comptabilite/caisse",
-      nombre: caissesBasses.length,
+      detail: tresorerie.caissesSousSeuil.join(", "),
+      href: "/tresorerie",
+      nombre: tresorerie.caissesSousSeuil.length,
+    });
+  }
+  if (tresorerie.bonsAApprouver > 0) {
+    liste.push({
+      id: "bons-attente",
+      gravite: "attention",
+      source: "base",
+      module: "Trésorerie",
+      titre: "Bons de caisse à approuver",
+      detail: "Quelqu'un attend une décision pour être payé",
+      href: "/tresorerie/caisse",
+      nombre: tresorerie.bonsAApprouver,
+    });
+  }
+  if (tresorerie.bonsADecaisser > 0) {
+    liste.push({
+      id: "bons-a-decaisser",
+      gravite: "information",
+      source: "base",
+      module: "Trésorerie",
+      titre: "Bons approuvés à décaisser",
+      detail: "Approuvés, l'argent n'est pas encore sorti",
+      href: "/tresorerie/caisse",
+      nombre: tresorerie.bonsADecaisser,
+    });
+  }
+  if (tresorerie.avancesEchues > 0) {
+    liste.push({
+      id: "avances",
+      gravite: "attention",
+      source: "base",
+      module: "Trésorerie",
+      titre: "Avances non soldées",
+      detail: `${tresorerie.montantAvancesEchues.toLocaleString("fr-FR")} FCFA à récupérer ou justifier`,
+      href: "/tresorerie/caisse",
+      nombre: tresorerie.avancesEchues,
+    });
+  }
+  if (tresorerie.virementsEnTransit > 0) {
+    liste.push({
+      id: "virements-transit",
+      gravite: "attention",
+      source: "base",
+      module: "Trésorerie",
+      titre: "Virements en route depuis plus de 3 jours",
+      detail: "Vérifiez que le compte destinataire a bien été crédité",
+      href: "/tresorerie/virements",
+      nombre: tresorerie.virementsEnTransit,
     });
   }
 
@@ -413,15 +458,20 @@ export function tresorerie(soldes: SoldeCompte[]): Tresorerie[] {
   // Le float du guichet de transfert (5712) est lui aussi de la monnaie
   // électronique, détenue chez les opérateurs.
   const mobile = cumul("5711") + cumul("5712");
+  // Le 585 porte l'argent parti d'un compte et pas encore arrivé sur l'autre :
+  // il existe toujours, il est en route. L'oublier ferait croire à une perte
+  // le temps qu'un versement soit crédité.
+  const enRoute = cumul("585");
 
   return [
-    { libelle: "Banque", montant: cumul("52"), detail: "Comptes 52" },
+    { libelle: "Banque", montant: cumul("52") + cumul("53"), detail: "Comptes 52 et 53" },
     {
       libelle: "Mobile money",
-      montant: cumul("53") + mobile,
-      detail: "Comptes 53, 5711 et 5712",
+      montant: cumul("55") + mobile,
+      detail: "Comptes 55, 5711 et 5712",
     },
     { libelle: "Caisse", montant: cumul("57") - mobile, detail: "Comptes 57, hors 5711 et 5712" },
+    ...(enRoute !== 0 ? [{ libelle: "En route", montant: enRoute, detail: "Virements internes non arrivés (585)" }] : []),
   ];
 }
 

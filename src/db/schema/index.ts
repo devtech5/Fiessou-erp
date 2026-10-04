@@ -28,6 +28,7 @@ export * from "@/modules/actifs/schema";
 export * from "@/modules/documents/schema";
 export * from "@/modules/archives/schema";
 export * from "@/modules/taches/schema";
+export * from "@/modules/tresorerie/schema";
 export * from "@/modules/missions/schema";
 export * from "@/modules/facturation/schema";
 export * from "@/modules/reservations/schema";

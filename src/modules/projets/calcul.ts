@@ -135,10 +135,12 @@ export function ecritureDepense(depense: {
   tauxTvaBp: number;
   moyen: MoyenDepense;
   projet?: string | null;
+  /** Compte de trésorerie choisi : il remplace le compte par défaut du moyen. */
+  tresorerie?: { numero: string; libelle: string; journal: "BQ" | "CA" } | null;
 }): Ecriture {
   const { ht, tva } = decomposerTTC(depense.montant, depense.tauxTvaBp / 100);
   const charge = CATEGORIES_DEPENSE[depense.categorie];
-  const tresorerie = TRESORERIE[depense.moyen];
+  const tresorerie = depense.tresorerie ?? TRESORERIE[depense.moyen];
   const lignes: LigneEcriture[] = [{ compte: charge.compte, libelleCompte: charge.libelleCompte, debit: ht, credit: 0 }];
   if (tva > 0) {
     lignes.push({ compte: COMPTES.tvaRecuperable.numero, libelleCompte: COMPTES.tvaRecuperable.libelle, debit: tva, credit: 0 });
@@ -146,7 +148,7 @@ export function ecritureDepense(depense: {
   lignes.push({ compte: tresorerie.numero, libelleCompte: tresorerie.libelle, debit: 0, credit: depense.montant });
 
   const ecriture: Ecriture = {
-    journal: depense.moyen === "banque" ? "BQ" : "CA",
+    journal: depense.tresorerie?.journal ?? (depense.moyen === "banque" ? "BQ" : "CA"),
     date: depense.date,
     piece: depense.numero,
     libelle: `${depense.objet}${depense.projet ? ` — ${depense.projet}` : ""}`,

@@ -305,11 +305,13 @@ export function ecritureReglement(reglement: {
   compteAuxiliaire: string;
   montant: number;
   moyen: MoyenReglement;
+  /** Compte de trésorerie choisi : il remplace le compte par défaut du moyen. */
+  tresorerie?: { numero: string; libelle: string; journal: CodeJournal } | null;
 }): Ecriture {
-  const compte = COMPTE_REGLEMENT[reglement.moyen];
+  const compte = reglement.tresorerie ?? COMPTE_REGLEMENT[reglement.moyen];
 
   return exigerEquilibre({
-    journal: JOURNAL_REGLEMENT[reglement.moyen],
+    journal: reglement.tresorerie?.journal ?? JOURNAL_REGLEMENT[reglement.moyen],
     date: reglement.date,
     piece: reglement.numero,
     libelle: `Règlement ${reglement.numero} — ${reglement.client}`,

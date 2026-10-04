@@ -163,6 +163,25 @@ const LIBELLES: Record<string, string> = {
   "tache.annuler": "a annulé une tâche",
 
   "journal.exporter": "a exporté le journal d'activité",
+
+  "compte_tresorerie.creer": "a ouvert un compte de trésorerie",
+  "compte_tresorerie.modifier": "a modifié un compte de trésorerie",
+  "virement.envoyer": "a envoyé un virement interne",
+  "virement.recevoir": "a constaté l'arrivée d'un virement",
+  "virement.annuler": "a annulé un virement interne",
+  "bon_caisse.demander": "a demandé un bon de caisse",
+  "bon_caisse.approuver": "a approuvé un bon de caisse",
+  "bon_caisse.rejeter": "a refusé un bon de caisse",
+  "bon_caisse.decaisser": "a décaissé un bon de caisse",
+  "bon_caisse.annuler": "a annulé un bon de caisse",
+  "avance.remettre": "a remis une avance",
+  "avance.justifier": "a justifié une avance",
+  "avance.rembourser": "a enregistré un remboursement d'avance",
+  "arrete_caisse.passer": "a arrêté une caisse",
+  "releve.importer": "a importé un relevé bancaire",
+  "releve.pointer": "a pointé le relevé bancaire",
+  "releve.depointer": "a retiré un pointage",
+  "releve.comptabiliser": "a comptabilisé une ligne de relevé",
 };
 
 /** Gestes dont la famille ne se déduit pas du verbe seul. */
@@ -190,6 +209,16 @@ const FAMILLE_EXPLICITE: Record<string, Categorie> = {
   "depart.annule": "suppression",
   "bon-paiement.regler": "creation",
   "journal.exporter": "consultation",
+  "virement.envoyer": "affectation",
+  "virement.recevoir": "affectation",
+  "bon_caisse.approuver": "modification",
+  "bon_caisse.decaisser": "creation",
+  "avance.remettre": "creation",
+  "avance.justifier": "modification",
+  "avance.rembourser": "modification",
+  "arrete_caisse.passer": "creation",
+  "releve.pointer": "modification",
+  "releve.comptabiliser": "creation",
 };
 
 const VERBES: [RegExp, Categorie][] = [
@@ -257,6 +286,12 @@ const MODULES: Record<string, string> = {
   archive_dossier: "Archives",
   tache: "Tâches",
   journal: "Journal",
+  compte_tresorerie: "Trésorerie",
+  virement: "Trésorerie",
+  bon_caisse: "Trésorerie",
+  avance: "Trésorerie",
+  arrete_caisse: "Trésorerie",
+  releve: "Trésorerie",
 };
 
 /** Module d'un geste, d'après son préfixe. */

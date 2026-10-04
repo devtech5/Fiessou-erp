@@ -186,6 +186,7 @@ const schemaReglement = z.object({
   moyen: z.enum(["especes", "mobile_money", "banque"]),
   date: z.string().regex(DATE_ISO, "Date invalide."),
   reference: z.string().trim().max(80).nullable().optional(),
+  compteTresorerieId: z.string().regex(UUID).nullable().optional(),
 });
 
 export async function encaisserFacture(

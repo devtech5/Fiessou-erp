@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { ChoixCompteTresorerie } from "@/components/tresorerie/choix-compte";
 import { ChoixFichiers } from "@/components/ui/fichiers";
 import { Retour, useOperation } from "@/components/ui/operations";
 import { CLASSE_CHAMP } from "@/components/ui/primitives";
@@ -35,6 +36,7 @@ export function ActionsDepense({
   const [panneau, setPanneau] = useState<"rejeter" | "annuler" | "payer" | null>(null);
   const [motif, setMotif] = useState("");
   const [depassement, setDepassement] = useState(false);
+  const [moyen, setMoyen] = useState<"especes" | "mobile_money" | "banque">("especes");
   const formulaire = useRef<HTMLFormElement>(null);
 
   if (statut === "payee" || statut === "rejetee" || statut === "annulee") return null;
@@ -112,11 +114,18 @@ export function ActionsDepense({
           className="space-y-1.5"
         >
           <input type="hidden" name="depenseId" value={id} />
-          <select name="moyen" defaultValue="especes" aria-label="Moyen de paiement" className={`${CLASSE_CHAMP} h-9`}>
+          <select
+            name="moyen"
+            value={moyen}
+            onChange={(e) => setMoyen(e.target.value as typeof moyen)}
+            aria-label="Moyen de paiement"
+            className={`${CLASSE_CHAMP} h-9`}
+          >
             <option value="especes">Espèces</option>
             <option value="mobile_money">Mobile money</option>
             <option value="banque">Virement / chèque</option>
           </select>
+          <ChoixCompteTresorerie moyen={moyen} libelle="Compte qui paie" className={`${CLASSE_CHAMP} h-9`} />
           <input name="reference" placeholder="Référence (n° de chèque, transfert…)" aria-label="Référence du paiement" className={`${CLASSE_CHAMP} h-9`} />
           <ChoixFichiers libelle="Preuves de paiement : reçu, capture du transfert…" camera />
           <div className="flex gap-1.5">

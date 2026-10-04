@@ -16,6 +16,7 @@ import {
   type Resultat,
 } from "@/modules/facturation/actions";
 import { resteDu, totaliserPiece } from "@/modules/facturation/calcul";
+import { ChoixCompteTresorerie } from "@/components/tresorerie/choix-compte";
 import type {
   LignePieceVue,
   OptionsPiece,
@@ -552,6 +553,7 @@ function FormulaireEncaissement({
   const [moyen, setMoyen] = useState<(typeof MOYENS)[number]["valeur"]>("especes");
   const [date, setDate] = useState(aujourdHui);
   const [reference, setReference] = useState("");
+  const [compteId, setCompteId] = useState("");
 
   return (
     <div className="grid gap-3 border-t border-[var(--filet)] bg-[var(--surface-creuse)] p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -582,6 +584,9 @@ function FormulaireEncaissement({
       <Champ libelle="Référence" precision="N° de transaction, de chèque…">
         <input value={reference} onChange={(e) => setReference(e.target.value)} className={CLASSE_CHAMP} />
       </Champ>
+      <div className="sm:col-span-2 lg:col-span-4">
+        <ChoixCompteTresorerie moyen={moyen} valeur={compteId} onChange={setCompteId} libelle="Compte qui reçoit" />
+      </div>
       <div className="flex gap-3 sm:col-span-2 lg:col-span-4">
         <button
           type="button"
@@ -595,6 +600,7 @@ function FormulaireEncaissement({
                   moyen,
                   date,
                   reference: reference.trim() || null,
+                  compteTresorerieId: compteId || null,
                 }),
               () => onFermer(),
             )

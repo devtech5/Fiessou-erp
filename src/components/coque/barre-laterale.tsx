@@ -49,6 +49,7 @@ const GROUPES: GroupeModules[] = [
     titre: "Finance",
     modules: [
       { href: "/comptabilite", racine: "/comptabilite", libelle: "Comptabilité", droit: "comptabilite.ecriture.consulter" },
+      { href: "/tresorerie", racine: "/tresorerie", libelle: "Trésorerie", droit: "tresorerie.bon.demander" },
       { href: "/monnaie", racine: "/monnaie", libelle: "Guichet", droit: "valeur_electronique.consulter" },
     ],
   },
