@@ -97,9 +97,11 @@ export const MODULES: ModuleDefinition[] = [
     name: "Personnes & Rémunération",
     layer: "socle",
     // En base : salariés et contrats, intervenants, pointages et bons de
-    // paiement — le versement à un intervenant pose son écriture en 637. Les
-    // bulletins se calculent depuis la base mais ne sont pas encore émis :
-    // restent le barème réel, les déclarations et l'écriture de paie.
+    // paiement — le versement à un intervenant pose son écriture en 637.
+    // Paie émise : barème par entreprise attesté vérifié, bulletins numérotés
+    // et figés, écriture de paie, salaires payés depuis la trésorerie,
+    // versements CNPS et impôt, état mensuel des cotisations. Restent les
+    // congés, la DISA annuelle et les rappels de salaire.
     status: "en_cours",
     requires: [],
     description:

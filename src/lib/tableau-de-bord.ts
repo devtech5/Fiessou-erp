@@ -79,6 +79,15 @@ export interface EtatReservations {
   abonnementsEpuises: number;
 }
 
+/** Ce que la paie a d'urgent : salaires validés non versés, déclarations en attente. */
+export interface EtatPaieAlertes {
+  salairesNonPayes: number;
+  montantNonPaye: number;
+  declarationsDues: number;
+  montantDeclarations: number;
+  declarationsEchues: number;
+}
+
 /** Ce que les achats ont d'urgent : dettes échues ou proches, livraisons en retard. */
 export interface EtatAchatsAlertes {
   facturesEchues: number;
@@ -153,8 +162,35 @@ export function alertes(
   taches: EtatTaches = { miennesEnRetard: 0, equipeEnRetard: 0 },
   tresorerie: EtatTresorerieAlertes = TRESORERIE_VIDE,
   achats: EtatAchatsAlertes = { facturesEchues: 0, montantEchu: 0, aPayerSous7Jours: 0, livraisonsEnRetard: 0 },
+  paie: EtatPaieAlertes = { salairesNonPayes: 0, montantNonPaye: 0, declarationsDues: 0, montantDeclarations: 0, declarationsEchues: 0 },
 ): Alerte[] {
   const liste: Alerte[] = [];
+
+  // --------------------------------------------------------------- paie
+  if (paie.salairesNonPayes > 0) {
+    liste.push({
+      id: "salaires-non-payes",
+      gravite: "critique",
+      source: "base",
+      module: "Paie",
+      titre: "Salaires validés non payés",
+      detail: `${paie.montantNonPaye.toLocaleString("fr-FR")} FCFA de nets à verser`,
+      href: "/rh/paie",
+      nombre: paie.salairesNonPayes,
+    });
+  }
+  if (paie.declarationsDues > 0) {
+    liste.push({
+      id: "declarations-paie",
+      gravite: paie.declarationsEchues > 0 ? "critique" : "attention",
+      source: "base",
+      module: "Paie",
+      titre: paie.declarationsEchues > 0 ? "Versements CNPS ou impôt en retard" : "Versements CNPS et impôt à faire",
+      detail: `${paie.montantDeclarations.toLocaleString("fr-FR")} FCFA dus aux organismes`,
+      href: "/rh/paie",
+      nombre: paie.declarationsDues,
+    });
+  }
 
   // ------------------------------------------------------------- achats
   if (achats.facturesEchues > 0) {

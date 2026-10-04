@@ -162,6 +162,27 @@ export const DROITS = [
       "de la caisse, il est séparé du pointage à dessein.",
   },
 
+  {
+    cle: "personnes.paie.preparer",
+    moduleKey: "personnes",
+    libelle: "Préparer la paie",
+    description: "Calculer les bulletins du mois, saisir primes, indemnités et retenues.",
+  },
+  {
+    cle: "personnes.paie.valider",
+    moduleKey: "personnes",
+    libelle: "Valider la paie et son barème",
+    description:
+      "Attester le barème CNPS et l'impôt sur salaire, puis valider la paie du mois : " +
+      "les bulletins sont numérotés, figés et passés en comptabilité. Irréversible.",
+  },
+  {
+    cle: "personnes.paie.payer",
+    moduleKey: "personnes",
+    libelle: "Payer les salaires et les déclarations",
+    description: "Verser les salaires nets, les cotisations CNPS et l'impôt retenu depuis la trésorerie.",
+  },
+
   // -------------------------------------------------------------- actifs
   {
     cle: "actifs.consulter",
@@ -728,6 +749,9 @@ export const PRESETS_ROLES = [
       "achats.consulter",
       "achats.facture.saisir",
       "achats.reglement.payer",
+      "personnes.consulter",
+      "personnes.paie.preparer",
+      "personnes.paie.payer",
       ...TRESORERIE_COMPTABLE,
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,

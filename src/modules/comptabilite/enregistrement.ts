@@ -22,7 +22,8 @@ export type OrigineEcriture =
   | "virement"
   | "avance"
   | "arrete_caisse"
-  | "releve";
+  | "releve"
+  | "paie";
 
 export interface ContexteEcriture {
   organizationId: string;

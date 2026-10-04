@@ -191,6 +191,15 @@ const LIBELLES: Record<string, string> = {
   "facture_fournisseur.enregistrer": "a enregistré une facture fournisseur",
   "facture_fournisseur.annuler": "a annulé une facture fournisseur",
   "facture_fournisseur.regler": "a réglé un fournisseur",
+
+  "bareme_paie.modifier": "a modifié le barème de paie",
+  "paie.preparer": "a préparé la paie",
+  "paie.elements": "a saisi des éléments de paie",
+  "paie.retirer": "a retiré un salarié de la paie",
+  "paie.valider": "a validé la paie du mois",
+  "paie.payer": "a payé des salaires",
+  "paie.verser_cnps": "a versé les cotisations CNPS",
+  "paie.verser_impot": "a versé l'impôt sur salaires",
 };
 
 /** Gestes dont la famille ne se déduit pas du verbe seul. */
@@ -232,6 +241,12 @@ const FAMILLE_EXPLICITE: Record<string, Categorie> = {
   "reception_achat.recevoir": "creation",
   "facture_fournisseur.enregistrer": "creation",
   "facture_fournisseur.regler": "creation",
+  "paie.preparer": "creation",
+  "paie.elements": "modification",
+  "paie.valider": "modification",
+  "paie.payer": "creation",
+  "paie.verser_cnps": "creation",
+  "paie.verser_impot": "creation",
 };
 
 const VERBES: [RegExp, Categorie][] = [
@@ -308,6 +323,8 @@ const MODULES: Record<string, string> = {
   commande_achat: "Achats",
   reception_achat: "Achats",
   facture_fournisseur: "Achats",
+  paie: "Paie",
+  bareme_paie: "Paie",
 };
 
 /** Module d'un geste, d'après son préfixe. */

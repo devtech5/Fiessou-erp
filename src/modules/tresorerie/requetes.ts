@@ -5,6 +5,8 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
 import { lignesComptaLibres } from "./creation";
+import { sortiesPaie } from "@/modules/paie/requetes";
+
 import { planTresorerie, type Flux, type NatureBon, type NatureCompte } from "./calcul";
 
 const enDate = (v: string | Date) => (v instanceof Date ? v : new Date(v));
@@ -400,7 +402,7 @@ export function ecrituresNonPointees(organizationId: string, compte: string) {
  * Les montants dus sans date tombent aujourd'hui : on les doit maintenant.
  */
 export async function fluxPrevus(organizationId: string, aujourdhui: string): Promise<Flux[]> {
-  const [factures, depenses, bons, intervenants, dettes] = await Promise.all([
+  const [factures, depenses, bons, intervenants, dettes, paie] = await Promise.all([
     db.execute<{ numero: string; client: string | null; echeance: string | Date | null; reste: string }>(sql`
       select p.numero, p.client_nom as client, coalesce(p.echeance, p.date_piece) as echeance,
              p.total_ttc - coalesce((select sum(r.montant) from reglements_piece r where r.piece_id = p.id and r.deleted_at is null), 0) as reste
@@ -426,6 +428,7 @@ export async function fluxPrevus(organizationId: string, aujourdhui: string): Pr
       from factures_fournisseur f
       where f.organization_id = ${organizationId} and f.statut = 'comptabilisee'
     `),
+    sortiesPaie(organizationId, aujourdhui),
   ]);
 
   const flux: Flux[] = [];
@@ -435,6 +438,7 @@ export async function fluxPrevus(organizationId: string, aujourdhui: string): Pr
   }
   for (const d of depenses) flux.push({ date: aujourdhui, montant: -Number(d.montant), libelle: `${d.numero} — ${d.libelle}`, origine: "depense" });
   for (const b of bons) flux.push({ date: aujourdhui, montant: -Number(b.montant), libelle: `${b.numero} — ${b.beneficiaire}`, origine: "bon" });
+  for (const p of paie) flux.push({ date: p.date, montant: -p.montant, libelle: p.libelle, origine: "paie" });
   for (const d of dettes) {
     const reste = Number(d.reste);
     if (reste > 0) flux.push({ date: jour(d.echeance) ?? aujourdhui, montant: -reste, libelle: `${d.numero} — ${d.fournisseur}`, origine: "fournisseur" });

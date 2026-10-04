@@ -1,185 +1,153 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import {
-  CarteIndicateur,
-  EnTetePage,
-  EtatVide,
-  Tableau,
-  Td,
-  Th,
-} from "@/components/ui/primitives";
+import { CarteIndicateur, EnTetePage, EtatVide } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
-import { fmt, fmtCompact, fmtRetenue, fmtTauxBp } from "@/lib/format";
-import { BAREME_CI, calculerBulletin } from "@/modules/personnes/paie";
-import { listerSalaries } from "@/modules/personnes/requetes";
+import { peut } from "@/lib/droits/garde";
+import { fmt } from "@/lib/format";
+import { echeanceDeclarations, libelleMois, moisCourant, moisValide } from "@/modules/paie/calcul";
+import { baremeDe } from "@/modules/paie/creation";
+import { listerPeriodes, periodeDetail } from "@/modules/paie/requetes";
+import { listerComptes } from "@/modules/tresorerie/requetes";
+
+import { ActionsPeriode, PreparerMois } from "./actions-periode";
+import { TableBulletins } from "./bulletins";
 
 export const metadata: Metadata = { title: "Paie" };
 
-const MOIS = [
-  "janvier", "février", "mars", "avril", "mai", "juin",
-  "juillet", "août", "septembre", "octobre", "novembre", "décembre",
-];
+const JOUR = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+const date = (iso: string) => JOUR.format(new Date(`${iso}T00:00:00Z`));
 
 /**
- * Bulletins du mois.
- *
- * La colonne qui compte est le net à payer, et il est toujours inférieur au
- * brut. Cela paraît évident ; la capture marketing du concurrent affiche
- * pourtant un net supérieur au brut sur chacune de ses lignes — 120 000 de
- * brut, 13 420 de retenues, 132 000 de net. Le total et le détail y sont
- * remplis par deux calculs différents.
- *
- * Ces bulletins sont CALCULÉS depuis la base, pas encore ÉMIS : aucune ligne
- * n'est enregistrée, aucune écriture n'est passée. Émettre un bulletin figera
- * son montant, comme un ticket de caisse fige le sien — et cela n'a de sens
- * qu'une fois le barème réel vérifié.
+ * Paie du mois : préparer, saisir les éléments variables, valider (bulletins
+ * numérotés et écriture de paie), payer les nets, verser la CNPS et l'impôt.
  */
-export default async function PagePaie() {
+export default async function PagePaie({ searchParams }: PageProps<"/rh/paie">) {
   const session = await exigerEntreprise();
-  const salaries = await listerSalaries(session.organizationId);
+  const [preparer, valider, payer] = await Promise.all([peut("personnes.paie.preparer"), peut("personnes.paie.valider"), peut("personnes.paie.payer")]);
+  const { mois: demande } = await searchParams;
+  const [periodes, bareme] = await Promise.all([listerPeriodes(session.organizationId), baremeDe(session.organizationId)]);
+  const mois = typeof demande === "string" && moisValide(demande) ? demande : (periodes[0]?.mois ?? moisCourant());
+  const [detail, comptes] = await Promise.all([periodeDetail(session.organizationId, mois), payer ? listerComptes(session.organizationId) : Promise.resolve([])]);
+  const aujourdhui = new Date().toISOString().slice(0, 10);
 
-  const bulletins = salaries.map((salarie) =>
-    calculerBulletin({
-      id: salarie.id,
-      matricule: salarie.matricule,
-      nom: salarie.nom,
-      salaireBase: salarie.salaireBase,
-    }),
-  );
-
-  const maintenant = new Date();
-  const periode = `${MOIS[maintenant.getMonth()]} ${maintenant.getFullYear()}`;
-
-  const brut = bulletins.reduce((s, b) => s + b.brut, 0);
-  const retenues = bulletins.reduce(
-    (s, b) => s + b.cotisationsSalariales + b.impot,
-    0,
-  );
-  const net = bulletins.reduce((s, b) => s + b.net, 0);
-  const patronales = bulletins.reduce((s, b) => s + b.chargesPatronales, 0);
+  const bulletins = detail?.bulletins ?? [];
+  const validee = detail?.periode.statut === "validee";
+  const somme = (f: (b: (typeof bulletins)[number]) => number) => bulletins.reduce((s, b) => s + f(b), 0);
+  const nonPayes = bulletins.filter((b) => !b.payeLe && b.net > 0);
 
   return (
     <>
       <EnTetePage
-        titre="Paie"
-        sousTitre={`${periode} · bulletins calculés, non émis`}
+        titre={`Paie de ${libelleMois(mois)}`}
+        sousTitre={!detail ? "Pas encore préparée" : validee ? `Validée — écriture ${detail.periode.ecriture}` : "En préparation : les bulletins se recalculent jusqu'à la validation"}
+        actions={
+          <>
+            <Link href="/rh/paie/bareme" className="h-cible inline-flex items-center rounded-lg border border-[var(--filet)] bg-[var(--surface)] px-3.5 text-sm font-medium hover:bg-[var(--surface-creuse)]">
+              Barème
+            </Link>
+            {preparer && <PreparerMois moisCourant={moisCourant()} mois={mois} dejaValidee={validee} />}
+          </>
+        }
       />
 
-      {BAREME_CI.aVerifier && (
-        <p className="mb-5 rounded-xl border-l-4 border-alerte-500 bg-alerte-50 px-4 py-3 text-sm text-alerte-600">
-          <strong className="font-semibold">Barèmes de démonstration.</strong> Les
-          taux CNPS et le barème ITS employés ici doivent être vérifiés auprès des
-          administrations et confrontés à des bulletins réels avant toute mise en
-          production. Tant qu&apos;ils ne le sont pas, aucun bulletin n&apos;est
-          émis et aucune écriture de paie n&apos;est passée.
-        </p>
+      <p
+        className={`mb-5 rounded-xl border-l-4 px-4 py-3 text-sm ${
+          bareme.verifie ? "border-valide-500 bg-valide-50 text-valide-600" : "border-alerte-500 bg-alerte-50 text-alerte-600"
+        }`}
+      >
+        {bareme.verifie ? (
+          <>
+            <strong className="font-semibold">Barème attesté vérifié</strong> le {bareme.verifieLe ? JOUR.format(bareme.verifieLe) : "—"}. Toute modification des taux
+            demandera une nouvelle attestation.
+          </>
+        ) : (
+          <>
+            <strong className="font-semibold">Barème non vérifié.</strong> Les taux CNPS et le barème de l&apos;impôt sur salaire sont ceux de la démonstration. Faites-les
+            contrôler par votre comptable, corrigez-les dans <Link href="/rh/paie/bareme" className="font-semibold underline">Barème</Link> et attestez-les : la paie ne
+            peut pas être validée avant.
+          </>
+        )}
+      </p>
+
+      {periodes.length > 0 && (
+        <nav aria-label="Mois de paie" className="mb-4 flex gap-1.5 overflow-x-auto pb-0.5">
+          {periodes.map((p) => (
+            <Link
+              key={p.id}
+              href={`/rh/paie?mois=${p.mois}`}
+              aria-current={p.mois === mois ? "page" : undefined}
+              className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold ${
+                p.mois === mois ? "bg-marque-600 text-white" : "bg-[var(--surface-creuse)] text-[var(--encre-douce)]"
+              }`}
+            >
+              {libelleMois(p.mois)} {p.statut === "validee" ? (p.payes === p.bulletins ? "✓" : "•") : "(brouillon)"}
+            </Link>
+          ))}
+        </nav>
       )}
 
-      {bulletins.length === 0 ? (
+      {!detail ? (
         <EtatVide
-          titre="Aucun bulletin"
-          message="La paie se calcule sur les salariés inscrits. Inscrivez-en un dans l'onglet Salariés — les intervenants, eux, ne relèvent pas de la paie mais du bon de paiement."
+          titre="Paie non préparée"
+          message="Préparez la paie du mois : un bulletin par salarié actif, calculé sur son salaire de base. Vous ajouterez ensuite primes, indemnités et retenues."
         />
       ) : (
         <>
-          <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
+          <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
+            <CarteIndicateur libelle="Masse brute" valeur={fmt(somme((b) => b.brut))} unite="FCFA" precision={`${bulletins.length} bulletin${bulletins.length > 1 ? "s" : ""}`} />
+            <CarteIndicateur libelle="Net à payer" valeur={fmt(somme((b) => b.net))} unite="FCFA" ton="valide" precision={validee ? `${fmt(nonPayes.reduce((s, b) => s + b.net, 0))} F restent à verser` : "Après validation"} />
             <CarteIndicateur
-              libelle="Masse brute"
-              valeur={fmtCompact(brut)}
+              libelle="CNPS"
+              valeur={fmt(somme((b) => b.cnpsSalarie + b.cnpsPatronal + b.prestationsFamiliales + b.accidentTravail))}
               unite="FCFA"
+              ton={validee && !detail.periode.cnpsVerseeLe ? "alerte" : "neutre"}
+              precision={detail.periode.cnpsVerseeLe ? `Versée le ${date(detail.periode.cnpsVerseeLe)}` : `Parts salariale et patronale — avant le ${date(echeanceDeclarations(mois))}`}
             />
             <CarteIndicateur
-              libelle="Retenues salariales"
-              valeur={fmtCompact(retenues)}
+              libelle="Impôt sur salaires"
+              valeur={fmt(somme((b) => b.impot))}
               unite="FCFA"
-              precision="CNPS et ITS"
+              ton={validee && !detail.periode.impotVerseLe ? "alerte" : "neutre"}
+              precision={detail.periode.impotVerseLe ? `Versé le ${date(detail.periode.impotVerseLe)}` : `Retenu à la source — avant le ${date(echeanceDeclarations(mois))}`}
             />
-            <CarteIndicateur
-              libelle="Net à payer"
-              valeur={fmtCompact(net)}
-              unite="FCFA"
-              ton="valide"
-              precision="Brut moins retenues"
-            />
-            <CarteIndicateur
-              libelle="Charges patronales"
-              valeur={fmtCompact(patronales)}
-              unite="FCFA"
-              precision="À la charge de l'employeur"
-            />
+            <CarteIndicateur libelle="Coût employeur" valeur={fmt(somme((b) => b.coutTotal))} unite="FCFA" precision="Brut, indemnités et charges patronales" />
           </section>
 
-          <Tableau>
-            <thead>
-              <tr>
-                <Th>Matricule</Th>
-                <Th>Salarié</Th>
-                <Th aligne="droite">Brut</Th>
-                <Th aligne="droite">CNPS</Th>
-                <Th aligne="droite">ITS</Th>
-                <Th aligne="droite">Net à payer</Th>
-                <Th aligne="droite">Coût employeur</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {bulletins.map((bulletin) => (
-                <tr key={bulletin.employe.id}>
-                  <Td chiffres>{bulletin.employe.matricule}</Td>
-                  <Td fort>{bulletin.employe.nom}</Td>
-                  <Td aligne="droite" chiffres>
-                    {fmt(bulletin.brut)}
-                  </Td>
-                  <Td aligne="droite" chiffres>
-                    <span className="text-danger-600">
-                      {fmtRetenue(bulletin.cotisationsSalariales)}
-                    </span>
-                  </Td>
-                  <Td aligne="droite" chiffres>
-                    <span className="text-danger-600">{fmtRetenue(bulletin.impot)}</span>
-                  </Td>
-                  <Td aligne="droite" chiffres fort>
-                    {fmt(bulletin.net)}
-                  </Td>
-                  <Td aligne="droite" chiffres>
-                    <span className="text-[var(--encre-faible)]">
-                      {fmt(bulletin.coutTotal)}
-                    </span>
-                  </Td>
-                </tr>
-              ))}
+          <ActionsPeriode
+            periodeId={detail.periode.id}
+            mois={mois}
+            validee={validee}
+            baremeVerifie={bareme.verifie}
+            droits={{ valider, payer }}
+            nonPayes={nonPayes.length}
+            montantNonPaye={nonPayes.reduce((s, b) => s + b.net, 0)}
+            cnps={{ montant: detail.periode.totalCnps, verse: Boolean(detail.periode.cnpsVerseeLe) }}
+            impot={{ montant: detail.periode.totalImpot, verse: Boolean(detail.periode.impotVerseLe) }}
+            comptes={comptes.filter((c) => c.actif).map((c) => ({ id: c.id, nom: c.nom, nature: c.nature, solde: c.solde }))}
+            aujourdhui={aujourdhui}
+          />
 
-              <tr className="bg-[var(--surface-creuse)]">
-                <Td>{""}</Td>
-                <Td fort>Totaux</Td>
-                <Td aligne="droite" chiffres fort>
-                  {fmt(brut)}
-                </Td>
-                <Td aligne="droite" chiffres fort>
-                  {fmtRetenue(
-                    bulletins.reduce((s, b) => s + b.cotisationsSalariales, 0),
-                  )}
-                </Td>
-                <Td aligne="droite" chiffres fort>
-                  {fmtRetenue(bulletins.reduce((s, b) => s + b.impot, 0))}
-                </Td>
-                <Td aligne="droite" chiffres fort>
-                  {fmt(net)}
-                </Td>
-                <Td aligne="droite" chiffres fort>
-                  {fmt(bulletins.reduce((s, b) => s + b.coutTotal, 0))}
-                </Td>
-              </tr>
-            </tbody>
-          </Tableau>
-
-          <p className="chiffres mt-4 text-xs text-[var(--encre-faible)]">
-            Retraite CNPS {fmtTauxBp(BAREME_CI.cnpsRetraiteSalarieBp)} salarié et{" "}
-            {fmtTauxBp(BAREME_CI.cnpsRetraitePatronalBp)} employeur, plafonnée à{" "}
-            {fmt(BAREME_CI.cnpsPlafondMensuel)} FCFA par mois. Prestations
-            familiales {fmtTauxBp(BAREME_CI.prestationsFamilialesBp)} et accident
-            du travail {fmtTauxBp(BAREME_CI.accidentTravailBp)}, à la charge de
-            l&apos;employeur.
-          </p>
+          <TableBulletins
+            bulletins={bulletins.map((b) => ({
+              id: b.id,
+              numero: b.numero,
+              matricule: b.matricule,
+              nom: b.nom,
+              poste: b.poste,
+              numeroCnps: b.numeroCnps,
+              salaireBase: b.salaireBase,
+              primesImposables: b.primesImposables,
+              indemnitesNonImposables: b.indemnitesNonImposables,
+              retenuesDiverses: b.retenuesDiverses,
+              brut: b.brut,
+              cnpsSalarie: b.cnpsSalarie,
+              impot: b.impot,
+              net: b.net,
+              payeLe: b.payeLe ? String(b.payeLe).slice(0, 10) : null,
+            }))}
+            modifiable={preparer && !validee}
+          />
         </>
       )}
     </>
