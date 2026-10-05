@@ -203,6 +203,9 @@ const LIBELLES: Record<string, string> = {
   "paie.verser_cnps": "a versé les cotisations CNPS",
   "paie.verser_impot": "a versé l'impôt sur salaires",
 
+  "modele_article.creer": "a créé un modèle à variantes",
+  "modele_article.declinaisons": "a ajouté des déclinaisons à un modèle",
+  "modele_article.prix": "a modifié les prix des variantes",
   "organisation.identite": "a modifié l'identité de l'entreprise",
   "reprise.articles": "a importé des articles",
   "reprise.tiers": "a repris clients, fournisseurs et soldes antérieurs",
@@ -348,6 +351,7 @@ const MODULES: Record<string, string> = {
   declaration_tva: "Fiscalité",
   souscription: "Abonnement",
   reprise: "Démarrage",
+  modele_article: "Stock",
   exercice: "Fiscalité",
 };
 

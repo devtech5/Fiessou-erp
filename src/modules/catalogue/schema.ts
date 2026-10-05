@@ -4,10 +4,12 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -97,6 +99,48 @@ export const famillesArticle = pgTable(
   ],
 );
 
+/** Un axe de déclinaison : « Taille » → 38, 39, 40 ; « Couleur » → Noir, Blanc. */
+export interface AxeVariante {
+  nom: string;
+  valeurs: string[];
+}
+
+/**
+ * Modèle à variantes : la chaussure « Derby cuir », déclinée en tailles et en
+ * couleurs. Le modèle ne se vend pas et ne se stocke pas : chaque déclinaison
+ * est un ARTICLE à part entière — sa référence, son stock, son prix, son code-
+ * barres —, rattaché ici par `articles.modele_id`. La caisse, le stock, les
+ * factures et les achats ne connaissent que des articles ; rien n'y change.
+ */
+export const modelesArticle = pgTable(
+  "modeles_article",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    familleId: uuid("famille_id").references(() => famillesArticle.id, { onDelete: "set null" }),
+    /** Racine des références des variantes : DERBY → DERBY-42-NOIR. */
+    reference: text("reference").notNull(),
+    designation: text("designation").notNull(),
+    unite: codeUnite("unite").notNull().default("piece"),
+    /** Prix proposés aux nouvelles variantes ; chacune peut ensuite s'en écarter. */
+    prixVente: money("prix_vente").notNull().default(0),
+    prixAchat: money("prix_achat").notNull().default(0),
+    tauxTva: integer("taux_tva"),
+    seuilAlerte: quantity("seuil_alerte").notNull().default(0),
+    fournisseurId: uuid("fournisseur_id").references(() => tiers.id, { onDelete: "set null" }),
+    axes: jsonb("axes").$type<AxeVariante[]>().notNull(),
+    actif: boolean("actif").notNull().default(true),
+    ...timestamps,
+    ...rowVersion,
+  },
+  (t) => [
+    unique("modeles_article_reference_unique").on(t.organizationId, t.reference),
+    check("modeles_article_prix", sql`${t.prixVente} >= 0 AND ${t.prixAchat} >= 0`),
+  ],
+);
+
 /**
  * Article : tout ce qui se vend, se stocke ou se facture.
  *
@@ -151,6 +195,11 @@ export const articles = pgTable(
       onDelete: "set null",
     }),
 
+    /** Modèle dont l'article est une déclinaison ; nul pour un article simple. */
+    modeleId: uuid("modele_id").references(() => modelesArticle.id, { onDelete: "set null" }),
+    /** Valeur de chaque axe du modèle : { Taille: "42", Couleur: "Noir" }. */
+    attributs: jsonb("attributs").$type<Record<string, string>>(),
+
     /**
      * Un article ne se supprime pas tant qu'il figure sur une pièce vendue :
      * il se désactive. Il quitte la caisse, l'historique reste lisible.
@@ -181,8 +230,11 @@ export const articles = pgTable(
     index("articles_org_designation_idx").on(t.organizationId, t.designation),
     index("articles_org_famille_idx").on(t.organizationId, t.familleId),
     index("articles_org_fournisseur_idx").on(t.organizationId, t.fournisseurId),
+    // Une combinaison n'existe qu'une fois par modèle : pas deux « 42 Noir ».
+    uniqueIndex("articles_modele_attributs_unique").on(t.modeleId, t.attributs).where(sql`${t.modeleId} IS NOT NULL`),
   ],
 );
 
 export type Article = typeof articles.$inferSelect;
+export type ModeleArticle = typeof modelesArticle.$inferSelect;
 export type FamilleArticle = typeof famillesArticle.$inferSelect;

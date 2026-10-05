@@ -5,6 +5,7 @@ import { peut } from "@/lib/droits/garde";
 const SECTIONS = [
   { href: "/stock", libelle: "Vue d'ensemble" },
   { href: "/stock/articles", libelle: "Articles" },
+  { href: "/stock/modeles", libelle: "Modèles à variantes" },
   { href: "/stock/mouvements", libelle: "Mouvements" },
   { href: "/stock/reapprovisionnement", libelle: "Réapprovisionnement" },
 ];

@@ -22,6 +22,9 @@ export interface NouvelArticle {
   compteAchat?: string | null;
   seuilAlerte?: number;
   fournisseurId?: string | null;
+  /** Déclinaison d'un modèle : son modèle et la valeur de chaque axe. */
+  modeleId?: string | null;
+  attributs?: Record<string, string> | null;
 }
 
 export interface NouvelleFamille {
@@ -101,6 +104,8 @@ export async function creerArticleDans(
     suiviStock: type !== "service",
     seuilAlerte: type === "service" ? 0 : (donnees.seuilAlerte ?? 0),
     fournisseurId: donnees.fournisseurId ?? null,
+    modeleId: donnees.modeleId ?? null,
+    attributs: donnees.attributs ?? null,
   });
 
   if (userId) {

@@ -73,6 +73,7 @@ const TABLES_ATTENDUES = [
   "lignes_vente",
   "memberships",
   "missions",
+  "modeles_article",
   "mouvements_stock",
   "operations_guichet",
   "organization_modules",
