@@ -77,6 +77,7 @@ const TABLES_ATTENDUES = [
   "operations_guichet",
   "organization_modules",
   "organizations",
+  "paiements_abonnement",
   "parametres_paie",
   "passages_abonnement",
   "periodes_paie",

@@ -126,3 +126,30 @@ export function motDePasseProvisoire(aleatoire: (max: number) => number): string
   }
   return groupes.join("-");
 }
+
+// ------------------------------------------------- mot de passe oublié
+
+/** Durée de validité d'un lien de réinitialisation. */
+export const DUREE_JETON_REINIT_MINUTES = 60;
+/** Demandes tolérées par adresse et par heure : freine l'envoi en rafale. */
+export const DEMANDES_REINIT_PAR_HEURE = 3;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Jeton du lien envoyé par e-mail : `<id>.<secret>`. L'identifiant retrouve la
+ * demande sans balayer la table ; seul le secret, haché, est comparé. En base
+ * ne vit que l'empreinte : une fuite de la table ne donne aucun lien valable.
+ */
+export function formerJetonReinit(id: string, secret: string): string {
+  return `${id}.${secret}`;
+}
+
+export function lireJetonReinit(jeton: string): { id: string; secret: string } | null {
+  const point = jeton.indexOf(".");
+  if (point < 0) return null;
+  const id = jeton.slice(0, point);
+  const secret = jeton.slice(point + 1);
+  if (!UUID.test(id) || !/^[A-Za-z0-9_-]{32,128}$/.test(secret)) return null;
+  return { id, secret };
+}

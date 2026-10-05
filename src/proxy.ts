@@ -21,10 +21,17 @@ import { COOKIE_SESSION } from "@/lib/auth/session";
 
 const ROUTES_PUBLIQUES = ["/connexion", "/inscription"];
 
+/**
+ * Ouvertes à tous, avec ou sans session : le lien de réinitialisation reçu
+ * par e-mail doit marcher même sur un téléphone resté connecté.
+ */
+const ROUTES_LIBRES = ["/mot-de-passe-oublie", "/reinitialiser"];
+
 export default function proxy(requete: NextRequest) {
   const chemin = requete.nextUrl.pathname;
   const aUnCookie = Boolean(requete.cookies.get(COOKIE_SESSION)?.value);
   const estPublique = ROUTES_PUBLIQUES.some((route) => chemin.startsWith(route));
+  if (ROUTES_LIBRES.some((route) => chemin.startsWith(route))) return NextResponse.next();
 
   if (!aUnCookie && !estPublique) {
     const destination = new URL("/connexion", requete.nextUrl);

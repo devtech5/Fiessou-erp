@@ -36,6 +36,8 @@ const LIBELLES: Record<string, string> = {
   deconnexion: "s'est déconnecté",
   "compte.inscrire": "a créé son compte",
   "compte.mot_de_passe": "a changé son mot de passe",
+  "compte.reinitialisation_demandee": "a demandé un lien de nouveau mot de passe",
+  "compte.mot_de_passe_reinitialise": "a choisi un nouveau mot de passe par lien e-mail",
   "entreprise.basculer": "a changé d'entreprise active",
   "entreprise.creer": "a créé l'entreprise",
   "demonstration.installer": "a installé le jeu de démonstration",
@@ -201,6 +203,10 @@ const LIBELLES: Record<string, string> = {
   "paie.verser_cnps": "a versé les cotisations CNPS",
   "paie.verser_impot": "a versé l'impôt sur salaires",
 
+  "souscription.payer": "a enregistré un paiement d'abonnement Fiessou",
+  "souscription.suspendre": "a suspendu l'abonnement Fiessou",
+  "souscription.reactiver": "a réactivé l'abonnement Fiessou",
+  "souscription.prolonger_essai": "a prolongé l'essai gratuit",
   "declaration_tva.deposer": "a déclaré la TVA du mois",
   "declaration_tva.payer": "a payé la TVA",
   "exercice.cloturer": "a clôturé l'exercice",
@@ -213,6 +219,8 @@ const FAMILLE_EXPLICITE: Record<string, Categorie> = {
   deconnexion: "connexion",
   "entreprise.basculer": "connexion",
   "compte.mot_de_passe": "modification",
+  "compte.reinitialisation_demandee": "modification",
+  "compte.mot_de_passe_reinitialise": "modification",
   "compte.inscrire": "creation",
   "archive.ouvrir": "consultation",
   "archive.verifier": "consultation",
@@ -333,6 +341,7 @@ const MODULES: Record<string, string> = {
   paie: "Paie",
   bareme_paie: "Paie",
   declaration_tva: "Fiscalité",
+  souscription: "Abonnement",
   exercice: "Fiscalité",
 };
 

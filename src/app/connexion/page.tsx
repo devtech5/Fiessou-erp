@@ -5,7 +5,8 @@ import { FormulaireConnexion } from "./formulaire";
 
 export const metadata: Metadata = { title: "Connexion" };
 
-export default function PageConnexion() {
+export default async function PageConnexion({ searchParams }: PageProps<"/connexion">) {
+  const { reinitialise } = await searchParams;
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[var(--fond)] p-4">
       <div className="w-full max-w-sm">
@@ -17,6 +18,12 @@ export default function PageConnexion() {
           </p>
         </header>
 
+        {reinitialise === "1" && (
+          <p role="status" className="mb-4 rounded-lg bg-valide-50 px-3 py-2.5 text-sm font-medium text-valide-600">
+            Mot de passe changé. Connectez-vous avec le nouveau.
+          </p>
+        )}
+
         <div className="rounded-2xl border border-[var(--filet)] bg-[var(--surface)] p-5">
           <FormulaireConnexion />
         </div>
@@ -27,9 +34,10 @@ export default function PageConnexion() {
             Créer votre espace
           </Link>
         </p>
-        <p className="mt-2 text-center text-xs text-[var(--encre-faible)]">
-          Mot de passe oublié ? Le responsable de votre entreprise peut vous en
-          donner un nouveau depuis l&apos;écran des membres.
+        <p className="mt-2 text-center text-sm">
+          <Link href="/mot-de-passe-oublie" className="text-[var(--encre-douce)] hover:underline">
+            Mot de passe oublié ?
+          </Link>
         </p>
       </div>
     </main>

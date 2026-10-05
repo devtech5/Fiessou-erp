@@ -11,12 +11,12 @@ const TYPES: Record<string, string> = {
 };
 
 /**
- * Lecture d'un fichier du dépôt disque, en développement seulement.
+ * Lecture d'un fichier du dépôt disque (développement, ou VPS avec volume).
  * L'URL est signée et expire : c'est elle qui autorise, comme l'URL signée
- * de Supabase en production.
+ * de Supabase.
  */
 export async function GET(requete: Request, { params }: { params: Promise<{ chemin: string[] }> }) {
-  if (env.NODE_ENV === "production" || !env.STOCKAGE_LOCAL) return new Response(null, { status: 404 });
+  if (!env.STOCKAGE_LOCAL) return new Response(null, { status: 404 });
 
   const { chemin } = await params;
   const url = new URL(requete.url);

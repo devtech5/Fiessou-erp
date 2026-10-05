@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  date,
   boolean,
   index,
   pgEnum,
@@ -60,6 +61,13 @@ export const organizations = pgTable(
 
     status: organizationStatus("status").notNull().default("essai"),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    /** Formule souscrite : `essentiel`, `pro`… Nulle pendant l'essai. */
+    plan: text("plan"),
+    /**
+     * Dernier jour couvert par un paiement. Prolongé à chaque paiement
+     * enregistré ; au-delà, sept jours de grâce, puis lecture seule.
+     */
+    payeJusquAu: date("paye_jusqu_au"),
 
     ...timestamps,
     ...rowVersion,

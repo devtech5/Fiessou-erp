@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
-import { messageRefus, peut } from "@/lib/droits/garde";
+import { refusDroit } from "@/lib/droits/garde";
 import { ecritureSaisieGuidee, TVA_TAUX_NORMAL } from "@/lib/comptabilite/ecritures";
 import { prochainNumero } from "@/lib/sequences";
 import { enregistrerEcritureDans, PeriodeVerrouillee } from "./enregistrement";
@@ -55,9 +55,8 @@ export async function saisirEcriture(
 ): Promise<EtatSaisie> {
   const session = await exigerEntreprise();
 
-  if (!(await peut("comptabilite.ecriture.enregistrer"))) {
-    return { erreur: messageRefus("comptabilite.ecriture.enregistrer") };
-  }
+  const refus = await refusDroit("comptabilite.ecriture.enregistrer");
+  if (refus) return refus;
 
   const analyse = schemaSaisie.safeParse({
     journal: donnees.get("journal"),

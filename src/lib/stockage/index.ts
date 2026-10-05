@@ -68,14 +68,18 @@ function supabaseConfigure(): boolean {
   return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
-/** Le dépôt sur disque ne sert qu'au développement, jamais en production. */
+/**
+ * Dépôt sur disque : le développement (`pnpm dev:local`), et le VPS, où le
+ * dossier vit sur un volume persistant que la sauvegarde quotidienne emporte.
+ * Jamais sur un hébergeur à disque éphémère : le redéploiement l'effacerait.
+ */
 function localActif(): boolean {
-  return Boolean(env.STOCKAGE_LOCAL) && env.NODE_ENV !== "production";
+  return Boolean(env.STOCKAGE_LOCAL);
 }
 
 const RAISON_NON_CONFIGURE =
-  "Le dépôt de fichiers n'est pas configuré : renseignez SUPABASE_URL et " +
-  "SUPABASE_SERVICE_ROLE_KEY, et créez le bucket privé.";
+  "Le dépôt de fichiers n'est pas configuré : renseignez STOCKAGE_LOCAL (dossier " +
+  "sur un volume persistant), ou SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY avec un bucket privé.";
 
 export async function deposer(fichier: FichierADeposer): Promise<ResultatDepot> {
   if (!stockageConfigure()) return { ok: false, raison: RAISON_NON_CONFIGURE };

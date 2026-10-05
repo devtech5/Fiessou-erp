@@ -40,11 +40,19 @@ const schema = z.object({
   /** Bucket PRIVÉ. Public, il rendrait tout contrat lisible par qui devine l'URL. */
   SUPABASE_BUCKET: z.string().default("documents"),
   /**
-   * Dépôt sur disque, pour le développement sans Supabase (`pnpm dev:local`).
-   * Ignoré en production : un disque de serveur n'est ni sauvegardé ni
-   * partagé entre instances.
+   * Dépôt sur disque : `pnpm dev:local`, ou le VPS (volume persistant, inclus
+   * dans la sauvegarde). Supabase reste prioritaire quand il est configuré.
+   * Jamais sur un hébergeur à disque éphémère.
    */
   STOCKAGE_LOCAL: z.string().optional(),
+
+  /**
+   * Applique les migrations et recopie le catalogue des droits au démarrage
+   * du serveur. « 1 » sur le VPS : un déploiement ne peut plus tourner sur un
+   * schéma en retard. Utilise DATABASE_URL_MIGRATION si elle est renseignée.
+   */
+  MIGRATIONS_AU_DEMARRAGE: z.enum(["0", "1"]).default("0"),
+  DATABASE_URL_MIGRATION: z.string().optional(),
 
   /**
    * Modules à ouvrir malgré leurs écrans sur jeu d'essai.
@@ -59,6 +67,29 @@ const schema = z.object({
    * porte de vraies recettes, cette variable reste vide.
    */
   MODULES_APERCU: z.string().default(""),
+
+  /**
+   * Envoi des e-mails : mot de passe oublié, et demain relances et reçus.
+   * Vide : rien ne part, le lien est écrit dans le journal du serveur — assez
+   * pour le développement, jamais pour une vraie instance.
+   */
+  COURRIEL_FOURNISSEUR: z.enum(["", "brevo", "resend"]).default(""),
+  COURRIEL_CLE: z.string().optional(),
+  COURRIEL_EXPEDITEUR: z.string().default("Fiessou <no-reply@fiessou.ci>"),
+  /** Adresse publique de l'application, pour les liens envoyés hors de l'écran. */
+  URL_PUBLIQUE: z.string().url().optional(),
+
+  /**
+   * Administrateurs de la plateforme : adresses e-mail, séparées par des
+   * virgules. Ils voient toutes les entreprises et règlent leur abonnement.
+   * Aucun rôle d'entreprise n'y donne accès.
+   */
+  ADMINS_PLATEFORME: z.string().default(""),
+  /**
+   * Comment régler l'abonnement, affiché tel quel sur l'écran Abonnement :
+   * numéro Wave ou Orange Money, compte bancaire, contact. Texte libre.
+   */
+  ABONNEMENT_PAIEMENT: z.string().default(""),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

@@ -14,6 +14,7 @@ export * from "./sequences";
 export * from "./codes";
 export * from "./audit";
 export * from "./sync";
+export * from "./abonnement";
 
 // ------------------------------------------------------------- modules métier
 // L'ordre suit les dépendances : un article pointe vers son fournisseur.

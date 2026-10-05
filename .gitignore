@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Base locale PGlite (développement sans serveur PostgreSQL)
 /.pglite/
+
+# Sauvegardes de la pile de production
+/sauvegardes/

@@ -3,16 +3,22 @@ import type { Instrumentation } from "next";
 /**
  * Démarrage du serveur.
  *
- * Seul travail aujourd'hui : ouvrir la base locale PGlite quand
- * `DATABASE_URL` la désigne (`pglite:./.pglite`). L'ouverture est asynchrone
- * — migrations comprises — et Next attend `register` avant la première
- * requête : aucune page ne peut donc tomber sur une base à moitié prête.
+ * Base locale PGlite (`pglite:./.pglite`) : ouverture, migrations et droits.
+ * PostgreSQL avec `MIGRATIONS_AU_DEMARRAGE=1` (le VPS) : migrations et droits.
+ * Next attend `register` avant la première requête : aucune page ne peut
+ * tomber sur une base à moitié prête.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   const url = process.env.DATABASE_URL;
-  if (!url?.startsWith("pglite:")) return;
+  if (!url?.startsWith("pglite:")) {
+    if (url && process.env.MIGRATIONS_AU_DEMARRAGE === "1") {
+      const { migrerAuDemarrage } = await import("./db/demarrage");
+      await migrerAuDemarrage();
+    }
+    return;
+  }
 
   const { ouvrirPglite } = await import("./db/pglite");
   const instance = await ouvrirPglite(url);

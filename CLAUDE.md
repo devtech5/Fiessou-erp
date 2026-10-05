@@ -225,10 +225,26 @@ rend postgres-js. Jamais en production.
 Les pièces jointes (photos de projet, preuves de paiement, documents) vont
 alors dans `.pglite/fichiers/` : `STOCKAGE_LOCAL` active un adaptateur disque
 (`src/lib/stockage/local.ts`) servi par `/fichiers/…` avec une URL signée HMAC
-qui expire, comme celle de Supabase. Ignoré en production.
+qui expire, comme celle de Supabase. Le même adaptateur sert sur le VPS, où le
+dossier vit sur un volume sauvegardé ; jamais sur un disque éphémère.
 
 Après un arrêt brutal pendant une installation, Turbopack peut servir des
 404 sur toutes les routes : supprimer `.next/dev` et relancer.
+
+## Déploiement sur VPS
+
+`DEPLOIEMENT.md` décrit la pile : `Dockerfile` (Next `output: "standalone"`),
+`docker-compose.prod.yml` (application, PostgreSQL 18, Caddy, sauvegarde
+quotidienne). `MIGRATIONS_AU_DEMARRAGE=1` fait appliquer migrations et droits
+par `instrumentation.ts` au démarrage (`src/db/demarrage.ts`).
+
+## Abonnement
+
+`organizations.status`, `trial_ends_at`, `paye_jusqu_au` ; paiements dans
+`paiements_abonnement`, saisis par les adresses de `ADMINS_PLATEFORME` sur
+`/plateforme`. Échéance passée : 7 jours de grâce, puis lecture seule —
+`droitsActifs` ne garde que les droits `*.consulter`. Toute nouvelle action
+doit donc passer par `refusDroit`/`peut`, sinon elle échappe à la coupure.
 
 ## La base est sur Supabase
 

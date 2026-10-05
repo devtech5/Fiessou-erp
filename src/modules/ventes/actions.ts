@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
-import { exigerDroit, messageRefus, peut, refusDroit } from "@/lib/droits/garde";
+import { encaissementTolere, exigerDroit, messageRefus, peut, refusDroit } from "@/lib/droits/garde";
 import { annulerVenteDans } from "./annulation";
 import { creerPosteCaisseDans, enregistrerVenteDans } from "./creation";
 import { postesCaisse } from "./schema";
@@ -77,8 +77,8 @@ export async function encaisserTicket(
 ): Promise<ResultatEncaissement> {
   const session = await exigerEntreprise();
 
-  if (!(await peut("pos.vente.encaisser"))) {
-    return { ok: false, message: messageRefus("pos.vente.encaisser") };
+  if (!(await peut("pos.vente.encaisser")) && !(await encaissementTolere(ticket.encaisseeLe))) {
+    return { ok: false, message: (await refusDroit("pos.vente.encaisser"))?.erreur ?? messageRefus("pos.vente.encaisser") };
   }
 
   const analyse = schemaVente.safeParse(ticket);

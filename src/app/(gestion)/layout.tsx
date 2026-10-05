@@ -1,3 +1,4 @@
+import { BandeauAbonnement } from "@/components/coque/bandeau-abonnement";
 import { BandeauDemo } from "@/components/coque/bandeau-demo";
 import { BarreLaterale } from "@/components/coque/barre-laterale";
 import { FilAriane } from "@/components/coque/fil-ariane";
@@ -71,6 +72,7 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
      */
     <div className="flex h-dvh flex-col overflow-hidden">
       <BandeauDemo />
+      <BandeauAbonnement />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <BarreLaterale

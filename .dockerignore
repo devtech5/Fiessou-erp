@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+.pglite
+.env*
+!.env.example
+.claude
+coverage
+sauvegardes
+*.tsbuildinfo
