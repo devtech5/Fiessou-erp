@@ -494,7 +494,7 @@ export interface Flux {
   /** Signé : positif, l'argent entre. */
   montant: number;
   libelle: string;
-  origine: "facture" | "depense" | "bon" | "intervenant" | "avance" | "fournisseur" | "paie";
+  origine: "facture" | "depense" | "bon" | "intervenant" | "avance" | "fournisseur" | "paie" | "tva";
 }
 
 export interface Semaine {

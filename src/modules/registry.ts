@@ -85,8 +85,11 @@ export const MODULES: ModuleDefinition[] = [
     name: "Comptabilité",
     layer: "socle",
     // En base : plan de comptes SYSCOHADA, journaux, écritures équilibrées et
-    // états financiers déduits du grand livre. Restent la clôture d'exercice,
-    // les déclarations fiscales et la caisse de dépenses.
+    // états financiers déduits du grand livre. Fiscalité : TVA mensuelle lue
+    // dans les écritures, déclarée dans l'ordre (liquidation 4441/4449, mois
+    // verrouillé), payée depuis la trésorerie ; clôture d'exercice (131/139),
+    // exercice fermé aux écritures. Restent les à-nouveaux, la réouverture
+    // d'un exercice, la DSF et les acomptes d'impôt sur les bénéfices.
     status: "en_cours",
     requires: ["tiers"],
     description:

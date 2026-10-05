@@ -88,6 +88,15 @@ export interface EtatPaieAlertes {
   declarationsEchues: number;
 }
 
+/** Ce que la fiscalité a d'urgent : TVA de mois terminés à déclarer, TVA déclarée à payer. */
+export interface EtatFiscaliteAlertes {
+  aDeclarer: number;
+  declarationsEnRetard: number;
+  aPayer: number;
+  montantAPayer: number;
+  paiementsEnRetard: number;
+}
+
 /** Ce que les achats ont d'urgent : dettes échues ou proches, livraisons en retard. */
 export interface EtatAchatsAlertes {
   facturesEchues: number;
@@ -163,8 +172,35 @@ export function alertes(
   tresorerie: EtatTresorerieAlertes = TRESORERIE_VIDE,
   achats: EtatAchatsAlertes = { facturesEchues: 0, montantEchu: 0, aPayerSous7Jours: 0, livraisonsEnRetard: 0 },
   paie: EtatPaieAlertes = { salairesNonPayes: 0, montantNonPaye: 0, declarationsDues: 0, montantDeclarations: 0, declarationsEchues: 0 },
+  fiscalite: EtatFiscaliteAlertes = { aDeclarer: 0, declarationsEnRetard: 0, aPayer: 0, montantAPayer: 0, paiementsEnRetard: 0 },
 ): Alerte[] {
   const liste: Alerte[] = [];
+
+  // ---------------------------------------------------------- fiscalité
+  if (fiscalite.aDeclarer > 0) {
+    liste.push({
+      id: "tva-a-declarer",
+      gravite: fiscalite.declarationsEnRetard > 0 ? "critique" : "attention",
+      source: "base",
+      module: "Fiscalité",
+      titre: fiscalite.declarationsEnRetard > 0 ? "Déclaration de TVA en retard" : "TVA du mois écoulé à déclarer",
+      detail: `${fiscalite.aDeclarer} mois terminé${fiscalite.aDeclarer > 1 ? "s" : ""} sans déclaration`,
+      href: "/comptabilite/fiscalite",
+      nombre: fiscalite.aDeclarer,
+    });
+  }
+  if (fiscalite.aPayer > 0) {
+    liste.push({
+      id: "tva-a-payer",
+      gravite: fiscalite.paiementsEnRetard > 0 ? "critique" : "attention",
+      source: "base",
+      module: "Fiscalité",
+      titre: fiscalite.paiementsEnRetard > 0 ? "Paiement de TVA en retard" : "TVA déclarée à payer",
+      detail: `${fiscalite.montantAPayer.toLocaleString("fr-FR")} FCFA dus à la DGI`,
+      href: "/comptabilite/fiscalite",
+      nombre: fiscalite.aPayer,
+    });
+  }
 
   // --------------------------------------------------------------- paie
   if (paie.salairesNonPayes > 0) {

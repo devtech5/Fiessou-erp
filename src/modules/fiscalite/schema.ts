@@ -58,7 +58,11 @@ export const exercicesClotures = pgTable(
     clotureParUserId: uuid("cloture_par_user_id").notNull(),
     ...timestamps,
   },
-  (t) => [unique("exercices_clotures_unique").on(t.organizationId, t.exercice)],
+  (t) => [
+    unique("exercices_clotures_unique").on(t.organizationId, t.exercice),
+    check("exercices_clotures_format", sql`${t.exercice} ~ '^[0-9]{4}$'`),
+  ],
 );
 
 export type DeclarationTva = typeof declarationsTva.$inferSelect;
+export type ExerciceCloture = typeof exercicesClotures.$inferSelect;

@@ -22,6 +22,7 @@ const ORIGINE: Record<Flux["origine"], { libelle: string; ton: TonPastille }> = 
   avance: { libelle: "Avance", ton: "neutre" },
   fournisseur: { libelle: "Facture fournisseur", ton: "danger" },
   paie: { libelle: "Paie", ton: "alerte" },
+  tva: { libelle: "TVA", ton: "alerte" },
 };
 
 /**
@@ -53,7 +54,7 @@ export default async function PagePrevisions() {
           <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
             <CarteIndicateur libelle="Disponible aujourd'hui" valeur={fmt(plan.disponible)} unite="FCFA" ton={plan.disponible < 0 ? "danger" : "marque"} precision="Comptes en service, virements en route compris" />
             <CarteIndicateur libelle="Entrées attendues" valeur={fmt(entrees)} unite="FCFA" ton="valide" precision={enRetard.length ? `Dont ${fmt(enRetard.reduce((s, f) => s + f.montant, 0))} F de factures échues` : "Factures émises non soldées"} />
-            <CarteIndicateur libelle="Sorties prévues" valeur={fmt(sorties)} unite="FCFA" ton={sorties > 0 ? "alerte" : "neutre"} precision="Paie, fournisseurs, dépenses, bons, intervenants" />
+            <CarteIndicateur libelle="Sorties prévues" valeur={fmt(sorties)} unite="FCFA" ton={sorties > 0 ? "alerte" : "neutre"} precision="Paie, TVA, fournisseurs, dépenses, bons, intervenants" />
             <CarteIndicateur libelle="Dans 13 semaines" valeur={fmt(fin)} unite="FCFA" ton={fin < 0 ? "danger" : "valide"} precision={plan.horsHorizon ? `${plan.horsHorizon} flux au-delà, non comptés` : "Si tout se passe comme prévu"} />
           </section>
 

@@ -239,7 +239,8 @@ export function positionComptable(soldes: readonly SoldeCompte[]): PositionCompt
     tresorerie: soldeDebiteur(soldes, "52", "53", "57"),
     creancesClients: soldeDebiteur(soldes, "41"),
     dettesFournisseurs: soldeCrediteur(soldes, "40"),
-    // 443 TVA facturée moins 445 TVA récupérable : ce qui reste dû à la DGI.
-    tvaDue: soldeCrediteur(soldes, "443") - soldeDebiteur(soldes, "445"),
+    // 443 TVA facturée moins 445 TVA récupérable, plus ce que les déclarations
+    // ont déjà liquidé : 4441 TVA due, moins 4449 crédit à reporter.
+    tvaDue: soldeCrediteur(soldes, "443", "4441") - soldeDebiteur(soldes, "445", "4449"),
   };
 }

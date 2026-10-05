@@ -8,7 +8,7 @@ import { exigerEntreprise } from "@/lib/auth/dal";
 import { messageRefus, peut } from "@/lib/droits/garde";
 import { ecritureSaisieGuidee, TVA_TAUX_NORMAL } from "@/lib/comptabilite/ecritures";
 import { prochainNumero } from "@/lib/sequences";
-import { enregistrerEcritureDans } from "./enregistrement";
+import { enregistrerEcritureDans, PeriodeVerrouillee } from "./enregistrement";
 import { estDoublon } from "@/lib/erreurs-pg";
 
 // ------------------------------------------------------------ saisie guidée
@@ -122,6 +122,7 @@ export async function saisirEcriture(
     if (estDoublon(erreur)) {
       return { erreur: "Cette pièce a déjà été comptabilisée." };
     }
+    if (erreur instanceof PeriodeVerrouillee) return { erreur: erreur.message };
     throw erreur;
   }
 }

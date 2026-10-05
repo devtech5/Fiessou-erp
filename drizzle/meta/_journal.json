@@ -183,6 +183,13 @@
       "when": 1791143810897,
       "tag": "0025_solid_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791167393648,
+      "tag": "0026_gigantic_mathemanic",
+      "breakpoints": true
     }
   ]
 }

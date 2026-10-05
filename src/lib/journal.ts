@@ -200,6 +200,10 @@ const LIBELLES: Record<string, string> = {
   "paie.payer": "a payé des salaires",
   "paie.verser_cnps": "a versé les cotisations CNPS",
   "paie.verser_impot": "a versé l'impôt sur salaires",
+
+  "declaration_tva.deposer": "a déclaré la TVA du mois",
+  "declaration_tva.payer": "a payé la TVA",
+  "exercice.cloturer": "a clôturé l'exercice",
 };
 
 /** Gestes dont la famille ne se déduit pas du verbe seul. */
@@ -247,6 +251,9 @@ const FAMILLE_EXPLICITE: Record<string, Categorie> = {
   "paie.payer": "creation",
   "paie.verser_cnps": "creation",
   "paie.verser_impot": "creation",
+  "declaration_tva.deposer": "creation",
+  "declaration_tva.payer": "creation",
+  "exercice.cloturer": "modification",
 };
 
 const VERBES: [RegExp, Categorie][] = [
@@ -325,6 +332,8 @@ const MODULES: Record<string, string> = {
   facture_fournisseur: "Achats",
   paie: "Paie",
   bareme_paie: "Paie",
+  declaration_tva: "Fiscalité",
+  exercice: "Fiscalité",
 };
 
 /** Module d'un geste, d'après son préfixe. */

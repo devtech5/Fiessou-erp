@@ -125,6 +125,20 @@ export const DROITS = [
     libelle: "Enregistrer une écriture",
     description: "Comptabiliser une pièce, saisir une écriture au journal.",
   },
+  {
+    cle: "comptabilite.fiscalite.declarer",
+    moduleKey: "comptabilite",
+    libelle: "Déclarer et payer la TVA",
+    description:
+      "Déposer la déclaration de TVA d'un mois terminé — elle passe la liquidation et " +
+      "verrouille le mois — puis payer la TVA due depuis la trésorerie.",
+  },
+  {
+    cle: "comptabilite.exercice.cloturer",
+    moduleKey: "comptabilite",
+    libelle: "Clôturer un exercice",
+    description: "Déterminer le résultat de l'année et fermer l'exercice à toute nouvelle écriture. Irréversible.",
+  },
 
   // ----------------------------------------------------------- personnes
   {
@@ -746,6 +760,7 @@ export const PRESETS_ROLES = [
       "tiers.fiche.gerer",
       "comptabilite.ecriture.consulter",
       "comptabilite.ecriture.enregistrer",
+      "comptabilite.fiscalite.declarer",
       "achats.consulter",
       "achats.facture.saisir",
       "achats.reglement.payer",

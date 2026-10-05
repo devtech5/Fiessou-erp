@@ -1,5 +1,7 @@
 import "server-only";
 
+import { sql } from "drizzle-orm";
+
 import { auditLogs } from "@/db/schema";
 import {
   estEquilibree,
@@ -8,6 +10,8 @@ import {
 } from "@/lib/comptabilite/ecritures";
 import { newId } from "@/lib/ids";
 import { prochainNumero, type Transaction } from "@/lib/sequences";
+import { refusPeriodeVerrouillee, toucheTva } from "@/modules/fiscalite/calcul";
+
 import { ecritures, lignesEcriture } from "./schema";
 
 export type OrigineEcriture =
@@ -23,7 +27,12 @@ export type OrigineEcriture =
   | "avance"
   | "arrete_caisse"
   | "releve"
-  | "paie";
+  | "paie"
+  | "tva"
+  | "cloture";
+
+/** Refus d'une période fermée : un message pour l'utilisateur, pas une panne. */
+export class PeriodeVerrouillee extends Error {}
 
 export interface ContexteEcriture {
   organizationId: string;
@@ -57,6 +66,18 @@ export async function enregistrerEcritureDans(
   if (!estEquilibree(ecriture)) {
     throw new Error("Écriture déséquilibrée : enregistrement refusé.");
   }
+
+  // Exercice clôturé, TVA du mois déjà déclarée : la pièce n'y entre plus.
+  // Lu dans la transaction, d'un seul aller-retour — la caisse passe par ici.
+  const mois = contexte.dateIso.slice(0, 7);
+  const tva = toucheTva(ecriture.lignes.map((l) => l.compte));
+  const [verrou] = await tx.execute<{ clos: boolean; declaree: boolean }>(sql`
+    select
+      exists (select 1 from exercices_clotures where organization_id = ${contexte.organizationId} and exercice = ${contexte.exercice}) as clos,
+      ${tva ? sql`exists (select 1 from declarations_tva where organization_id = ${contexte.organizationId} and mois = ${mois})` : sql`false`} as declaree
+  `);
+  const refus = refusPeriodeVerrouillee({ exercice: contexte.exercice, mois, exerciceClos: Boolean(verrou?.clos), toucheTva: tva, tvaDeclaree: Boolean(verrou?.declaree) });
+  if (refus) throw new PeriodeVerrouillee(refus);
 
   const numero = await prochainNumero(tx, contexte.organizationId, {
     cle: `ecriture:${ecriture.journal}`,

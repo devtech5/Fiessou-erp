@@ -23,6 +23,7 @@ import { tachesEnRetard } from "@/modules/taches/requetes";
 import { etatTresorerie, planDeTresorerie } from "@/modules/tresorerie/requetes";
 import { etatAchats } from "@/modules/achats/requetes";
 import { etatPaie } from "@/modules/paie/requetes";
+import { etatFiscalite } from "@/modules/fiscalite/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
 import { soldesParAuxiliaire } from "@/modules/tiers/requetes";
@@ -143,6 +144,7 @@ export default async function PageTableauDeBord() {
     plan,
     achats,
     paie,
+    fiscalite,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -163,6 +165,7 @@ export default async function PageTableauDeBord() {
     voitLaTresorerieInterne ? planDeTresorerie(session.organizationId, aujourdhui) : Promise.resolve(null),
     moduleOuvert("achats") && droits.has("achats.consulter") ? etatAchats(session.organizationId) : Promise.resolve(undefined),
     droits.has("personnes.paie.payer") || droits.has("personnes.paie.valider") ? etatPaie(session.organizationId, aujourdhui) : Promise.resolve(undefined),
+    droits.has("comptabilite.fiscalite.declarer") ? etatFiscalite(session.organizationId, aujourdhui) : Promise.resolve(undefined),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -179,7 +182,7 @@ export default async function PageTableauDeBord() {
     equipeEnRetard: retards.autres,
   }, caisses
     ? { ...caisses, premierDecouvert: plan && plan.comptes > 0 ? plan.premierDecouvert : null }
-    : undefined, achats, paie);
+    : undefined, achats, paie, fiscalite);
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une

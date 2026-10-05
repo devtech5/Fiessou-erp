@@ -125,57 +125,6 @@ export function calculerSIG(): SoldeGestion[] {
   ];
 }
 
-// -------------------------------------------------------------- obligations
-
-export interface ObligationFiscale {
-  id: string;
-  libelle: string;
-  /** Administration destinataire. En Côte d'Ivoire : la DGI. */
-  administration: string;
-  periode: string;
-  echeance: string;
-  montant: number;
-  statut: "a_declarer" | "declaree" | "payee" | "en_retard";
-}
-
-export const OBLIGATIONS: ObligationFiscale[] = [
-  { id: "o1", libelle: "TVA", administration: "DGI", periode: "Juillet 2026", echeance: "15/08/2026", montant: 1377000, statut: "payee" },
-  { id: "o2", libelle: "ITS — retenues sur salaires", administration: "DGI", periode: "Juillet 2026", echeance: "15/08/2026", montant: 486300, statut: "payee" },
-  { id: "o3", libelle: "Cotisations CNPS", administration: "CNPS", periode: "Juillet 2026", echeance: "15/08/2026", montant: 1284500, statut: "declaree" },
-  { id: "o4", libelle: "TVA", administration: "DGI", periode: "Août 2026", echeance: "15/09/2026", montant: 1971000, statut: "a_declarer" },
-  { id: "o5", libelle: "Acompte BIC", administration: "DGI", periode: "3e trimestre 2026", echeance: "15/09/2026", montant: 840000, statut: "a_declarer" },
-  { id: "o6", libelle: "Patente", administration: "DGI", periode: "Exercice 2026", echeance: "31/07/2026", montant: 312000, statut: "en_retard" },
-];
-
-export const LIBELLE_OBLIGATION = {
-  a_declarer: "À déclarer",
-  declaree: "Déclarée",
-  payee: "Payée",
-  en_retard: "En retard",
-} as const;
-
-// ---------------------------------------------------------- clôture guidée
-
-export interface EtapeCloture {
-  numero: number;
-  libelle: string;
-  fait: boolean;
-  bloquant: boolean;
-}
-
-export const ETAPES_CLOTURE: EtapeCloture[] = [
-  { numero: 1, libelle: "Tous les journaux sont saisis", fait: true, bloquant: true },
-  { numero: 2, libelle: "Rapprochement bancaire à jour", fait: true, bloquant: true },
-  { numero: 3, libelle: "Comptes de tiers lettrés", fait: false, bloquant: false },
-  { numero: 4, libelle: "Inventaire physique valorisé", fait: false, bloquant: true },
-  { numero: 5, libelle: "Amortissements calculés", fait: false, bloquant: true },
-  { numero: 6, libelle: "Provisions constatées", fait: false, bloquant: false },
-  { numero: 7, libelle: "Charges et produits rattachés à l'exercice", fait: false, bloquant: true },
-  { numero: 8, libelle: "Balance équilibrée", fait: false, bloquant: true },
-  { numero: 9, libelle: "États financiers générés", fait: false, bloquant: true },
-  { numero: 10, libelle: "Report à nouveau calculé", fait: false, bloquant: true },
-];
-
 // ------------------------------------------------------------------ lettrage
 
 export const LETTRAGE = {

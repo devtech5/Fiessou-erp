@@ -17,6 +17,14 @@ const ORIGINES: Record<string, string> = {
   bon_caisse: "Bon de caisse",
   vente_pos: "Caisse",
   saisie: "Saisie",
+  bon_paiement: "Bon de paiement",
+  virement: "Virement",
+  avance: "Avance",
+  arrete_caisse: "Arrêté de caisse",
+  releve: "Relevé bancaire",
+  paie: "Paie",
+  tva: "TVA",
+  cloture: "Clôture",
 };
 
 export default async function PageEcritures() {

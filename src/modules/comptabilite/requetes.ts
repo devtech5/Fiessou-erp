@@ -14,6 +14,9 @@ import { ecritures, lignesEcriture } from "./schema";
  * calculer séparément ferait trois parcours de la même table, et surtout
  * ouvrirait la porte à trois vérités différentes selon l'écran consulté.
  *
+ * L'écriture de clôture est laissée de côté : elle solde les classes 6 à 8
+ * dans le 13, et le compte de résultat d'un exercice clos tomberait à zéro.
+ *
  * `organizationId` est un paramètre obligatoire, comme partout : c'est la
  * frontière d'isolation entre clients.
  */
@@ -35,6 +38,7 @@ export async function soldesParCompte(
     from lignes_ecriture l
     join ecritures e on e.id = l.ecriture_id
     where l.organization_id = ${organizationId}
+      and e.origine <> 'cloture'
       ${exercice ? sql`and e.exercice = ${exercice}` : sql``}
     group by l.compte
     order by l.compte

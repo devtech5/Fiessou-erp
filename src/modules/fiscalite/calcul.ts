@@ -132,10 +132,140 @@ export function ecritureCloture(p: { exercice: string; soldes: readonly SoldeGes
   };
 }
 
-/** Un exercice se clôture une fois terminé : jamais l'année en cours. */
-export function refusCloture(exercice: string, aujourdhui: string, dejaClos: boolean): string | null {
+/**
+ * Un exercice se clôture une fois terminé — jamais l'année en cours —, après
+ * le précédent, et une fois toute sa TVA déclarée : la liquidation de décembre
+ * est datée du 31, elle ne pourrait plus y entrer.
+ */
+export function refusCloture(
+  exercice: string,
+  aujourdhui: string,
+  dejaClos: boolean,
+  autres: { moisTvaEnAttente?: readonly string[]; exercicePrecedentOuvert?: string | null } = {},
+): string | null {
   if (!/^\d{4}$/.test(exercice)) return "Exercice invalide.";
   if (dejaClos) return `L'exercice ${exercice} est déjà clôturé.`;
   if (`${exercice}-12-31` >= aujourdhui) return `L'exercice ${exercice} n'est pas terminé : il se clôture à partir du 1er janvier ${Number(exercice) + 1}.`;
+  if (autres.exercicePrecedentOuvert) return `Clôturez d'abord l'exercice ${autres.exercicePrecedentOuvert}.`;
+  const tva = autres.moisTvaEnAttente ?? [];
+  if (tva.length > 0) return `Déclarez d'abord la TVA de ${tva.length > 1 ? `${tva.length} mois (à partir de ${tva[0]})` : tva[0]} : sa liquidation tombe dans l'exercice.`;
+  return null;
+}
+
+// ---------------------------------------------------------- obligations TVA
+
+export const moisValide = (mois: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(mois);
+
+export function moisSuivant(mois: string): string {
+  const [a, m] = mois.split("-").map(Number);
+  return m === 12 ? `${a + 1}-01` : `${a}-${String(m + 1).padStart(2, "0")}`;
+}
+
+/** Ce que la base sait d'une déclaration déposée. */
+export interface DeclarationConnue {
+  mois: string;
+  collectee: number;
+  deductible: number;
+  creditAnterieur: number;
+  aPayer: number;
+  creditReporte: number;
+  payeeLe: string | null;
+}
+
+export type StatutTva = "en_cours" | "a_declarer" | "en_retard" | "a_payer" | "payee" | "credit" | "neant";
+
+export interface ObligationTva {
+  mois: string;
+  echeance: string;
+  statut: StatutTva;
+  declaree: boolean;
+  /** Seul le plus ancien mois non déclaré se déclare : il fixe le crédit du suivant. */
+  declarable: boolean;
+  /** Échéance passée sans déclaration, ou sans paiement de ce qui est dû. */
+  enRetard: boolean;
+  /** Déposée : les montants figés. Sinon : ce que la déclaration donnerait aujourd'hui. */
+  liquidation: LiquidationTva;
+  soldes: SoldeTva[];
+}
+
+/**
+ * Le calendrier de la TVA, mois par mois, du premier mouvement au mois en
+ * cours. Un mois sans mouvement se déclare quand même — la déclaration néant
+ * est obligatoire — et transmet son crédit au suivant. Le crédit d'un mois non
+ * déclaré est estimé en chaîne depuis la dernière déclaration déposée.
+ */
+export function obligationsTva(
+  mouvements: ReadonlyMap<string, SoldeTva[]>,
+  declarations: readonly DeclarationConnue[],
+  moisCourant: string,
+  aujourdhui: string,
+): ObligationTva[] {
+  const parMois = new Map(declarations.map((d) => [d.mois, d]));
+  const connus = [...mouvements.keys(), ...parMois.keys()].sort();
+  if (connus.length === 0) return [];
+  const dernier = connus[connus.length - 1] > moisCourant ? connus[connus.length - 1] : moisCourant;
+
+  const liste: ObligationTva[] = [];
+  let credit = 0;
+  let enAttente = false;
+  for (let mois = connus[0]; mois <= dernier; mois = moisSuivant(mois)) {
+    const soldes = mouvements.get(mois) ?? [];
+    const echeance = echeanceTva(mois);
+    const d = parMois.get(mois);
+    if (d) {
+      credit = d.creditReporte;
+      const statut: StatutTva = d.aPayer > 0 ? (d.payeeLe ? "payee" : "a_payer") : d.creditReporte > 0 ? "credit" : "neant";
+      liste.push({
+        mois,
+        echeance,
+        statut,
+        declaree: true,
+        declarable: false,
+        enRetard: statut === "a_payer" && echeance < aujourdhui,
+        liquidation: { collectee: d.collectee, deductible: d.deductible, creditAnterieur: d.creditAnterieur, aPayer: d.aPayer, creditReporte: d.creditReporte },
+        soldes,
+      });
+      continue;
+    }
+    const liquidation = liquiderTva(soldes, credit);
+    credit = liquidation.creditReporte;
+    if (mois >= moisCourant) {
+      liste.push({ mois, echeance, statut: "en_cours", declaree: false, declarable: false, enRetard: false, liquidation, soldes });
+      continue;
+    }
+    const retard = echeance < aujourdhui;
+    liste.push({ mois, echeance, statut: retard ? "en_retard" : "a_declarer", declaree: false, declarable: !enAttente, enRetard: retard, liquidation, soldes });
+    enAttente = true;
+  }
+  return liste;
+}
+
+/** Refus de déclarer un mois : terminé, pas encore déposé, et dans l'ordre. */
+export function refusDeclarationTva(mois: string, obligations: readonly ObligationTva[], moisCourant: string): string | null {
+  if (!moisValide(mois)) return "Mois invalide.";
+  if (mois >= moisCourant) return `Le mois ${mois} n'est pas terminé : sa TVA se déclare à partir du 1er du mois suivant.`;
+  const o = obligations.find((x) => x.mois === mois);
+  if (!o) return `Aucun mouvement de TVA en ${mois} ni avant : rien à déclarer.`;
+  if (o.declaree) return `La TVA de ${mois} est déjà déclarée.`;
+  if (!o.declarable) {
+    const premier = obligations.find((x) => x.declarable);
+    return `Déclarez d'abord la TVA de ${premier?.mois ?? "des mois précédents"} : son crédit reporté entre dans ce mois-ci.`;
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ verrous
+
+/** Une ligne sur 443 ou 445 change la TVA du mois où elle est datée. */
+export const toucheTva = (comptes: readonly string[]) => comptes.some((c) => c.startsWith("443") || c.startsWith("445"));
+
+/**
+ * Une écriture ne s'ajoute ni dans un exercice clôturé — son résultat est au
+ * bilan —, ni, si elle porte de la TVA, dans un mois déjà déclaré : la DGI a
+ * reçu un montant, la comptabilité doit continuer à le dire.
+ */
+export function refusPeriodeVerrouillee(p: { exercice: string; mois: string; exerciceClos: boolean; toucheTva: boolean; tvaDeclaree: boolean }): string | null {
+  if (p.exerciceClos) return `L'exercice ${p.exercice} est clôturé : aucune écriture ne peut plus y être datée.`;
+  if (p.toucheTva && p.tvaDeclaree) return `La TVA de ${p.mois} est déjà déclarée : une écriture qui porte de la TVA ne peut plus y être datée. Datez-la du mois en cours.`;
   return null;
 }
