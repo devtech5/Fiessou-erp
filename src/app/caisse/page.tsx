@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { ServiceWorkerCaisse } from "@/components/service-worker";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { identiteEntreprise, lignesTicket } from "@/lib/identite";
 import { peut } from "@/lib/droits/garde";
 import { listerArticles } from "@/modules/catalogue/requetes";
 import { stocksParArticle } from "@/modules/stock/requetes";
@@ -67,11 +68,12 @@ export default async function PageCaisse() {
     );
   }
 
-  const [catalogue, stocks, rang, tiroir] = await Promise.all([
+  const [catalogue, stocks, rang, tiroir, identite] = await Promise.all([
     listerArticles(session.organizationId),
     stocksParArticle(session.organizationId),
     dernierRang(session.organizationId, poste.id),
     sessionOuverte(session.organizationId, poste.id),
+    identiteEntreprise(session.organizationId),
   ]);
 
   // L'attendu ne se calcule que si un tiroir est ouvert : sans session, il n'y
@@ -118,6 +120,7 @@ export default async function PageCaisse() {
           dernierRang: rang,
         }}
         nomBoutique={session.organizationNom ?? "Fiessou"}
+        identiteTicket={{ entete: lignesTicket(identite), piedDePage: identite.piedDePage, logo: identite.logo }}
         deviceId={session.deviceId}
         session={
           tiroir

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
+import { EnTeteDocument, PiedDocument } from "@/components/impression/entete-document";
 import { BoutonImprimer } from "@/components/ui/bouton-imprimer";
 import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { identiteEntreprise } from "@/lib/identite";
 import { peut } from "@/lib/droits/garde";
 import { fmt } from "@/lib/format";
 import { echeanceDeclarations, libelleMois } from "@/modules/paie/calcul";
@@ -23,7 +25,7 @@ export default async function ImpressionDeclarations({ params }: { params: Promi
   const [periode] = await db.select().from(periodesPaie).where(and(eq(periodesPaie.id, id), eq(periodesPaie.organizationId, session.organizationId)));
   if (!periode || periode.statut !== "validee") notFound();
   const bulletins = await db.select().from(bulletinsPaie).where(eq(bulletinsPaie.periodeId, id)).orderBy(asc(bulletinsPaie.matricule));
-  const [entreprise] = await db.execute<{ name: string; tax_id: string | null }>(sql`select name, tax_id from organizations where id = ${session.organizationId}`);
+  const identite = await identiteEntreprise(session.organizationId);
   const s = (f: (b: (typeof bulletins)[number]) => number) => bulletins.reduce((t, b) => t + f(b), 0);
 
   return (
@@ -32,16 +34,10 @@ export default async function ImpressionDeclarations({ params }: { params: Promi
         <BoutonImprimer />
       </div>
       <article className="mx-auto max-w-[297mm] bg-white px-[10mm] py-[10mm] text-[9.5pt] leading-snug text-black shadow print:shadow-none">
-        <header className="mb-4 flex items-start justify-between border-b border-black/20 pb-3">
-          <div>
-            <p className="text-lg font-bold">{entreprise?.name}</p>
-            {entreprise?.tax_id && <p>N° contribuable : {entreprise.tax_id}</p>}
-          </div>
-          <div className="text-right">
+        <EnTeteDocument identite={identite}>
             <p className="text-lg font-bold uppercase">État des cotisations et de l&apos;impôt retenu</p>
             <p>{libelleMois(periode.mois)} — à verser avant le {new Date(`${echeanceDeclarations(periode.mois)}T00:00:00Z`).toLocaleDateString("fr-FR", { timeZone: "UTC" })}</p>
-          </div>
-        </header>
+        </EnTeteDocument>
         <table className="w-full border-collapse tabular-nums">
           <thead>
             <tr className="border-y border-black/40 text-left text-[8pt] uppercase">
@@ -88,6 +84,7 @@ export default async function ImpressionDeclarations({ params }: { params: Promi
           Écriture de paie {periode.ecriture}. CNPS {periode.cnpsVerseeLe ? `versée (écriture ${periode.cnpsEcriture})` : "non versée"} · impôt{" "}
           {periode.impotVerseLe ? `versé (écriture ${periode.impotEcriture})` : "non versé"}. Taux appliqués : ceux du barème attesté à la validation.
         </p>
+        <PiedDocument identite={identite} />
       </article>
     </main>
   );

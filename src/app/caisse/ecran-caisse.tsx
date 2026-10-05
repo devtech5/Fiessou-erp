@@ -54,6 +54,8 @@ interface Props {
   caissier: string;
   poste: PosteCaisseVue;
   nomBoutique: string;
+  /** En-tête, pied et logo du ticket, lus au chargement de la caisse. */
+  identiteTicket: { entete: string[]; piedDePage: string | null; logo: string | null };
   deviceId: string | null;
   /** Tiroir ouvert sur ce poste. Nul tant que personne ne l'a ouvert. */
   session: SessionVue | null;
@@ -65,6 +67,7 @@ export function EcranCaisse({
   caissier,
   poste,
   nomBoutique,
+  identiteTicket,
   deviceId,
   session,
   attendu,
@@ -242,6 +245,8 @@ export function EcranCaisse({
 
     setAImprimer({
       boutique: nomBoutique,
+      entete: identiteTicket.entete,
+      piedDePage: identiteTicket.piedDePage,
       poste: poste.nom,
       caissier,
       numero,
@@ -342,7 +347,7 @@ export function EcranCaisse({
       </div>
 
       {aImprimer && (
-        <TicketImprimable donnees={aImprimer} largeur={reglagesTicket.largeur} />
+        <TicketImprimable donnees={aImprimer} largeur={reglagesTicket.largeur} logo={identiteTicket.logo} />
       )}
 
       {aPeser && (

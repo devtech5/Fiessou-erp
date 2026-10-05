@@ -203,6 +203,7 @@ const LIBELLES: Record<string, string> = {
   "paie.verser_cnps": "a versé les cotisations CNPS",
   "paie.verser_impot": "a versé l'impôt sur salaires",
 
+  "organisation.identite": "a modifié l'identité de l'entreprise",
   "reprise.articles": "a importé des articles",
   "reprise.tiers": "a repris clients, fournisseurs et soldes antérieurs",
   "reprise.stock": "a repris le stock initial",

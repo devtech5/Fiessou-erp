@@ -26,6 +26,10 @@ export interface ReglementImprime {
 
 export interface DonneesTicket {
   boutique: string;
+  /** Adresse, téléphone, identifiant fiscal : sous le nom, centrés. */
+  entete?: string[];
+  /** Mentions libres de l'entreprise, avant le remerciement. */
+  piedDePage?: string | null;
   poste: string;
   caissier: string;
   numero: string;
@@ -100,6 +104,9 @@ export function composerTicket(
   for (const ligne of couper(donnees.boutique.toUpperCase(), n)) {
     sortie.push(centrer(ligne, n));
   }
+  for (const ligne of donnees.entete ?? []) {
+    for (const morceau of couper(ligne, n)) sortie.push(centrer(morceau, n));
+  }
   sortie.push(centrer(`${donnees.poste} · ${donnees.caissier}`.slice(0, n), n));
   sortie.push(trait);
   sortie.push(aligner(`Ticket ${donnees.numero}`, "", n).trimEnd());
@@ -141,6 +148,9 @@ export function composerTicket(
   }
 
   sortie.push(trait);
+  for (const paragraphe of (donnees.piedDePage ?? "").split(/\r?\n/).filter((l) => l.trim())) {
+    for (const morceau of couper(paragraphe, n)) sortie.push(centrer(morceau, n));
+  }
   sortie.push(centrer("Merci de votre visite", n));
   return sortie;
 }

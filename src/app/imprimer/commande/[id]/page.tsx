@@ -4,12 +4,14 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { identiteEntreprise } from "@/lib/identite";
 import { peut } from "@/lib/droits/garde";
 import { fmt, fmtDateIso, fmtTauxBp } from "@/lib/format";
 import { formaterQuantite, type CodeUnite } from "@/lib/quantite";
 import { montantHt } from "@/modules/achats/calcul";
 import { articlesAchetables, commandeDetail } from "@/modules/achats/requetes";
 
+import { EnTeteDocument, PiedDocument } from "@/components/impression/entete-document";
 import { BoutonImprimer } from "@/components/ui/bouton-imprimer";
 
 export const metadata: Metadata = { title: "Bon de commande" };
@@ -23,9 +25,8 @@ export default async function ImpressionCommande({ params }: { params: Promise<{
   if (!detail) notFound();
   const { commande: c, lignes } = detail;
 
-  const [[entreprise], [fournisseur], articles] = await Promise.all([
-    db.execute<{ name: string; tax_id: string | null; legal_form: string | null; address: string | null; city: string | null; phone: string | null; email: string | null }>(sql`
-      select name, tax_id, legal_form, address, city, phone, email from organizations where id = ${session.organizationId}`),
+  const [identite, [fournisseur], articles] = await Promise.all([
+    identiteEntreprise(session.organizationId),
     db.execute<{ adresse: string | null; ville: string | null; telephone: string | null; email: string | null; identifiant_fiscal: string | null }>(sql`
       select adresse, ville, telephone, email, identifiant_fiscal from tiers where id = ${c.fournisseurId} and organization_id = ${session.organizationId}`),
     articlesAchetables(session.organizationId),
@@ -38,24 +39,13 @@ export default async function ImpressionCommande({ params }: { params: Promise<{
         <BoutonImprimer />
       </div>
       <article className="mx-auto max-w-[210mm] bg-white px-[14mm] py-[12mm] text-[10.5pt] leading-snug text-black shadow print:shadow-none">
-        <header className="flex items-start justify-between gap-6 border-b border-black/20 pb-5">
-          <div>
-            <p className="text-lg font-bold">{entreprise?.name}</p>
-            {entreprise?.legal_form && <p>{entreprise.legal_form}</p>}
-            {entreprise?.address && <p>{entreprise.address}</p>}
-            {entreprise?.city && <p>{entreprise.city}</p>}
-            {entreprise?.phone && <p>Tél. {entreprise.phone}</p>}
-            {entreprise?.email && <p>{entreprise.email}</p>}
-            {entreprise?.tax_id && <p>N° contribuable : {entreprise.tax_id}</p>}
-          </div>
-          <div className="text-right">
+        <EnTeteDocument identite={identite}>
             <p className="text-2xl font-bold uppercase tracking-wide">Bon de commande</p>
             <p className="font-mono text-base">{c.numero}</p>
             <p>Date : {fmtDateIso(c.dateCommande)}</p>
             {c.livraisonPrevue && <p>Livraison souhaitée : {fmtDateIso(c.livraisonPrevue)}</p>}
             {c.depot && <p>Lieu de livraison : {c.depot}</p>}
-          </div>
-        </header>
+        </EnTeteDocument>
 
         <section className="mt-5 ml-auto w-[45%] rounded border border-black/20 p-3">
           <p className="text-[9pt] uppercase text-black/60">Fournisseur</p>
@@ -63,7 +53,7 @@ export default async function ImpressionCommande({ params }: { params: Promise<{
           {fournisseur?.adresse && <p>{fournisseur.adresse}</p>}
           {fournisseur?.ville && <p>{fournisseur.ville}</p>}
           {fournisseur?.telephone && <p>Tél. {fournisseur.telephone}</p>}
-          {fournisseur?.identifiant_fiscal && <p>N° contribuable : {fournisseur.identifiant_fiscal}</p>}
+          {fournisseur?.identifiant_fiscal && <p>{identite.referentiel.identifiantFiscal} : {fournisseur.identifiant_fiscal}</p>}
         </section>
 
         <table className="mt-6 w-full border-collapse">
@@ -107,6 +97,7 @@ export default async function ImpressionCommande({ params }: { params: Promise<{
         {c.notes && <p className="mt-6 whitespace-pre-line">{c.notes}</p>}
         <p className="mt-10 text-[9pt] text-black/60">Merci d&apos;indiquer le numéro {c.numero} sur votre bordereau de livraison et sur votre facture.</p>
         {c.statut === "annulee" && <p className="mt-6 rounded border border-black/40 p-2 text-center font-semibold uppercase">Commande annulée</p>}
+        <PiedDocument identite={identite} />
       </article>
     </main>
   );

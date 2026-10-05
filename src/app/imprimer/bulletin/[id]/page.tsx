@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { sql } from "drizzle-orm";
 
+import { EnTeteDocument, PiedDocument } from "@/components/impression/entete-document";
 import { BoutonImprimer } from "@/components/ui/bouton-imprimer";
-import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { identiteEntreprise } from "@/lib/identite";
 import { peut } from "@/lib/droits/garde";
 import { fmt, fmtTauxBp } from "@/lib/format";
 import { libelleMois } from "@/modules/paie/calcul";
@@ -21,8 +21,7 @@ export default async function ImpressionBulletin({ params }: { params: Promise<{
   if (!detail?.bulletin.numero || !detail.periode?.baremeApplique) notFound();
   const { bulletin: b, periode } = detail;
   const bareme = periode.baremeApplique!;
-  const [entreprise] = await db.execute<{ name: string; tax_id: string | null; address: string | null; city: string | null }>(sql`
-    select name, tax_id, address, city from organizations where id = ${session.organizationId}`);
+  const identite = await identiteEntreprise(session.organizationId);
 
   const lignes: [string, string, number | null, number | null][] = [
     ["Salaire de base", "", b.salaireBase, null],
@@ -40,19 +39,11 @@ export default async function ImpressionBulletin({ params }: { params: Promise<{
         <BoutonImprimer />
       </div>
       <article className="mx-auto max-w-[210mm] bg-white px-[14mm] py-[12mm] text-[10.5pt] leading-snug text-black shadow print:shadow-none">
-        <header className="flex items-start justify-between gap-6 border-b border-black/20 pb-4">
-          <div>
-            <p className="text-lg font-bold">{entreprise?.name}</p>
-            {entreprise?.address && <p>{entreprise.address}</p>}
-            {entreprise?.city && <p>{entreprise.city}</p>}
-            {entreprise?.tax_id && <p>N° contribuable : {entreprise.tax_id}</p>}
-          </div>
-          <div className="text-right">
+        <EnTeteDocument identite={identite}>
             <p className="text-xl font-bold uppercase">Bulletin de paie</p>
             <p className="font-mono">{b.numero}</p>
             <p>Période : {libelleMois(periode.mois)}</p>
-          </div>
-        </header>
+        </EnTeteDocument>
         <section className="mt-4 grid grid-cols-2 gap-4 rounded border border-black/20 p-3">
           <div>
             <p className="font-semibold">{b.nom}</p>
@@ -95,6 +86,7 @@ export default async function ImpressionBulletin({ params }: { params: Promise<{
           {b.payeLe && <p className="mt-2">Payé le {new Date(`${String(b.payeLe).slice(0, 10)}T00:00:00Z`).toLocaleDateString("fr-FR", { timeZone: "UTC" })}.</p>}
           <p className="mt-6">Dans votre intérêt et pour vous aider à faire valoir vos droits, conservez ce bulletin sans limitation de durée.</p>
         </section>
+        <PiedDocument identite={identite} />
       </article>
     </main>
   );

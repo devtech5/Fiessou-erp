@@ -4,12 +4,14 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { identiteEntreprise } from "@/lib/identite";
 import { peut } from "@/lib/droits/garde";
 import { fmt, fmtDateIso, fmtTauxBp } from "@/lib/format";
 import { formaterQuantite, type CodeUnite } from "@/lib/quantite";
 import { resteDu, totaliserPiece } from "@/modules/facturation/calcul";
 import { detailsPieces, listerPieces } from "@/modules/facturation/requetes";
 
+import { EnTeteDocument, PiedDocument } from "@/components/impression/entete-document";
 import { BoutonImprimer } from "@/components/ui/bouton-imprimer";
 
 export const metadata: Metadata = { title: "Impression" };
@@ -33,20 +35,10 @@ export default async function PageImpressionPiece({
   const session = await exigerEntreprise();
   if (!(await peut("commercial.piece.consulter"))) notFound();
 
-  const [pieces, details, entreprises, clients] = await Promise.all([
+  const [pieces, details, identite, clients] = await Promise.all([
     listerPieces(session.organizationId),
     detailsPieces(session.organizationId),
-    db.execute<{
-      name: string;
-      tax_id: string | null;
-      legal_form: string | null;
-      address: string | null;
-      city: string | null;
-      phone: string | null;
-      email: string | null;
-    }>(sql`
-      select name, tax_id, legal_form, address, city, phone, email
-      from organizations where id = ${session.organizationId}`),
+    identiteEntreprise(session.organizationId),
     db.execute<{
       id: string;
       adresse: string | null;
@@ -66,7 +58,6 @@ export default async function PageImpressionPiece({
 
   const lignes = details.lignes.get(piece.id) ?? [];
   const reglements = details.reglements.get(piece.id) ?? [];
-  const entreprise = entreprises[0];
   const client = clients[0];
   const parTaux = totaliserPiece(
     lignes.map((l) => ({
@@ -87,17 +78,7 @@ export default async function PageImpressionPiece({
       </div>
 
       <article className="mx-auto max-w-[210mm] bg-white px-[14mm] py-[12mm] text-[10.5pt] leading-snug text-black shadow print:shadow-none">
-        <header className="flex items-start justify-between gap-6 border-b border-black/20 pb-5">
-          <div>
-            <p className="text-lg font-bold">{entreprise?.name}</p>
-            {entreprise?.legal_form && <p>{entreprise.legal_form}</p>}
-            {entreprise?.address && <p>{entreprise.address}</p>}
-            {entreprise?.city && <p>{entreprise.city}</p>}
-            {entreprise?.phone && <p>Tél. {entreprise.phone}</p>}
-            {entreprise?.email && <p>{entreprise.email}</p>}
-            {entreprise?.tax_id && <p>N° contribuable : {entreprise.tax_id}</p>}
-          </div>
-          <div className="text-right">
+        <EnTeteDocument identite={identite}>
             <p className="text-2xl font-bold uppercase tracking-wide">{TITRE[piece.nature]}</p>
             <p className="font-mono text-base">{piece.numero}</p>
             <p>Date : {fmtDateIso(piece.datePiece)}</p>
@@ -108,8 +89,7 @@ export default async function PageImpressionPiece({
               </p>
             )}
             {piece.origineNumero && <p>Réf. {piece.origineNumero}</p>}
-          </div>
-        </header>
+        </EnTeteDocument>
 
         <section className="mt-5 ml-auto w-[45%] rounded border border-black/20 p-3">
           <p className="text-[9pt] uppercase text-black/60">Client</p>
@@ -117,7 +97,7 @@ export default async function PageImpressionPiece({
           {client?.adresse && <p>{client.adresse}</p>}
           {client?.ville && <p>{client.ville}</p>}
           {client?.telephone && <p>Tél. {client.telephone}</p>}
-          {client?.identifiant_fiscal && <p>N° contribuable : {client.identifiant_fiscal}</p>}
+          {client?.identifiant_fiscal && <p>{identite.referentiel.identifiantFiscal} : {client.identifiant_fiscal}</p>}
         </section>
 
         <table className="mt-6 w-full border-collapse">
@@ -192,6 +172,7 @@ export default async function PageImpressionPiece({
             Pièce annulée
           </p>
         )}
+        <PiedDocument identite={identite} />
       </article>
     </main>
   );

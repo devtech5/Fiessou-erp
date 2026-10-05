@@ -61,3 +61,22 @@ describe("couper", () => {
     expect(couper("ABCDEFGHIJ", 4)).toEqual(["ABCD", "EFGH", "IJ"]);
   });
 });
+
+describe("identité de l'entreprise sur le ticket", () => {
+  const avecIdentite = (): DonneesTicket => ({
+    ...donnees(),
+    entete: ["Rue des Jardins, Abidjan Cocody", "Tél. +225 07 00 00 00 00", "NCC 1234567A"],
+    piedDePage: "Marchandise vendue ni reprise ni échangée après 48 heures sans le ticket de caisse.\nOrange Money : 07 00 00 00 00",
+  });
+
+  it.each([58, 80] as const)("en-tête et pied tiennent dans la largeur (%i mm)", (largeur) => {
+    const sortie = composerTicket(avecIdentite(), largeur);
+    for (const ligne of sortie) expect(ligne.length).toBeLessThanOrEqual(COLONNES[largeur]);
+    const texte = sortie.join("\n");
+    expect(texte).toContain("NCC 1234567A");
+    expect(texte).toContain("Orange Money");
+    // Le pied précède le remerciement, l'en-tête suit le nom.
+    expect(texte.indexOf("Orange Money")).toBeLessThan(texte.indexOf("Merci de votre visite"));
+    expect(texte.indexOf("NCC")).toBeLessThan(texte.indexOf("Caisse 1"));
+  });
+});

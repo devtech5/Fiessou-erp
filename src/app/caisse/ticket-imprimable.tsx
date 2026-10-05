@@ -67,13 +67,20 @@ export function useReglagesTicket() {
 export function TicketImprimable({
   donnees,
   largeur,
+  logo,
 }: {
   donnees: DonneesTicket;
   largeur: LargeurTicket;
+  /** Data URL : déjà dans la page, donc imprimable sans réseau. */
+  logo?: string | null;
 }) {
   return (
     <div id="ticket-imprimable" data-largeur={largeur} aria-hidden>
       <style>{`@media print { @page { size: ${largeur}mm auto; margin: 0; } }`}</style>
+      {logo && (
+        // eslint-disable-next-line @next/next/no-img-element -- data URL, rien à optimiser
+        <img src={logo} alt="" style={{ display: "block", margin: "0 auto 2mm", maxWidth: "70%", maxHeight: "18mm", objectFit: "contain", filter: "grayscale(1)" }} />
+      )}
       <pre>{composerTicket(donnees, largeur).join("\n")}</pre>
     </div>
   );

@@ -1,5 +1,6 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
+  check,
   date,
   boolean,
   index,
@@ -58,6 +59,19 @@ export const organizations = pgTable(
     address: text("address"),
     city: text("city"),
     logoUrl: text("logo_url"),
+    /**
+     * Logo, en image réduite (data URL, 96 Ko au plus), réduit dans le
+     * navigateur avant l'envoi. Exception assumée à la règle « les fichiers
+     * vont au dépôt » : le ticket de caisse l'imprime HORS CONNEXION, et une
+     * URL signée de cinq minutes n'y survivrait pas.
+     */
+    logo: text("logo"),
+    /** Registre du commerce (RCCM en zone OHADA). */
+    rccm: text("rccm"),
+    /** Couleur des documents imprimés, #RRGGBB. */
+    couleurDocuments: text("couleur_documents"),
+    /** Mentions de pied de page : coordonnées bancaires, conditions, capital. */
+    piedDePage: text("pied_de_page"),
 
     status: organizationStatus("status").notNull().default("essai"),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
@@ -72,7 +86,11 @@ export const organizations = pgTable(
     ...timestamps,
     ...rowVersion,
   },
-  (t) => [unique("organizations_slug_unique").on(t.slug)],
+  (t) => [
+    unique("organizations_slug_unique").on(t.slug),
+    check("organizations_logo_taille", sql`${t.logo} IS NULL OR (length(${t.logo}) <= 131072 AND ${t.logo} LIKE 'data:image/%')`),
+    check("organizations_couleur", sql`${t.couleurDocuments} IS NULL OR ${t.couleurDocuments} ~ '^#[0-9a-fA-F]{6}$'`),
+  ],
 );
 
 /**
