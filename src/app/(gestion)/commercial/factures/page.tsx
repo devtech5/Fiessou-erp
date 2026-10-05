@@ -40,7 +40,7 @@ export default async function PageFactures({
   const [pieces, details, options, gerer, annuler, encaisser] = await Promise.all([
     listerPieces(session.organizationId),
     detailsPieces(session.organizationId),
-    optionsPiece(session.organizationId),
+    optionsPiece(session.organizationId, session.userId),
     peut("commercial.piece.gerer"),
     peut("commercial.piece.annuler"),
     peut("commercial.reglement.encaisser"),

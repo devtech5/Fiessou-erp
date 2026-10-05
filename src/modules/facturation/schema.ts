@@ -15,6 +15,7 @@ import {
 import { money, primaryId, quantity, rowVersion, timestamps } from "@/db/schema/_shared";
 import { organizations } from "@/db/schema/tenancy";
 import { articles } from "@/modules/catalogue/schema";
+import { commerciaux } from "@/modules/commerciaux/schema";
 import { depots } from "@/modules/stock/schema";
 import { projets } from "@/modules/projets/schema";
 import { tiers } from "@/modules/tiers/schema";
@@ -89,6 +90,9 @@ export const piecesCommerciales = pgTable(
 
     /** Devis d'origine d'une facture, facture d'origine d'un avoir. */
     origineId: uuid("origine_id"),
+
+    /** Commercial à qui la pièce est attribuée ; sa commission la compte. */
+    commercialId: uuid("commercial_id").references(() => commerciaux.id, { onDelete: "set null" }),
 
     /**
      * Totaux STOCKÉS, comme ceux d'un ticket : une pièce émise est un

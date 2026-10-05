@@ -21,6 +21,7 @@ import {
 } from "@/db/schema/_shared";
 import { organizations } from "@/db/schema/tenancy";
 import { articles } from "@/modules/catalogue/schema";
+import { commerciaux } from "@/modules/commerciaux/schema";
 import { depots } from "@/modules/stock/schema";
 import { tiers } from "@/modules/tiers/schema";
 
@@ -184,6 +185,8 @@ export const ventes = pgTable(
     /** Appareil qui a encaissé. Sert au rattrapage et à l'écho de synchro. */
     deviceId: text("device_id"),
     userId: uuid("user_id"),
+    /** Vendeur, quand ce n'est pas le caissier ; nul : le commercial lié au caissier. */
+    commercialId: uuid("commercial_id").references(() => commerciaux.id, { onDelete: "set null" }),
 
     /** Motif d'annulation. Une annulation sans motif ne s'explique pas. */
     motifAnnulation: text("motif_annulation"),

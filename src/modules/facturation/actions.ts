@@ -76,6 +76,7 @@ const schemaBrouillon = z.object({
   echeance: z.string().regex(DATE_ISO).nullable().optional(),
   depotId: z.string().regex(UUID).nullable().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
+  commercialId: z.string().regex(UUID).nullable().optional(),
   lignes: z
     .array(
       z.object({

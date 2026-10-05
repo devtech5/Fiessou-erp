@@ -251,6 +251,20 @@ export const DROITS = [
     libelle: "Encaisser un règlement client",
     description: "Enregistrer un paiement reçu sur une facture.",
   },
+  {
+    cle: "commercial.commission.gerer",
+    moduleKey: "tiers",
+    libelle: "Gérer les commerciaux et leurs commissions",
+    description:
+      "Créer les commerciaux, fixer leurs règles de commission (part fixe, taux, paliers), " +
+      "suivre leurs réalisations et valider la commission du mois.",
+  },
+  {
+    cle: "commercial.commission.payer",
+    moduleKey: "tiers",
+    libelle: "Payer les commissions",
+    description: "Verser une commission validée depuis la trésorerie, ou l'ajouter au bulletin de paie d'un salarié.",
+  },
 
   // ---------------------------------------------------------- réservations
   {

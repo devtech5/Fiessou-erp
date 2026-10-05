@@ -30,7 +30,8 @@ export type OrigineEcriture =
   | "paie"
   | "tva"
   | "cloture"
-  | "reprise";
+  | "reprise"
+  | "commission";
 
 /** Refus d'une période fermée : un message pour l'utilisateur, pas une panne. */
 export class PeriodeVerrouillee extends Error {}

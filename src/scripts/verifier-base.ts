@@ -40,6 +40,8 @@ const TABLES_ATTENDUES = [
   "bulletins_paie",
   "change_log",
   "commandes_achat",
+  "commerciaux",
+  "commissions",
   "comptages_caisse",
   "comptes_tresorerie",
   "contrats_location",

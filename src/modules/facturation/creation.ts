@@ -8,6 +8,7 @@ import { newId } from "@/lib/ids";
 import { prochainNumero, type Transaction } from "@/lib/sequences";
 import type { CodeUnite } from "@/lib/quantite";
 import { lettrerPiecesSoldees } from "@/modules/comptabilite/lettrage-auto";
+import { commerciaux } from "@/modules/commerciaux/schema";
 import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
 import { enregistrerMouvementDans } from "@/modules/stock/creation";
 import { depots } from "@/modules/stock/schema";
@@ -55,6 +56,8 @@ export interface BrouillonDemande {
   echeance?: string | null;
   depotId?: string | null;
   notes?: string | null;
+  /** Commercial à qui la pièce est attribuée. */
+  commercialId?: string | null;
   lignes: LigneDemandee[];
 }
 
@@ -154,6 +157,7 @@ export async function enregistrerBrouillonDans(
     echeance,
     depotId: demande.depotId ?? null,
     notes: demande.notes ?? null,
+    commercialId: await commercialValide(tx, organizationId, demande.commercialId),
     totalHt: totaux.totalHt,
     totalTva: totaux.totalTva,
     totalTtc: totaux.totalTtc,
@@ -217,6 +221,17 @@ async function lirePiece(tx: Transaction, organizationId: string, id: string) {
     .orderBy(asc(lignesPiece.ordre));
 
   return { piece, lignes };
+}
+
+/** Un commercial de l'entreprise, actif ; nul s'il n'en est rien demandé. */
+async function commercialValide(tx: Transaction, organizationId: string, id: string | null | undefined): Promise<string | null> {
+  if (!id) return null;
+  const [c] = await tx
+    .select({ id: commerciaux.id })
+    .from(commerciaux)
+    .where(and(eq(commerciaux.id, id), eq(commerciaux.organizationId, organizationId), eq(commerciaux.actif, true)));
+  if (!c) throw new Error("Commercial introuvable ou inactif.");
+  return c.id;
 }
 
 async function numeroter(tx: Transaction, organizationId: string, nature: NaturePiece, date: string) {
@@ -422,6 +437,7 @@ export async function convertirDevisDans(
       datePiece: aujourdHui,
       depotId: piece.depotId,
       notes: piece.notes,
+      commercialId: piece.commercialId,
       lignes: lignes.map((l) => ({
         articleId: l.articleId,
         designation: l.designation,
@@ -481,6 +497,7 @@ export async function annulerFactureDans(
       datePiece: aujourdHui,
       depotId: piece.depotId,
       notes: `Annulation de la facture ${piece.numero} : ${motif}`,
+      commercialId: piece.commercialId,
       lignes: lignes.map((l) => ({
         articleId: l.articleId,
         designation: l.designation,

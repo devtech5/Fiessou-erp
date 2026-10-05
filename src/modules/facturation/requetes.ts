@@ -33,6 +33,7 @@ export interface PieceListee {
   origineNumero: string | null;
   depotId: string | null;
   notes: string | null;
+  commercialId: string | null;
 }
 
 /**
@@ -63,6 +64,7 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
     origine_numero: string | null;
     depot_id: string | null;
     notes: string | null;
+    commercial_id: string | null;
   }>(sql`
     select
       p.id, p.nature, p.numero, p.statut, p.client_id, p.client_nom, p.projet_id,
@@ -72,7 +74,7 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
         and coalesce(r.total, 0) < p.total_ttc) as en_retard,
       p.ecriture_numero,
       o.numero as origine_numero,
-      p.depot_id, p.notes
+      p.depot_id, p.notes, p.commercial_id
     from pieces_commerciales p
       left join (
         select piece_id, sum(montant) as total
@@ -104,6 +106,7 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
     origineNumero: l.origine_numero,
     depotId: l.depot_id,
     notes: l.notes,
+    commercialId: l.commercial_id,
   }));
 }
 
@@ -212,6 +215,9 @@ export interface OptionsPiece {
   articles: ArticleFacturable[];
   depots: { id: string; nom: string }[];
   projets: { id: string; libelle: string }[];
+  commerciaux: { id: string; nom: string }[];
+  /** Commercial lié à l'utilisateur connecté : proposé par défaut. */
+  commercialParDefaut: string | null;
 }
 
 /**
@@ -221,8 +227,8 @@ export interface OptionsPiece {
  * 1 180 F TTC à 18 % se facture 1 000 F HT. La saisie reste libre — une
  * facture entre entreprises se négocie.
  */
-export async function optionsPiece(organizationId: string): Promise<OptionsPiece> {
-  const [clients, articles, depots, projets] = await Promise.all([
+export async function optionsPiece(organizationId: string, userId?: string): Promise<OptionsPiece> {
+  const [clients, articles, depots, projets, commerciaux] = await Promise.all([
     db.execute<{ id: string; nom: string; compte: string | null }>(sql`
       select id, nom, compte_client as compte from tiers
       where organization_id = ${organizationId} and est_client and actif
@@ -252,6 +258,10 @@ export async function optionsPiece(organizationId: string): Promise<OptionsPiece
       where organization_id = ${organizationId} and deleted_at is null
         and statut not in ('termine', 'annule')
       order by code desc`),
+    db.execute<{ id: string; nom: string; user_id: string | null }>(sql`
+      select id, nom, user_id from commerciaux
+      where organization_id = ${organizationId} and actif and deleted_at is null
+      order by nom`),
   ]);
 
   return {
@@ -270,6 +280,8 @@ export async function optionsPiece(organizationId: string): Promise<OptionsPiece
     }),
     depots: [...depots],
     projets: [...projets],
+    commerciaux: commerciaux.map((c) => ({ id: c.id, nom: c.nom })),
+    commercialParDefaut: (userId && commerciaux.find((c) => c.user_id === userId)?.id) || null,
   };
 }
 

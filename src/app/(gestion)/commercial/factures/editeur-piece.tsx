@@ -18,6 +18,7 @@ export interface PieceAEditer {
   echeance: string | null;
   depotId: string | null;
   notes: string | null;
+  commercialId?: string | null;
   lignes: {
     articleId: string | null;
     designation: string;
@@ -78,6 +79,7 @@ export function EditeurPiece({
   const [echeance, setEcheance] = useState(initiale.echeance ?? "");
   const [depotId, setDepotId] = useState(initiale.depotId ?? "");
   const [notes, setNotes] = useState(initiale.notes ?? "");
+  const [commercialId, setCommercialId] = useState(initiale.id ? (initiale.commercialId ?? "") : (initiale.commercialId ?? options.commercialParDefaut ?? ""));
   const [lignes, setLignes] = useState<LigneEdition[]>(() =>
     initiale.lignes.length > 0
       ? initiale.lignes.map((l) => ({
@@ -137,6 +139,7 @@ export function EditeurPiece({
       datePiece,
       echeance: echeance || null,
       depotId: depotId || null,
+      commercialId: commercialId || null,
       notes: notes.trim() || null,
       lignes: lignes.map((l, i) => ({
         articleId: l.articleId,
@@ -226,6 +229,19 @@ export function EditeurPiece({
             className={`${CLASSE_CHAMP} chiffres`}
           />
         </Champ>
+
+        {options.commerciaux.length > 0 && (
+          <Champ libelle="Commercial" precision="Sa commission compte cette pièce.">
+            <select value={commercialId} onChange={(e) => setCommercialId(e.target.value)} className={CLASSE_CHAMP}>
+              <option value="">— aucun —</option>
+              {options.commerciaux.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
+                </option>
+              ))}
+            </select>
+          </Champ>
+        )}
 
         {nature === "facture" && options.depots.length > 0 && (
           <Champ libelle="Dépôt de sortie" precision="D'où part la marchandise facturée.">

@@ -15,6 +15,7 @@ const SECTIONS = [
   { href: "/commercial", libelle: "Clients" },
   { href: "/commercial/factures", libelle: "Devis et factures" },
   { href: "/commercial/ventes", libelle: "Caisse" },
+  { href: "/commercial/commerciaux", libelle: "Commerciaux" },
   { href: "/commercial/fournisseurs", libelle: "Fournisseurs" },
 ];
 
