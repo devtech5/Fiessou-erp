@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { contactsParTiers, libelleContact } from "@/modules/tiers/contacts";
 import { articles, famillesArticle } from "@/modules/catalogue/schema";
 import { depots } from "@/modules/stock/schema";
 import { tiers } from "@/modules/tiers/schema";
@@ -178,13 +179,20 @@ export async function listerFactures(organizationId: string, filtre: { fournisse
   return filtre.ouvertesSeulement ? vues.filter((v) => v.reste > 0) : vues;
 }
 
-/** Fournisseurs actifs, pour la saisie. */
+/** Fournisseurs actifs, pour la saisie, avec leurs contacts (le principal en tête). */
 export async function fournisseursActifs(organizationId: string) {
-  return db
-    .select({ id: tiers.id, nom: tiers.nom, delaiLivraisonJours: tiers.delaiLivraisonJours })
-    .from(tiers)
-    .where(and(eq(tiers.organizationId, organizationId), eq(tiers.estFournisseur, true), eq(tiers.actif, true)))
-    .orderBy(asc(tiers.nom));
+  const [liste, contacts] = await Promise.all([
+    db
+      .select({ id: tiers.id, nom: tiers.nom, delaiLivraisonJours: tiers.delaiLivraisonJours })
+      .from(tiers)
+      .where(and(eq(tiers.organizationId, organizationId), eq(tiers.estFournisseur, true), eq(tiers.actif, true)))
+      .orderBy(asc(tiers.nom)),
+    contactsParTiers(organizationId),
+  ]);
+  return liste.map((f) => ({
+    ...f,
+    contacts: (contacts.get(f.id) ?? []).map((c) => ({ id: c.id, libelle: libelleContact(c), principal: c.principal })),
+  }));
 }
 
 /** Articles achetables, avec leur prix d'achat, leur TVA et leur compte d'achat résolus par la famille. */

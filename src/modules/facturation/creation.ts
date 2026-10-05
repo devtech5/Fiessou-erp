@@ -9,6 +9,7 @@ import { prochainNumero, type Transaction } from "@/lib/sequences";
 import type { CodeUnite } from "@/lib/quantite";
 import { lettrerPiecesSoldees } from "@/modules/comptabilite/lettrage-auto";
 import { commerciaux } from "@/modules/commerciaux/schema";
+import { contactPourPiece } from "@/modules/tiers/contacts";
 import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
 import { enregistrerMouvementDans } from "@/modules/stock/creation";
 import { depots } from "@/modules/stock/schema";
@@ -58,6 +59,8 @@ export interface BrouillonDemande {
   notes?: string | null;
   /** Commercial à qui la pièce est attribuée. */
   commercialId?: string | null;
+  /** Interlocuteur chez le client ; il doit appartenir à ce client. */
+  contactId?: string | null;
   lignes: LigneDemandee[];
 }
 
@@ -158,6 +161,7 @@ export async function enregistrerBrouillonDans(
     depotId: demande.depotId ?? null,
     notes: demande.notes ?? null,
     commercialId: await commercialValide(tx, organizationId, demande.commercialId),
+    ...(await contactPourPiece(tx, organizationId, fiche.id, demande.contactId)),
     totalHt: totaux.totalHt,
     totalTva: totaux.totalTva,
     totalTtc: totaux.totalTtc,
@@ -449,7 +453,8 @@ export async function convertirDevisDans(
     userId,
   );
 
-  await tx.update(piecesCommerciales).set({ origineId: devisId }).where(eq(piecesCommerciales.id, id));
+  // Le contact suit la pièce d'origine tel qu'il y est imprimé, même retiré depuis.
+  await tx.update(piecesCommerciales).set({ origineId: devisId, contactId: piece.contactId, contactNom: piece.contactNom }).where(eq(piecesCommerciales.id, id));
   await tx
     .update(piecesCommerciales)
     .set({ statut: "convertie", updatedAt: new Date(), version: sql`${piecesCommerciales.version} + 1` })
@@ -508,7 +513,7 @@ export async function annulerFactureDans(
     },
     userId,
   );
-  await tx.update(piecesCommerciales).set({ origineId: factureId }).where(eq(piecesCommerciales.id, avoirId));
+  await tx.update(piecesCommerciales).set({ origineId: factureId, contactId: piece.contactId, contactNom: piece.contactNom }).where(eq(piecesCommerciales.id, avoirId));
 
   const { numero } = await emettreDans(tx, organizationId, avoirId, userId);
 

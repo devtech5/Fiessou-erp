@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Pastille } from "@/components/ui/primitives";
 import { fmt, fmtDateIso } from "@/lib/format";
+import { ContactsTiers } from "@/components/tiers/contacts";
 import type { FicheTiers } from "@/modules/tiers/requetes";
 
 /**
@@ -19,7 +20,7 @@ import type { FicheTiers } from "@/modules/tiers/requetes";
  * aucun solde : encours et facturé sont la conséquence des écritures, et se
  * déduisent là où les écritures sont — pas dans le navigateur.
  */
-export function ListeClients({ clients }: { clients: FicheTiers[] }) {
+export function ListeClients({ clients, modifiable = false }: { clients: FicheTiers[]; modifiable?: boolean }) {
   const [recherche, setRecherche] = useState("");
   const [selectionId, setSelectionId] = useState<string | null>(
     clients[0]?.id ?? null,
@@ -167,6 +168,13 @@ export function ListeClients({ clients }: { clients: FicheTiers[] }) {
               )}
             </div>
           </div>
+
+          {selection.nature === "entreprise" && (
+            <div className="border-b border-[var(--filet)] p-4">
+              <h3 className="mb-2 text-xs font-semibold text-[var(--encre-faible)]">Contacts</h3>
+              <ContactsTiers key={selection.id} tiersId={selection.id} contacts={selection.contacts} modifiable={modifiable} />
+            </div>
+          )}
 
           <div className="p-4">
             <h3 className="mb-2 text-xs font-semibold text-[var(--encre-faible)]">

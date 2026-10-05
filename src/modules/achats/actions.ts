@@ -65,6 +65,7 @@ const ligne = z.object({
 
 const schemaCommande = z.object({
   fournisseurId: z.string().regex(UUID, "Choisissez le fournisseur."),
+  contactId: z.string().regex(UUID).nullable().optional(),
   depotId: z.string().regex(UUID).nullable().optional(),
   dateCommande: z.string().regex(DATE_ISO),
   livraisonPrevue: z.string().regex(DATE_ISO).nullable().optional(),

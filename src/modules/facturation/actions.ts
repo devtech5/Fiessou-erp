@@ -77,6 +77,7 @@ const schemaBrouillon = z.object({
   depotId: z.string().regex(UUID).nullable().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
   commercialId: z.string().regex(UUID).nullable().optional(),
+  contactId: z.string().regex(UUID).nullable().optional(),
   lignes: z
     .array(
       z.object({

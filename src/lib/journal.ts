@@ -203,6 +203,8 @@ const LIBELLES: Record<string, string> = {
   "paie.verser_cnps": "a versé les cotisations CNPS",
   "paie.verser_impot": "a versé l'impôt sur salaires",
 
+  "contact.enregistrer": "a enregistré un contact",
+  "contact.retirer": "a retiré un contact",
   "commercial.enregistrer": "a enregistré un commercial",
   "commission.valider": "a validé une commission",
   "commission.payer": "a payé une commission",
@@ -357,6 +359,7 @@ const MODULES: Record<string, string> = {
   reprise: "Démarrage",
   modele_article: "Stock",
   commercial: "Commercial",
+  contact: "Commercial",
   commission: "Commercial",
   exercice: "Fiscalité",
 };

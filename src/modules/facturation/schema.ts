@@ -18,7 +18,7 @@ import { articles } from "@/modules/catalogue/schema";
 import { commerciaux } from "@/modules/commerciaux/schema";
 import { depots } from "@/modules/stock/schema";
 import { projets } from "@/modules/projets/schema";
-import { tiers } from "@/modules/tiers/schema";
+import { contactsTiers, tiers } from "@/modules/tiers/schema";
 
 /**
  * Nature d'une pièce commerciale.
@@ -76,6 +76,9 @@ export const piecesCommerciales = pgTable(
     projetId: uuid("projet_id").references(() => projets.id, { onDelete: "set null" }),
     /** Nom recopié à l'émission : une facture réimprimée dit à qui elle a été adressée. */
     clientNom: text("client_nom").notNull(),
+    /** Interlocuteur chez le client ; son nom et sa fonction sont recopiés pour l'impression. */
+    contactId: uuid("contact_id").references(() => contactsTiers.id, { onDelete: "set null" }),
+    contactNom: text("contact_nom"),
 
     datePiece: date("date_piece").notNull(),
     /** Échéance de paiement (facture) ou fin de validité (devis). */

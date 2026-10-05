@@ -94,6 +94,7 @@ export default async function PageImpressionPiece({
         <section className="mt-5 ml-auto w-[45%] rounded border border-black/20 p-3">
           <p className="text-[9pt] uppercase text-black/60">Client</p>
           <p className="font-semibold">{piece.clientNom}</p>
+          {piece.contactNom && <p>À l&apos;attention de {piece.contactNom}</p>}
           {client?.adresse && <p>{client.adresse}</p>}
           {client?.ville && <p>{client.ville}</p>}
           {client?.telephone && <p>Tél. {client.telephone}</p>}

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { BoutonDemonstration } from "@/components/bouton-demonstration";
 import { EnTetePage, EtatVide } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
 import { fmt } from "@/lib/format";
 import { fichesTiers } from "@/modules/tiers/requetes";
 import { FormulaireTiers } from "./formulaire-tiers";
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Clients" };
 
 export default async function PageClients() {
   const session = await exigerEntreprise();
-  const clients = await fichesTiers(session.organizationId, "client");
+  const [clients, gerer] = await Promise.all([fichesTiers(session.organizationId, "client"), peut("tiers.fiche.gerer")]);
 
   const encoursTotal = clients.reduce(
     (somme, client) => somme + client.encoursClient,
@@ -38,7 +39,7 @@ export default async function PageClients() {
           actions={<BoutonDemonstration libelle="Installer le fichier de démonstration" />}
         />
       ) : (
-        <ListeClients clients={clients} />
+        <ListeClients clients={clients} modifiable={gerer} />
       )}
     </>
   );

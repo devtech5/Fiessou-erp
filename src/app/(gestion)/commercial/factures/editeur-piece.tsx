@@ -19,6 +19,7 @@ export interface PieceAEditer {
   depotId: string | null;
   notes: string | null;
   commercialId?: string | null;
+  contactId?: string | null;
   lignes: {
     articleId: string | null;
     designation: string;
@@ -74,6 +75,9 @@ export function EditeurPiece({
 }) {
   const [nature, setNature] = useState(initiale.nature);
   const [clientId, setClientId] = useState(initiale.clientId);
+  const principalDe = (client: string) => options.contacts[client]?.find((c) => c.principal)?.id ?? "";
+  const [contactId, setContactId] = useState(initiale.id ? (initiale.contactId ?? "") : (initiale.contactId ?? principalDe(initiale.clientId)));
+  const contactsDuClient = options.contacts[clientId] ?? [];
   const [projetId, setProjetId] = useState(initiale.projetId ?? "");
   const [datePiece, setDatePiece] = useState(initiale.datePiece);
   const [echeance, setEcheance] = useState(initiale.echeance ?? "");
@@ -140,6 +144,7 @@ export function EditeurPiece({
       echeance: echeance || null,
       depotId: depotId || null,
       commercialId: commercialId || null,
+      contactId: contactId || null,
       notes: notes.trim() || null,
       lignes: lignes.map((l, i) => ({
         articleId: l.articleId,
@@ -186,7 +191,15 @@ export function EditeurPiece({
         </Champ>
 
         <Champ libelle="Client">
-          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={CLASSE_CHAMP}>
+          <select
+            value={clientId}
+            onChange={(e) => {
+              setClientId(e.target.value);
+              // Le contact appartient au client : changer de client propose son principal.
+              setContactId(principalDe(e.target.value));
+            }}
+            className={CLASSE_CHAMP}
+          >
             <option value="">— choisir —</option>
             {options.clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -195,6 +208,19 @@ export function EditeurPiece({
             ))}
           </select>
         </Champ>
+
+        {contactsDuClient.length > 0 && (
+          <Champ libelle="À l'attention de" precision="Interlocuteur chez le client, imprimé sur la pièce.">
+            <select value={contactId} onChange={(e) => setContactId(e.target.value)} className={CLASSE_CHAMP}>
+              <option value="">— aucun —</option>
+              {contactsDuClient.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.libelle}
+                </option>
+              ))}
+            </select>
+          </Champ>
+        )}
 
         {options.projets.length > 0 && (
           <Champ libelle="Projet">

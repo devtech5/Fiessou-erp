@@ -44,6 +44,7 @@ const TABLES_ATTENDUES = [
   "commissions",
   "comptages_caisse",
   "comptes_tresorerie",
+  "contacts_tiers",
   "contrats_location",
   "declarations_tva",
   "demandes_signature",

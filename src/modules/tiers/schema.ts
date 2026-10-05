@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -129,3 +130,40 @@ export const tiers = pgTable(
 );
 
 export type Tiers = typeof tiers.$inferSelect;
+
+/**
+ * Contact d'un tiers : la personne physique derrière la personne morale.
+ * SOCOCE est le client — c'est elle qui doit, qui est relancée, dont le NCC
+ * s'imprime ; M. Konan, responsable des achats, est celui qui a passé la
+ * commande et à qui la facture est adressée. Les confondre, c'est facturer
+ * M. Konan, qui ne doit rien.
+ */
+export const contactsTiers = pgTable(
+  "contacts_tiers",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    tiersId: uuid("tiers_id")
+      .notNull()
+      .references(() => tiers.id, { onDelete: "cascade" }),
+    nom: text("nom").notNull(),
+    /** Responsable des achats, comptable, gérant… */
+    fonction: text("fonction"),
+    telephone: text("telephone"),
+    email: text("email"),
+    /** Proposé par défaut sur les nouvelles pièces. Un seul par tiers. */
+    principal: boolean("principal").notNull().default(false),
+    actif: boolean("actif").notNull().default(true),
+    notes: text("notes"),
+    ...timestamps,
+    ...rowVersion,
+  },
+  (t) => [
+    index("contacts_tiers_tiers_idx").on(t.organizationId, t.tiersId),
+    uniqueIndex("contacts_tiers_principal_unique").on(t.tiersId).where(sql`${t.principal} AND ${t.actif}`),
+  ],
+);
+
+export type ContactTiers = typeof contactsTiers.$inferSelect;

@@ -18,6 +18,7 @@ export interface CommandeInitiale {
   dateCommande: string;
   livraisonPrevue: string | null;
   notes: string | null;
+  contactId?: string | null;
   lignes: { articleId: string | null; designation: string; quantite: number; prixUnitaireHt: number; tauxTva: number; compteAchat: string }[];
 }
 
@@ -29,7 +30,7 @@ export function EditeurCommande({
   initiale,
   aujourdhui,
 }: {
-  fournisseurs: { id: string; nom: string; delaiLivraisonJours: number }[];
+  fournisseurs: { id: string; nom: string; delaiLivraisonJours: number; contacts: { id: string; libelle: string; principal: boolean }[] }[];
   depots: { id: string; nom: string; parDefaut: boolean }[];
   articles: ArticleAchat[];
   initiale?: CommandeInitiale;
@@ -41,6 +42,8 @@ export function EditeurCommande({
   const [date, setDate] = useState(initiale?.dateCommande ?? aujourdhui);
   const [livraison, setLivraison] = useState(initiale?.livraisonPrevue ?? "");
   const [notes, setNotes] = useState(initiale?.notes ?? "");
+  const contactsDe = (id: string) => fournisseurs.find((f) => f.id === id)?.contacts ?? [];
+  const [contactId, setContactId] = useState(initiale ? (initiale.contactId ?? "") : "");
   const [lignes, setLignes] = useState<LigneEditee[]>(
     initiale
       ? initiale.lignes.map((l) => ({
@@ -68,6 +71,7 @@ export function EditeurCommande({
 
   function choisirFournisseur(id: string) {
     setFournisseurId(id);
+    setContactId(contactsDe(id).find((c) => c.principal)?.id ?? "");
     // La livraison attendue se déduit du délai habituel du fournisseur.
     const f = fournisseurs.find((x) => x.id === id);
     if (f && f.delaiLivraisonJours > 0 && !livraison) {
@@ -81,7 +85,7 @@ export function EditeurCommande({
     if (typeof converties === "string") return setResultat({ ok: false, message: converties });
     demarrer(async () => {
       const r = await enregistrerCommande(
-        { fournisseurId, depotId: depotId || null, dateCommande: date, livraisonPrevue: livraison || null, notes: notes || null, lignes: converties },
+        { fournisseurId, contactId: contactId || null, depotId: depotId || null, dateCommande: date, livraisonPrevue: livraison || null, notes: notes || null, lignes: converties },
         initiale?.id ?? null,
       );
       setResultat(r);
@@ -116,6 +120,19 @@ export function EditeurCommande({
             ))}
           </select>
         </label>
+        {contactsDe(fournisseurId).length > 0 && (
+          <label className="block">
+            <span className={libelle}>À l&apos;attention de</span>
+            <select value={contactId} onChange={(e) => setContactId(e.target.value)} className={CLASSE_CHAMP}>
+              <option value="">— aucun —</option>
+              {contactsDe(fournisseurId).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.libelle}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="block">
           <span className={libelle}>Livrer au dépôt</span>
           <select value={depotId} onChange={(e) => setDepotId(e.target.value)} className={CLASSE_CHAMP}>

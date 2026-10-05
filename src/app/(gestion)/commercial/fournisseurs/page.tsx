@@ -9,7 +9,9 @@ import {
   Td,
   Th,
 } from "@/components/ui/primitives";
+import { ContactsTiers } from "@/components/tiers/contacts";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
 import { fmt, fmtCompact, fmtEntier, fmtTaux } from "@/lib/format";
 import { fichesTiers } from "@/modules/tiers/requetes";
 import { FormulaireTiers } from "../formulaire-tiers";
@@ -18,7 +20,7 @@ export const metadata: Metadata = { title: "Fournisseurs" };
 
 export default async function PageFournisseurs() {
   const session = await exigerEntreprise();
-  const fournisseurs = await fichesTiers(session.organizationId, "fournisseur");
+  const [fournisseurs, gerer] = await Promise.all([fichesTiers(session.organizationId, "fournisseur"), peut("tiers.fiche.gerer")]);
 
   const volume = fournisseurs.reduce((somme, f) => somme + f.achatsFournisseur, 0);
   const du = fournisseurs.reduce((somme, f) => somme + f.duFournisseur, 0);
@@ -86,6 +88,7 @@ export default async function PageFournisseurs() {
                 <Th>Fournisseur</Th>
                 <Th>Secteur</Th>
                 <Th>Téléphone</Th>
+                <Th>Contacts</Th>
                 <Th aligne="droite">Délai</Th>
                 <Th aligne="droite">Achats</Th>
                 <Th aligne="droite">Solde dû</Th>
@@ -109,6 +112,17 @@ export default async function PageFournisseurs() {
                     </span>
                   </Td>
                   <Td chiffres>{fournisseur.telephone ?? "—"}</Td>
+                  <Td>
+                    {/* Volet repliable : le tableau reste lisible, les contacts à un clic. */}
+                    <details className="group text-xs">
+                      <summary className="cursor-pointer list-none text-marque-600 hover:underline">
+                        {fournisseur.contacts[0] ? `${fournisseur.contacts[0].nom}${fournisseur.contacts.length > 1 ? ` +${fournisseur.contacts.length - 1}` : ""}` : gerer ? "Ajouter" : "—"}
+                      </summary>
+                      <div className="mt-2 w-72">
+                        <ContactsTiers tiersId={fournisseur.id} contacts={fournisseur.contacts} modifiable={gerer} />
+                      </div>
+                    </details>
+                  </Td>
                   <Td aligne="droite" chiffres>
                     {fournisseur.delaiLivraisonJours > 0
                       ? `${fmtEntier(fournisseur.delaiLivraisonJours)} j`

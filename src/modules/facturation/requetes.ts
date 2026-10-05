@@ -34,6 +34,8 @@ export interface PieceListee {
   depotId: string | null;
   notes: string | null;
   commercialId: string | null;
+  contactId: string | null;
+  contactNom: string | null;
 }
 
 /**
@@ -65,6 +67,8 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
     depot_id: string | null;
     notes: string | null;
     commercial_id: string | null;
+    contact_id: string | null;
+    contact_nom: string | null;
   }>(sql`
     select
       p.id, p.nature, p.numero, p.statut, p.client_id, p.client_nom, p.projet_id,
@@ -74,7 +78,7 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
         and coalesce(r.total, 0) < p.total_ttc) as en_retard,
       p.ecriture_numero,
       o.numero as origine_numero,
-      p.depot_id, p.notes, p.commercial_id
+      p.depot_id, p.notes, p.commercial_id, p.contact_id, p.contact_nom
     from pieces_commerciales p
       left join (
         select piece_id, sum(montant) as total
@@ -107,6 +111,8 @@ export async function listerPieces(organizationId: string): Promise<PieceListee[
     depotId: l.depot_id,
     notes: l.notes,
     commercialId: l.commercial_id,
+    contactId: l.contact_id,
+    contactNom: l.contact_nom,
   }));
 }
 
@@ -212,6 +218,8 @@ export interface ArticleFacturable {
 
 export interface OptionsPiece {
   clients: { id: string; nom: string; compte: string | null }[];
+  /** Contacts actifs par client, le principal en tête. */
+  contacts: Record<string, { id: string; libelle: string; principal: boolean }[]>;
   articles: ArticleFacturable[];
   depots: { id: string; nom: string }[];
   projets: { id: string; libelle: string }[];
@@ -228,7 +236,7 @@ export interface OptionsPiece {
  * facture entre entreprises se négocie.
  */
 export async function optionsPiece(organizationId: string, userId?: string): Promise<OptionsPiece> {
-  const [clients, articles, depots, projets, commerciaux] = await Promise.all([
+  const [clients, articles, depots, projets, commerciaux, contacts] = await Promise.all([
     db.execute<{ id: string; nom: string; compte: string | null }>(sql`
       select id, nom, compte_client as compte from tiers
       where organization_id = ${organizationId} and est_client and actif
@@ -262,10 +270,19 @@ export async function optionsPiece(organizationId: string, userId?: string): Pro
       select id, nom, user_id from commerciaux
       where organization_id = ${organizationId} and actif and deleted_at is null
       order by nom`),
+    db.execute<{ id: string; tiers_id: string; nom: string; fonction: string | null; principal: boolean }>(sql`
+      select id, tiers_id, nom, fonction, principal from contacts_tiers
+      where organization_id = ${organizationId} and actif
+      order by principal desc, nom`),
   ]);
+  const contactsParClient: OptionsPiece["contacts"] = {};
+  for (const c of contacts) {
+    (contactsParClient[c.tiers_id] ??= []).push({ id: c.id, libelle: c.fonction ? `${c.nom}, ${c.fonction}` : c.nom, principal: c.principal === true });
+  }
 
   return {
     clients: [...clients],
+    contacts: contactsParClient,
     articles: articles.map((a) => {
       const taux = Number(a.taux_tva);
       const ttc = Number(a.prix_vente);

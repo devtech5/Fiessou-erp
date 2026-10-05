@@ -82,6 +82,7 @@ export default async function PageCommande({ params }: PageProps<"/achats/comman
           initiale={{
             id: c.id,
             fournisseurId: c.fournisseurId,
+            contactId: c.contactId,
             depotId: c.depotId,
             dateCommande: c.dateCommande,
             livraisonPrevue: c.livraisonPrevue,

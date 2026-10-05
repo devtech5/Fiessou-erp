@@ -50,6 +50,7 @@ export default async function ImpressionCommande({ params }: { params: Promise<{
         <section className="mt-5 ml-auto w-[45%] rounded border border-black/20 p-3">
           <p className="text-[9pt] uppercase text-black/60">Fournisseur</p>
           <p className="font-semibold">{c.fournisseurNom}</p>
+          {c.contactNom && <p>À l&apos;attention de {c.contactNom}</p>}
           {fournisseur?.adresse && <p>{fournisseur.adresse}</p>}
           {fournisseur?.ville && <p>{fournisseur.ville}</p>}
           {fournisseur?.telephone && <p>Tél. {fournisseur.telephone}</p>}

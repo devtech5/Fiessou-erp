@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { contactsParTiers, type ContactVue } from "./contacts";
 import { ecritures, lignesEcriture } from "@/modules/comptabilite/schema";
 import { tiers, type Tiers } from "./schema";
 
@@ -222,6 +223,7 @@ export interface FicheTiers extends SoldeAuxiliaire {
   delaiReglementJours: number;
   delaiLivraisonJours: number;
   mouvements: MouvementTiers[];
+  contacts: ContactVue[];
 }
 
 /**
@@ -235,10 +237,11 @@ export async function fichesTiers(
   organizationId: string,
   role: RoleTiers = "tous",
 ): Promise<FicheTiers[]> {
-  const [lignes, soldes, mouvements] = await Promise.all([
+  const [lignes, soldes, mouvements, contacts] = await Promise.all([
     listerTiers(organizationId, role),
     soldesParAuxiliaire(organizationId),
     mouvementsParAuxiliaire(organizationId),
+    contactsParTiers(organizationId),
   ]);
 
   return lignes.map((ligne) => {
@@ -264,6 +267,7 @@ export async function fichesTiers(
       delaiLivraisonJours: ligne.delaiLivraisonJours,
       ...solde,
       mouvements: comptes.flatMap((compte) => mouvements.get(compte) ?? []),
+      contacts: contacts.get(ligne.id) ?? [],
     };
   });
 }

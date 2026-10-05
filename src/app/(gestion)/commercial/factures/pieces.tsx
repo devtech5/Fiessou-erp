@@ -264,6 +264,7 @@ export function PiecesCommerciales({
                   echeance: selection.echeance,
                   depotId: selection.depotId,
                   commercialId: selection.commercialId,
+                  contactId: selection.contactId,
                   notes: selection.notes,
                   lignes: (lignes[selection.id] ?? []).map((l) => ({
                     articleId: l.articleId,

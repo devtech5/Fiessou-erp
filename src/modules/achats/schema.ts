@@ -5,7 +5,7 @@ import { money, primaryId, quantity, rowVersion, timestamps } from "@/db/schema/
 import { organizations } from "@/db/schema/tenancy";
 import { articles } from "@/modules/catalogue/schema";
 import { depots } from "@/modules/stock/schema";
-import { tiers } from "@/modules/tiers/schema";
+import { contactsTiers, tiers } from "@/modules/tiers/schema";
 import { comptesTresorerie } from "@/modules/tresorerie/schema";
 
 /**
@@ -33,6 +33,9 @@ export const commandesAchat = pgTable(
       .references(() => tiers.id, { onDelete: "restrict" }),
     /** Nom recopié : le bon reste lisible si la fiche est renommée. */
     fournisseurNom: text("fournisseur_nom").notNull(),
+    /** Interlocuteur chez le fournisseur, recopié pour le bon imprimé. */
+    contactId: uuid("contact_id").references(() => contactsTiers.id, { onDelete: "set null" }),
+    contactNom: text("contact_nom"),
     /** Dépôt où la marchandise est attendue. */
     depotId: uuid("depot_id").references(() => depots.id, { onDelete: "restrict" }),
     dateCommande: date("date_commande").notNull(),

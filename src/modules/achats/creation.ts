@@ -10,6 +10,7 @@ import { prochainNumero, type Transaction } from "@/lib/sequences";
 import { cheminDe, deposer, supprimer } from "@/lib/stockage";
 import { articles, famillesArticle } from "@/modules/catalogue/schema";
 import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
+import { contactPourPiece } from "@/modules/tiers/contacts";
 import { lettrerPiecesSoldees } from "@/modules/comptabilite/lettrage-auto";
 import { enregistrerMouvementDans } from "@/modules/stock/creation";
 import { alertesReapprovisionnement, depotParDefaut, quantiteSuggeree } from "@/modules/stock/requetes";
@@ -71,6 +72,8 @@ export interface NouvelleCommande {
   dateCommande: string;
   livraisonPrevue?: string | null;
   notes?: string | null;
+  /** Interlocuteur chez le fournisseur. */
+  contactId?: string | null;
   lignes: LigneSaisieAchat[];
 }
 
@@ -110,6 +113,7 @@ export async function creerCommandeDans(tx: Transaction, organizationId: string,
     totalTva: t.totalTva,
     totalTtc: t.totalTtc,
     notes: c.notes?.trim() || null,
+    ...(await contactPourPiece(tx, organizationId, fournisseur.id, c.contactId)),
     creeParUserId: userId,
   });
   await ecrireLignesCommande(tx, organizationId, id, c.lignes);
@@ -144,6 +148,7 @@ export async function modifierCommandeDans(tx: Transaction, organizationId: stri
       dateCommande: c.dateCommande,
       livraisonPrevue: c.livraisonPrevue ?? null,
       notes: c.notes?.trim() || null,
+      ...(await contactPourPiece(tx, organizationId, fournisseur.id, c.contactId)),
       totalHt: t.totalHt,
       totalTva: t.totalTva,
       totalTtc: t.totalTtc,
