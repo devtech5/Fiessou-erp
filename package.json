@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:base",
     "prepare": "git config core.hooksPath .githooks || exit 0",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -19,7 +19,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:base": "vitest run --config vitest.integration.config.mts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0",

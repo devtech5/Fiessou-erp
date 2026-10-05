@@ -25,12 +25,13 @@ export function cheminValide(chemin: string): boolean {
 }
 
 function racine(): string {
-  return path.resolve(env.STOCKAGE_LOCAL ?? ".stockage");
+  // Chemin choisi à l'exécution : hors du traçage, sinon tout le projet part dans l'image.
+  return path.resolve(/*turbopackIgnore: true*/ env.STOCKAGE_LOCAL ?? ".stockage");
 }
 
 function emplacement(chemin: string): string {
   if (!cheminValide(chemin)) throw new Error("Chemin de fichier invalide.");
-  return path.join(racine(), ...chemin.split("/"));
+  return path.join(/*turbopackIgnore: true*/ racine(), ...chemin.split("/"));
 }
 
 function signature(chemin: string, expire: number): string {

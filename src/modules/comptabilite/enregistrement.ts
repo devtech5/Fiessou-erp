@@ -29,7 +29,8 @@ export type OrigineEcriture =
   | "releve"
   | "paie"
   | "tva"
-  | "cloture";
+  | "cloture"
+  | "reprise";
 
 /** Refus d'une période fermée : un message pour l'utilisateur, pas une panne. */
 export class PeriodeVerrouillee extends Error {}

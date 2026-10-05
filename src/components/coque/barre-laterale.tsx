@@ -67,6 +67,7 @@ const GROUPES: GroupeModules[] = [
     titre: "Administration",
     modules: [
       { href: "/membres", racine: "/membres", libelle: "Utilisateurs", droit: "organisation.membre.gerer" },
+      { href: "/demarrage", racine: "/demarrage", libelle: "Démarrage", droit: "organisation.reprise.importer" },
       { href: "/journal", racine: "/journal", libelle: "Journal d'activité", droit: "organisation.journal.consulter" },
     ],
   },

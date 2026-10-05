@@ -24,5 +24,7 @@ pnpm typecheck
 
 echo "→ Tests unitaires"
 pnpm test
+echo "→ Tests d'intégration (PostgreSQL en mémoire)"
+pnpm test:base
 
 echo "✓ Vérifications passées"

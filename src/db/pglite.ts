@@ -37,14 +37,14 @@ const globalPglite = globalThis as unknown as {
  */
 export function ouvrirPglite(url: string): Promise<unknown> {
   globalPglite.fiessouPglite ??= (async () => {
-    const dossier = resolve(url.slice("pglite:".length) || "./.pglite");
+    const dossier = resolve(/*turbopackIgnore: true*/ url.slice("pglite:".length) || "./.pglite");
     mkdirSync(dossier, { recursive: true });
 
     const client = new PGlite(dossier);
     await client.waitReady;
 
     const instance = drizzle(client, { schema });
-    await migrate(instance, { migrationsFolder: resolve("./drizzle") });
+    await migrate(instance, { migrationsFolder: resolve(/*turbopackIgnore: true*/ "./drizzle") });
 
     const { synchroniserDroits } = await import("./droits");
     await synchroniserDroits((texte, valeurs) => client.query(texte, valeurs));
@@ -64,7 +64,7 @@ export function ouvrirPglite(url: string): Promise<unknown> {
  * PGlite rend `{ rows, fields, … }`. Tout le code applicatif lit un tableau —
  * l'adaptateur évite d'y semer des conditions sur le pilote.
  */
-function adapter<T extends object>(instance: T): T {
+export function adapter<T extends object>(instance: T): T {
   return new Proxy(instance, {
     get(cible, cle, recepteur) {
       const valeur = Reflect.get(cible, cle, recepteur);

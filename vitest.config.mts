@@ -28,6 +28,8 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
+    // Les tests d'intégration ont leur configuration : `pnpm test:base`.
+    exclude: ["tests/integration/**", "node_modules/**"],
     environment: "node",
   },
 });

@@ -156,10 +156,13 @@ Le **calcul**, et lui seul : l'argent, les quantités, la numérotation, le
 réapprovisionnement. Une erreur d'affichage se voit ; un franc perdu par ligne,
 non — il se découvre à la déclaration de TVA, six mois plus tard.
 
-Les tests vivent dans `tests/`, tournent sous Vitest et ne touchent jamais la
-base. Ce qui passe par PostgreSQL se vérifie contre une vraie base, avec ses
-contraintes et sa numérotation : un test à double simulerait justement la
-partie qui casse.
+Les tests unitaires vivent dans `tests/`, tournent sous Vitest et ne touchent
+jamais la base. Ce qui passe par PostgreSQL se vérifie contre une vraie base,
+avec ses contraintes et sa numérotation : un test à double simulerait
+justement la partie qui casse. C'est `tests/integration/` (`pnpm test:base`) :
+PGlite en mémoire, toutes migrations appliquées, `globalThis.fiessouDb`
+installé pour que `@/db` le retrouve. `pnpm verify`, le hook et la CI lancent
+les deux.
 
 `vitest.config.mts` neutralise `server-only` — le paquet lève une exception
 hors d'un bundler React, ce qui rendrait intestable un module serveur, y
@@ -245,6 +248,14 @@ par `instrumentation.ts` au démarrage (`src/db/demarrage.ts`).
 `/plateforme`. Échéance passée : 7 jours de grâce, puis lecture seule —
 `droitsActifs` ne garde que les droits `*.consulter`. Toute nouvelle action
 doit donc passer par `refusDroit`/`peut`, sinon elle échappe à la coupure.
+
+## Reprise de l'existant
+
+`/demarrage` (`src/modules/reprise/`) importe des CSV (articles, tiers avec
+soldes, stock initial) et reprend les soldes de trésorerie. Une créance
+reprise est une facture émise, une dette une facture fournisseur : elles se
+règlent et se lettrent comme les autres. Contrepartie : le compte d'attente
+4711, à reclasser par le comptable. Un fichier passe en entier ou pas du tout.
 
 ## La base est sur Supabase
 

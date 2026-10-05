@@ -1,0 +1,35 @@
+# Les mêmes vérifications que le hook de pré-commit, à chaque poussée : un
+# `git commit --no-verify` en urgence ne doit pas laisser passer une erreur.
+name: Vérification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: pnpm
+        run: corepack enable
+
+      - name: Dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Analyse statique, types, tests
+        run: pnpm verify
+
+      - name: Construction
+        run: pnpm build
+        env:
+          # La construction n'ouvre pas la base : des valeurs factices suffisent.
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+          AUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci

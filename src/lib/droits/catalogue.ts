@@ -581,6 +581,14 @@ export const DROITS = [
       "Identité de l'entreprise, modules souscrits, abonnement. " +
       "Ce qui engage financièrement reste au propriétaire.",
   },
+  {
+    cle: "organisation.reprise.importer",
+    moduleKey: TRANSVERSE,
+    libelle: "Reprendre l'existant",
+    description:
+      "Importer articles, clients, fournisseurs et stock initial, et reprendre les dettes, " +
+      "créances et soldes de trésorerie antérieurs. Passe des écritures d'ouverture.",
+  },
 ] as const satisfies readonly DefinitionDroit[];
 
 export type Droit = (typeof DROITS)[number]["cle"];

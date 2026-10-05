@@ -28,7 +28,7 @@ export async function migrerAuDemarrage(): Promise<void> {
   const client = postgres(url, { max: 1, onnotice: () => {} });
   try {
     await client`select pg_advisory_lock(${VERROU_MIGRATION})`;
-    await migrate(drizzle(client), { migrationsFolder: resolve("./drizzle") });
+    await migrate(drizzle(client), { migrationsFolder: resolve(/*turbopackIgnore: true*/ "./drizzle") });
     await synchroniserDroits(async (texte, valeurs) => ({
       rows: await client.unsafe(texte, (valeurs ?? []) as never[]),
     }));

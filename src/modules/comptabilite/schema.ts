@@ -40,6 +40,7 @@ export const originePiece = pgEnum("origine_piece", [
   "paie",
   "tva",
   "cloture",
+  "reprise",
 ]);
 
 /**

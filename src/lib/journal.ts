@@ -203,6 +203,10 @@ const LIBELLES: Record<string, string> = {
   "paie.verser_cnps": "a versé les cotisations CNPS",
   "paie.verser_impot": "a versé l'impôt sur salaires",
 
+  "reprise.articles": "a importé des articles",
+  "reprise.tiers": "a repris clients, fournisseurs et soldes antérieurs",
+  "reprise.stock": "a repris le stock initial",
+  "reprise.tresorerie": "a repris un solde de trésorerie",
   "souscription.payer": "a enregistré un paiement d'abonnement Fiessou",
   "souscription.suspendre": "a suspendu l'abonnement Fiessou",
   "souscription.reactiver": "a réactivé l'abonnement Fiessou",
@@ -342,6 +346,7 @@ const MODULES: Record<string, string> = {
   bareme_paie: "Paie",
   declaration_tva: "Fiscalité",
   souscription: "Abonnement",
+  reprise: "Démarrage",
   exercice: "Fiscalité",
 };
 
