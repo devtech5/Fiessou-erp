@@ -133,7 +133,7 @@ export default async function PageFiscalite() {
               return (
                 <tr key={o.mois}>
                   <Td fort>
-                    {libelleMois(o.mois)}
+                    <span className="whitespace-nowrap">{libelleMois(o.mois)}</span>
                     {!o.declaree && o.statut !== "en_cours" && <span className="block text-[11px] font-normal text-[var(--encre-faible)]">Estimation</span>}
                   </Td>
                   <Td aligne="droite" chiffres>
@@ -190,7 +190,7 @@ export default async function PageFiscalite() {
                   return (
                     <tr key={p.id}>
                       <Td fort>
-                        <Link href={`/rh/paie?mois=${p.mois}`} className="hover:underline">
+                        <Link href={`/rh/paie?mois=${p.mois}`} className="whitespace-nowrap hover:underline">
                           {libelleMois(p.mois)}
                         </Link>
                       </Td>
