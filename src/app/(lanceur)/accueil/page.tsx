@@ -33,12 +33,20 @@ export default async function PageAccueil() {
   const role = entreprises.find((e) => e.id === session.organizationId)?.roleNom;
   const total = groupes.reduce((s, g) => s + g.modules.length, 0);
 
-  const raccourcis: { href: string; libelle: string; description: string; icone: CleIcone }[] = [
-    ...(droits.has("pos.vente.encaisser") ? [{ href: "/caisse", libelle: "Caisse", description: "Encaisser au comptoir, même sans réseau.", icone: "caisse" as const }] : []),
-    { href: "/", libelle: "Tableau de bord", description: "Où est l'argent, ce que la journée a produit, ce qui attend une décision.", icone: "tableau-de-bord" },
-  ];
+  type EntreeTuile = { href: string; libelle: string; description: string; icone: CleIcone };
+  const tableauDeBord: EntreeTuile = { href: "/", libelle: "Tableau de bord", description: "Où est l'argent, ce que la journée a produit, ce qui attend une décision.", icone: "tableau-de-bord" };
+  const caisse: EntreeTuile = { href: "/caisse", libelle: "Caisse", description: "Encaisser au comptoir, même sans réseau.", icone: "caisse" };
 
-  const tuiles = [...raccourcis, ...groupes.flatMap((g) => g.modules)];
+  // Le tableau de bord ouvre la grille ; la caisse suit la trésorerie, dont
+  // elle alimente les tiroirs. Sans trésorerie visible, elle ferme la
+  // famille Finance, ou à défaut suit le tableau de bord.
+  const tuiles: EntreeTuile[] = [tableauDeBord, ...groupes.flatMap((g) => g.modules)];
+  if (droits.has("pos.vente.encaisser")) {
+    const finance = groupes.find((g) => g.titre === "Finance")?.modules ?? [];
+    const apres = tuiles.findIndex((t) => t.href === "/tresorerie");
+    const repli = finance.length ? tuiles.indexOf(finance[finance.length - 1]) : 0;
+    tuiles.splice((apres >= 0 ? apres : repli) + 1, 0, caisse);
+  }
 
   return (
     <main className="flex flex-1 flex-col px-4 pt-3 lg:px-10">
