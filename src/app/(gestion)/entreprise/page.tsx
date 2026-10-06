@@ -7,6 +7,7 @@ import { peut } from "@/lib/droits/garde";
 import { identiteEntreprise } from "@/lib/identite";
 
 import { FormulaireIdentite } from "./formulaire";
+import { FormulaireSecurite } from "./securite";
 
 export const metadata: Metadata = { title: "Entreprise" };
 
@@ -22,7 +23,7 @@ export default async function PageEntreprise() {
 
   return (
     <>
-      <EnTetePage titre="Entreprise" sousTitre="Identité, logo et mentions imprimées sur vos documents" />
+      <EnTetePage titre="Entreprise" sousTitre="Identité, logo et mentions imprimées sur vos documents, sécurité des postes" />
       <FormulaireIdentite
         initial={{
           nom: i.nom,
@@ -40,6 +41,7 @@ export default async function PageEntreprise() {
         }}
         libelles={{ identifiantFiscal: i.referentiel.identifiantFiscalLong, sigle: i.referentiel.identifiantFiscal, registre: i.referentiel.registre }}
       />
+      <FormulaireSecurite delai={session.delaiVerrouillage} />
     </>
   );
 }

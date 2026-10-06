@@ -4,6 +4,7 @@ import {
   date,
   boolean,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -83,12 +84,19 @@ export const organizations = pgTable(
      */
     payeJusquAu: date("paye_jusqu_au"),
 
+    /**
+     * Minutes sans activité avant que l'écran se verrouille. La caisse en est
+     * exemptée : elle reste ouverte entre deux clients.
+     */
+    delaiVerrouillageMinutes: integer("delai_verrouillage_minutes").notNull().default(10),
+
     ...timestamps,
     ...rowVersion,
   },
   (t) => [
     unique("organizations_slug_unique").on(t.slug),
     check("organizations_logo_taille", sql`${t.logo} IS NULL OR (length(${t.logo}) <= 131072 AND ${t.logo} LIKE 'data:image/%')`),
+    check("organizations_delai_verrouillage", sql`${t.delaiVerrouillageMinutes} BETWEEN 1 AND 240`),
     check("organizations_couleur", sql`${t.couleurDocuments} IS NULL OR ${t.couleurDocuments} ~ '^#[0-9a-fA-F]{6}$'`),
   ],
 );

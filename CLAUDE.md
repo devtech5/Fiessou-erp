@@ -249,6 +249,20 @@ par `instrumentation.ts` au démarrage (`src/db/demarrage.ts`).
 `droitsActifs` ne garde que les droits `*.consulter`. Toute nouvelle action
 doit donc passer par `refusDroit`/`peut`, sinon elle échappe à la coupure.
 
+## Verrouillage après inactivité
+
+Sans souris, clavier ni toucher pendant `organizations.delai_verrouillage_minutes`
+(10 par défaut, réglable sur `/entreprise`), l'écran se voile et ne s'ouvre
+qu'avec le mot de passe ; la page reste montée, la saisie est conservée.
+`exigerSession` refuse toute page et toute action à une session verrouillée
+(`sessions.verrouillee_le`, ou `last_seen_at` plus vieux que délai + marge) :
+recharger ne contourne pas le voile. Règles pures : `src/lib/auth/verrou.ts`.
+
+**La caisse est exemptée** : elle passe `exigerEntreprise({ malgreVerrou: true })`
+— page, encaissement, ouverture et clôture de tiroir. Toute nouvelle action
+appelée depuis l'écran de caisse doit en faire autant, sinon un onglet de
+gestion voisin qui se voile bloque l'encaissement. Nulle part ailleurs.
+
 ## Reprise de l'existant
 
 `/demarrage` (`src/modules/reprise/`) importe des CSV (articles, tiers avec

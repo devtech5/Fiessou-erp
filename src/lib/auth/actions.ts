@@ -302,6 +302,7 @@ export async function seDeconnecter(): Promise<void> {
 export async function basculerEntreprise(organizationId: string): Promise<void> {
   const active = await lireSession();
   if (!active) redirect("/connexion");
+  if (active.verrouillee) redirect("/verrouille");
 
   const autorises = await db
     .select({ id: memberships.id })

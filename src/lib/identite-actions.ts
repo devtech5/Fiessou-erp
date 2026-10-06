@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { organizations } from "@/db/schema";
 import { tracer } from "@/lib/audit";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { delaiValide } from "@/lib/auth/verrou";
 import { refusDroit } from "@/lib/droits/garde";
 
 export type Resultat = { ok: true; message: string } | { ok: false; message: string };
@@ -84,4 +85,32 @@ export async function modifierIdentite(saisie: z.input<typeof schema>): Promise<
   });
   revalidatePath("/", "layout");
   return { ok: true, message: "Identité enregistrée : elle s'imprime dès maintenant sur les factures, bons et tickets." };
+}
+
+/** Délai d'inactivité avant le verrouillage de l'écran, pour toute l'entreprise. */
+export async function modifierDelaiVerrouillage(minutes: number): Promise<Resultat> {
+  const session = await exigerEntreprise();
+  const refus = await refusDroit("organisation.parametres.gerer");
+  if (refus) return { ok: false, message: refus.erreur };
+  if (!delaiValide(minutes)) return { ok: false, message: "Délai non proposé." };
+
+  const [avant] = await db
+    .select({ delai: organizations.delaiVerrouillageMinutes })
+    .from(organizations)
+    .where(eq(organizations.id, session.organizationId));
+
+  await db
+    .update(organizations)
+    .set({ delaiVerrouillageMinutes: minutes, updatedAt: new Date(), version: sql`${organizations.version} + 1` })
+    .where(eq(organizations.id, session.organizationId));
+
+  await tracer({
+    action: "organisation.verrouillage",
+    entite: "organisation",
+    entiteId: session.organizationId,
+    avant: { delaiMinutes: avant?.delai },
+    apres: { delaiMinutes: minutes },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true, message: `L'écran se verrouillera après ${minutes} minutes sans activité.` };
 }

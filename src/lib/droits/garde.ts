@@ -49,7 +49,10 @@ export const droitsActifs = cache(async (): Promise<Set<Droit>> => {
 
 /** Droits du rôle et des restrictions, avant l'effet de l'abonnement. */
 const droitsSansAbonnement = cache(async (): Promise<Set<Droit>> => {
-  const session = await exigerEntreprise();
+  // Le verrou n'est pas affaire de droits : il se contrôle là où la session
+  // est exigée, page ou action. Le vérifier ici aussi fermerait la caisse,
+  // qui en est exemptée, dès qu'un onglet de gestion voisin se voile.
+  const session = await exigerEntreprise({ malgreVerrou: true });
   const [duRole, restrictions] = await Promise.all([droitsDuRole(session), restrictionsDe(session)]);
   return appliquerRestrictions(duRole, restrictions);
 });

@@ -75,7 +75,9 @@ export type ResultatEncaissement =
 export async function encaisserTicket(
   ticket: TicketEntrant,
 ): Promise<ResultatEncaissement> {
-  const session = await exigerEntreprise();
+  // La caisse est exemptée du verrou d'inactivité, et la file hors connexion
+  // rejoue ses tickets sans personne devant l'écran.
+  const session = await exigerEntreprise({ malgreVerrou: true });
 
   if (!(await peut("pos.vente.encaisser")) && !(await encaissementTolere(ticket.encaisseeLe))) {
     return { ok: false, message: (await refusDroit("pos.vente.encaisser"))?.erreur ?? messageRefus("pos.vente.encaisser") };

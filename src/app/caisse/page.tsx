@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ServiceWorkerCaisse } from "@/components/service-worker";
+import { VerrouInactivite } from "@/components/coque/verrou-inactivite";
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { identiteEntreprise, lignesTicket } from "@/lib/identite";
 import { peut } from "@/lib/droits/garde";
@@ -15,7 +16,9 @@ import type { ArticleCaisse } from "./types";
 export const metadata: Metadata = { title: "Caisse" };
 
 export default async function PageCaisse() {
-  const session = await exigerEntreprise();
+  // Exemptée du verrou d'inactivité : la caisse reste ouverte entre deux
+  // clients, même si un onglet de gestion voisin s'est voilé.
+  const session = await exigerEntreprise({ malgreVerrou: true });
 
   // La caisse est le seul écran plein cadre : pas de coque où loger un refus,
   // donc il occupe la page.
@@ -108,6 +111,14 @@ export default async function PageCaisse() {
       {/* La caisse doit pouvoir S'OUVRIR sans réseau. La vente, elle, est déjà
           hors ligne par la file locale. */}
       <ServiceWorkerCaisse />
+      {/* Ses gestes comptent comme activité, sans jamais la voiler. */}
+      <VerrouInactivite
+        mode="presence"
+        delaiMinutes={session.delaiVerrouillage}
+        nom={session.nom}
+        email={session.email}
+        entreprise={session.organizationNom}
+      />
       <EcranCaisse
         articles={articles}
         caissier={session.nom}

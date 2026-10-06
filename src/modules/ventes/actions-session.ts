@@ -43,7 +43,7 @@ export async function ouvrirSessionCaisse(
   _precedent: EtatSession,
   donnees: FormData,
 ): Promise<EtatSession> {
-  const session = await exigerEntreprise();
+  const session = await exigerEntreprise({ malgreVerrou: true }); // caisse : exemptée du verrou
 
   const refus = await refusDroit("pos.session.ouvrir");
   if (refus) return refus;
@@ -107,7 +107,7 @@ export async function cloturerSessionCaisse(
   _precedent: EtatCloture,
   donnees: FormData,
 ): Promise<EtatCloture> {
-  const session = await exigerEntreprise();
+  const session = await exigerEntreprise({ malgreVerrou: true }); // caisse : exemptée du verrou
 
   const refus = await refusDroit("pos.session.cloturer");
   if (refus) return refus;

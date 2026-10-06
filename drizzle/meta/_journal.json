@@ -232,6 +232,13 @@
       "when": 1791187884841,
       "tag": "0032_purple_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791246085532,
+      "tag": "0033_wakeful_jigsaw",
+      "breakpoints": true
     }
   ]
 }

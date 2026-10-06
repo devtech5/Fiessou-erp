@@ -3,6 +3,7 @@ import { BandeauDemo } from "@/components/coque/bandeau-demo";
 import { BarreLaterale } from "@/components/coque/barre-laterale";
 import { FilAriane } from "@/components/coque/fil-ariane";
 import type { OptionSelecteur } from "@/components/coque/selecteur";
+import { VerrouInactivite } from "@/components/coque/verrou-inactivite";
 import { exigerSession } from "@/lib/auth/dal";
 import { entreprisesAccessibles } from "@/lib/auth/entreprises";
 import { droitsActifs } from "@/lib/droits/garde";
@@ -70,47 +71,56 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
      * `dvh` et non `vh` : sur un téléphone, la barre d'adresse se rétracte au
      * défilement et `vh` laisse alors une bande morte en bas de l'écran.
      */
-    <div className="flex h-dvh flex-col overflow-hidden">
-      <BandeauDemo />
-      <BandeauAbonnement />
+    <>
+      <div id="coque-gestion" className="flex h-dvh flex-col overflow-hidden">
+        <BandeauDemo />
+        <BandeauAbonnement />
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <BarreLaterale
-          nomUtilisateur={session.nom}
-          entrepriseActive={session.organizationNom}
-          droits={droits}
-          modulesOuverts={modulesOuverts()}
-        />
-
-        {/*
-          `min-h-0` ici aussi, et pas seulement sur le contenu. Sur téléphone
-          la coque s'empile en colonne : sans lui, cette colonne refuse de
-          descendre sous la hauteur de son contenu, le contenu ne déborde donc
-          jamais, et tout ce qui dépasse l'écran se fait couper par le
-          `overflow-hidden` du dessus — inatteignable, sans barre de défilement
-          pour le signaler.
-        */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 items-center gap-3 border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-1.5">
-            <FilAriane
-              entreprises={options}
-              entrepriseActive={active}
-              exercice={active ? exerciceCourant : null}
-              exercices={[exerciceCourant]}
-            />
-          </header>
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <BarreLaterale
+            nomUtilisateur={session.nom}
+            entrepriseActive={session.organizationNom}
+            droits={droits}
+            modulesOuverts={modulesOuverts()}
+          />
 
           {/*
-            Le contenu est le conteneur de défilement. `min-h-0` est
-            indispensable : un enfant de flexbox refuse par défaut de devenir
-            plus petit que son contenu, et sans lui `overflow-y-auto` n'a rien
-            à faire déborder — la page recommencerait à défiler d'un bloc.
+            `min-h-0` ici aussi, et pas seulement sur le contenu. Sur téléphone
+            la coque s'empile en colonne : sans lui, cette colonne refuse de
+            descendre sous la hauteur de son contenu, le contenu ne déborde donc
+            jamais, et tout ce qui dépasse l'écran se fait couper par le
+            `overflow-hidden` du dessus — inatteignable, sans barre de défilement
+            pour le signaler.
           */}
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
-            {children}
-          </main>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <header className="flex shrink-0 items-center gap-3 border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-1.5">
+              <FilAriane
+                entreprises={options}
+                entrepriseActive={active}
+                exercice={active ? exerciceCourant : null}
+                exercices={[exerciceCourant]}
+              />
+            </header>
+
+            {/*
+              Le contenu est le conteneur de défilement. `min-h-0` est
+              indispensable : un enfant de flexbox refuse par défaut de devenir
+              plus petit que son contenu, et sans lui `overflow-y-auto` n'a rien
+              à faire déborder — la page recommencerait à défiler d'un bloc.
+            */}
+            <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
+              {children}
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+      <VerrouInactivite
+        cible="coque-gestion"
+        delaiMinutes={session.delaiVerrouillage}
+        nom={session.nom}
+        email={session.email}
+        entreprise={session.organizationNom}
+      />
+    </>
   );
 }

@@ -115,7 +115,17 @@ export const sessions = pgTable(
 
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    /**
+     * Dernière activité signalée par le navigateur — souris, clavier, toucher.
+     * Au-delà du délai de l'entreprise, la session se verrouille.
+     * Voir `src/lib/auth/verrou.ts`.
+     */
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Écran voilé : la session reste ouverte, mais aucune page ne se sert
+     * avant que le mot de passe ait été ressaisi.
+     */
+    verrouilleeLe: timestamp("verrouillee_le", { withTimezone: true }),
 
     ...timestamps,
   },

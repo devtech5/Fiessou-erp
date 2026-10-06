@@ -2,12 +2,13 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 
 import { db } from "@/db";
 import { memberships, organizations, roles, sessions, users } from "@/db/schema";
 import { newId } from "@/lib/ids";
+import { DELAI_VERROUILLAGE_DEFAUT, MARGE_SERVEUR_MINUTES, sessionVerrouillee } from "./verrou";
 
 export const COOKIE_SESSION = "fiessou_session";
 
@@ -59,6 +60,13 @@ export interface SessionActive {
    * quand le réseau manque.
    */
   deviceId: string | null;
+  /**
+   * Écran voilé après inactivité. La session vit toujours, mais `exigerSession`
+   * ne sert plus aucune page avant le mot de passe. Voir `./verrou.ts`.
+   */
+  verrouillee: boolean;
+  /** Minutes sans activité avant le verrou, selon l'entreprise active. */
+  delaiVerrouillage: number;
 }
 
 /**
@@ -117,6 +125,8 @@ export async function lireSession(): Promise<SessionActive | null> {
       statut: users.status,
       organizationId: sessions.organizationId,
       deviceId: sessions.deviceId,
+      derniereActivite: sessions.lastSeenAt,
+      verrouilleeLe: sessions.verrouilleeLe,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -140,6 +150,7 @@ export async function lireSession(): Promise<SessionActive | null> {
       roleId: memberships.roleId,
       roleCle: roles.key,
       estProprietaire: memberships.isOwner,
+      delaiVerrouillage: organizations.delaiVerrouillageMinutes,
     })
     .from(memberships)
     .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
@@ -171,6 +182,8 @@ export async function lireSession(): Promise<SessionActive | null> {
       .where(eq(sessions.id, ligne.sessionId));
   }
 
+  const delaiVerrouillage = actif?.delaiVerrouillage ?? DELAI_VERROUILLAGE_DEFAUT;
+
   return {
     sessionId: ligne.sessionId,
     userId: ligne.userId,
@@ -183,7 +196,61 @@ export async function lireSession(): Promise<SessionActive | null> {
     roleCle: actif?.roleCle ?? null,
     estProprietaire: actif?.estProprietaire ?? false,
     deviceId: ligne.deviceId,
+    verrouillee: sessionVerrouillee({
+      verrouilleeLe: ligne.verrouilleeLe,
+      derniereActivite: ligne.derniereActivite,
+      delaiMinutes: delaiVerrouillage,
+      maintenant: new Date(),
+    }),
+    delaiVerrouillage,
   };
+}
+
+/**
+ * Enregistre un signe de vie du navigateur.
+ *
+ * Un signe de vie ne DÉVERROUILLE jamais : la mise à jour ne prend que si la
+ * session n'est ni voilée ni éteinte depuis plus que le délai. Sans cette
+ * condition, bouger la souris devant un écran verrouillé — ou depuis la caisse
+ * restée ouverte à côté — rouvrirait la gestion sans mot de passe.
+ *
+ * Une session trouvée éteinte est verrouillée explicitement au passage : le
+ * verrou devient un fait inscrit, plus seulement une déduction de l'heure.
+ *
+ * Rend vrai si la session est toujours ouverte.
+ */
+export async function signalerPresence(sessionId: string, delaiMinutes: number): Promise<boolean> {
+  const limite = new Date(Date.now() - (delaiMinutes + MARGE_SERVEUR_MINUTES) * 60_000);
+  const vivantes = await db
+    .update(sessions)
+    .set({ lastSeenAt: new Date() })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        isNull(sessions.verrouilleeLe),
+        gt(sessions.lastSeenAt, limite),
+      ),
+    )
+    .returning({ id: sessions.id });
+  if (vivantes.length > 0) return true;
+  await verrouillerSessionId(sessionId);
+  return false;
+}
+
+/** Voile la session. Sans effet si elle l'est déjà : la première heure reste. */
+export async function verrouillerSessionId(sessionId: string): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ verrouilleeLe: sql`coalesce(${sessions.verrouilleeLe}, now())` })
+    .where(eq(sessions.id, sessionId));
+}
+
+/** Lève le voile et repart d'une activité fraîche. Le mot de passe est vérifié par l'appelant. */
+export async function deverrouillerSessionId(sessionId: string): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ verrouilleeLe: null, lastSeenAt: new Date() })
+    .where(eq(sessions.id, sessionId));
 }
 
 /** Choisit l'entreprise active de la session en cours. */
