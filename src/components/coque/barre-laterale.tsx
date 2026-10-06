@@ -6,12 +6,14 @@ import { usePathname } from "next/navigation";
 
 import { seDeconnecter } from "@/lib/auth/actions";
 import type { Droit } from "@/lib/droits/catalogue";
-import { groupesVisibles, type EntreeModule } from "@/lib/navigation";
+import { groupesVisibles, type CleIcone, type EntreeModule } from "@/lib/navigation";
+
+import { IconeModule } from "./icone-module";
 
 /** Hors groupes : l'accueil et le tableau de bord les traversent tous. */
-const ACCUEILS = [
-  { href: "/accueil", libelle: "Accueil" },
-  { href: "/", libelle: "Tableau de bord" },
+const ACCUEILS: { href: string; libelle: string; icone: CleIcone }[] = [
+  { href: "/accueil", libelle: "Accueil", icone: "accueil" },
+  { href: "/", libelle: "Tableau de bord", icone: "tableau-de-bord" },
 ];
 
 /**
@@ -95,12 +97,13 @@ export function BarreLaterale({
             key={entree.href}
             href={entree.href}
             aria-current={chemin === entree.href ? "page" : undefined}
-            className={`h-cible flex shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium lg:w-full ${
+            className={`h-cible flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium lg:w-full ${
               chemin === entree.href
                 ? "bg-marque-600 text-white"
                 : "text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]"
             }`}
           >
+            <IconeModule cle={entree.icone} className="size-[18px] shrink-0" />
             {entree.libelle}
           </Link>
         ))}
@@ -139,12 +142,13 @@ export function BarreLaterale({
                     key={module.href}
                     href={module.href}
                     aria-current={actif ? "page" : undefined}
-                    className={`h-cible flex shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium lg:w-full ${
+                    className={`h-cible flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium lg:w-full ${
                       actif
                         ? "bg-marque-600 text-white"
                         : "text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]"
                     }`}
                   >
+                    <IconeModule cle={module.icone} className="size-[18px] shrink-0" />
                     {module.libelle}
                   </Link>
                 );
@@ -157,8 +161,9 @@ export function BarreLaterale({
         {accordes.has("pos.vente.encaisser") && (
           <Link
             href="/caisse"
-            className="h-cible flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-marque-600 px-3 text-sm font-semibold text-marque-600 hover:bg-marque-600 hover:text-white lg:w-full"
+            className="h-cible flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-marque-600 px-3 text-sm font-semibold text-marque-600 hover:bg-marque-600 hover:text-white lg:w-full"
           >
+            <IconeModule cle="caisse" className="size-[18px] shrink-0" />
             Ouvrir la caisse
           </Link>
         )}

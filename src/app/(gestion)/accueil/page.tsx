@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LayoutDashboard, Store } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { IconeModule } from "@/components/coque/icone-module";
-
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { entreprisesAccessibles } from "@/lib/auth/entreprises";
 import { droitsActifs } from "@/lib/droits/garde";
 import { modulesOuverts } from "@/lib/modules/garde";
-import { groupesVisibles } from "@/lib/navigation";
+import { groupesVisibles, type CleIcone } from "@/lib/navigation";
 
 export const metadata: Metadata = { title: "Accueil" };
 
 /**
  * Écran d'arrivée après connexion : tous les modules que CETTE session peut
  * ouvrir, rangés par famille comme dans la barre latérale.
+ *
+ * Un lanceur, à la manière d'un écran de téléphone : une icône, un nom, rien
+ * d'autre — on reconnaît une icône plus vite qu'on ne lit une phrase. La
+ * description reste en infobulle et pour les lecteurs d'écran.
  *
  * Un caissier y voit la caisse et ses tâches ; un gérant, l'entreprise
  * entière. Rien n'y figure qui refuserait ensuite l'entrée : même filtre que
@@ -27,64 +30,66 @@ export default async function PageAccueil() {
   const role = entreprises.find((e) => e.id === session.organizationId)?.roleNom;
   const total = groupes.reduce((s, g) => s + g.modules.length, 0);
 
+  const raccourcis: { href: string; libelle: string; description: string; icone: CleIcone }[] = [
+    ...(droits.has("pos.vente.encaisser") ? [{ href: "/caisse", libelle: "Caisse", description: "Encaisser au comptoir, même sans réseau.", icone: "caisse" as const }] : []),
+    { href: "/", libelle: "Tableau de bord", description: "Où est l'argent, ce que la journée a produit, ce qui attend une décision.", icone: "tableau-de-bord" },
+  ];
+
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
+    // Le fond dégradé couvre toute la zone de contenu, marges comprises.
+    <div className="-m-4 min-h-[calc(100%+2rem)] bg-[linear-gradient(160deg,var(--fond)_0%,var(--surface-creuse)_100%)] px-4 py-6 lg:-m-6 lg:min-h-[calc(100%+3rem)] lg:px-10 lg:py-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-8">
           <h1 className="text-xl font-bold tracking-tight">Bonjour, {session.nom}</h1>
           <p className="mt-0.5 text-sm text-[var(--encre-douce)]">
             {session.organizationNom}
             {role && <> · {role}</>} · {total} module{total > 1 ? "s" : ""} accessible{total > 1 ? "s" : ""}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {droits.has("pos.vente.encaisser") && (
-            <Link href="/caisse" className="h-cible flex items-center gap-2 rounded-lg bg-marque-500 px-4 text-sm font-semibold text-white hover:bg-marque-600">
-              <Store aria-hidden className="size-4" />
-              Ouvrir la caisse
-            </Link>
-          )}
-          <Link href="/" className="h-cible flex items-center gap-2 rounded-lg border border-[var(--filet)] px-4 text-sm font-medium hover:bg-[var(--surface-creuse)]">
-            <LayoutDashboard aria-hidden className="size-4" />
-            Tableau de bord
-          </Link>
-        </div>
-      </div>
 
-      {groupes.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[var(--filet)] bg-[var(--surface)] p-6 text-sm text-[var(--encre-douce)]">
-          Aucun module ne vous est encore ouvert dans cette entreprise. Adressez-vous à son responsable pour qu&apos;il vous attribue un rôle.
-        </p>
-      ) : (
-        <div className="space-y-6">
-          {groupes.map((groupe) => (
-            <section key={groupe.titre} aria-labelledby={`groupe-${groupe.titre}`}>
-              <h2 id={`groupe-${groupe.titre}`} className="mb-2 flex items-baseline gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--encre-faible)]">
-                {groupe.titre}
-                <span className="chiffres font-medium normal-case tracking-normal">{groupe.modules.length}</span>
-              </h2>
-              <ul className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-                {groupe.modules.map((m) => (
-                  <li key={m.href}>
-                    <Link
-                      href={m.href}
-                      className="group flex h-full items-start gap-3 rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-3 hover:border-marque-400 sm:p-4"
-                    >
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-marque-50 text-marque-600 transition-colors group-hover:bg-marque-600 group-hover:text-white">
-                        <IconeModule cle={m.icone} className="size-5" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold">{m.libelle}</span>
-                        <span className="mt-0.5 block text-xs text-[var(--encre-douce)]">{m.description}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
+        <Grille>
+          {raccourcis.map((r) => (
+            <Tuile key={r.href} {...r} />
           ))}
-        </div>
-      )}
+        </Grille>
+
+        {groupes.length === 0 ? (
+          <p className="mt-8 rounded-xl border border-dashed border-[var(--filet)] bg-[var(--surface)] p-6 text-sm text-[var(--encre-douce)]">
+            Aucun module ne vous est encore ouvert dans cette entreprise. Adressez-vous à son responsable pour qu&apos;il vous attribue un rôle.
+          </p>
+        ) : (
+          groupes.map((groupe) => (
+            <section key={groupe.titre} aria-labelledby={`groupe-${groupe.titre}`} className="mt-8">
+              <h2 id={`groupe-${groupe.titre}`} className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--encre-faible)]">
+                {groupe.titre}
+              </h2>
+              <Grille>
+                {groupe.modules.map((m) => (
+                  <Tuile key={m.href} {...m} />
+                ))}
+              </Grille>
+            </section>
+          ))
+        )}
+      </div>
     </div>
+  );
+}
+
+function Grille({ children }: { children: ReactNode }) {
+  return <ul className="grid grid-cols-3 gap-x-2 gap-y-6 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">{children}</ul>;
+}
+
+function Tuile({ href, libelle, description, icone }: { href: string; libelle: string; description: string; icone: CleIcone }) {
+  return (
+    <li>
+      <Link href={href} title={description} className="group flex flex-col items-center gap-2 rounded-xl p-1 text-center outline-none focus-visible:ring-2 focus-visible:ring-marque-500">
+        <span className="flex size-16 items-center justify-center rounded-2xl border border-[var(--filet)] bg-[var(--surface)] shadow-sm transition duration-150 group-hover:-translate-y-0.5 group-hover:shadow-md sm:size-[72px]">
+          <IconeModule cle={icone} className="size-10 sm:size-11" />
+        </span>
+        <span className="text-xs font-medium leading-tight text-[var(--encre)] sm:text-sm">{libelle}</span>
+        <span className="sr-only">{description}</span>
+      </Link>
+    </li>
   );
 }

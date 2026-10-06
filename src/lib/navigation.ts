@@ -9,6 +9,7 @@ import { definitionDroit, type Droit } from "@/lib/droits/catalogue";
  */
 
 export const CLES_ICONE = [
+  "accueil", "tableau-de-bord", "caisse",
   "commercial", "stock", "achats", "prestataires", "marches", "reservations",
   "projets", "missions", "actifs", "parc-auto", "parc-informatique", "billetterie",
   "comptabilite", "tresorerie", "guichet",
