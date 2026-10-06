@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { newId } from "@/lib/ids";
-import { prochainNumero, type Transaction } from "@/lib/sequences";
+import { prochainNumero, prochainNumeroLibre, type Transaction } from "@/lib/sequences";
 
 import {
   actifs,
@@ -77,12 +77,17 @@ export async function creerActifDans(
     throw new Error("Un actif est confié à une personne, pas à deux.");
   }
 
+  // Code libre : la démonstration et la reprise posent des codes sans faire
+  // avancer le compteur, et la fiche suivante recevait INF-001, déjà pris.
   const code =
     donnees.code?.trim() ||
-    (await prochainNumero(tx, organizationId, {
-      cle: `actif:${type}`,
-      prefix: PREFIXE[type],
-      padding: 3,
+    (await prochainNumeroLibre(tx, organizationId, { cle: `actif:${type}`, prefix: PREFIXE[type], padding: 3 }, async (candidat) => {
+      const [pris] = await tx
+        .select({ id: actifs.id })
+        .from(actifs)
+        .where(and(eq(actifs.organizationId, organizationId), eq(actifs.code, candidat)))
+        .limit(1);
+      return Boolean(pris);
     }));
 
   const id = newId();

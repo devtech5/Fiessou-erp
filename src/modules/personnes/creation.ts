@@ -7,7 +7,7 @@ import { auditLogs } from "@/db/schema";
 import { ecritureBonPaiement, type MoyenBonPaiement } from "@/lib/comptabilite/ecritures";
 import { newId } from "@/lib/ids";
 import { montantLigne } from "@/lib/quantite";
-import { prochainNumero, type Transaction } from "@/lib/sequences";
+import { prochainNumero, prochainNumeroLibre, type Transaction } from "@/lib/sequences";
 import { enregistrerEcritureDans } from "@/modules/comptabilite/enregistrement";
 
 import {
@@ -103,44 +103,35 @@ export async function creerSalarieDans(
 }
 
 /**
- * Prochain matricule que personne ne porte.
- *
- * Un matricule imposé — reprise d'un fichier existant, jeu de démonstration —
- * ne fait pas avancer le compteur : sans ce saut, la première embauche suivante
- * recevait S0001, déjà pris, et l'embauche échouait sur la contrainte d'unicité.
- * Un matricule n'est pas une pièce comptable : un numéro sauté n'a pas à se
- * justifier, un doublon si.
+ * Prochain matricule libre : un matricule imposé — reprise, démonstration —
+ * ne fait pas avancer le compteur, et sans ce saut la première embauche
+ * suivante recevait S0001, déjà pris.
  */
 async function matriculeLibre(tx: Transaction, organizationId: string): Promise<string> {
-  for (let essai = 0; essai < 500; essai++) {
-    const candidat = await prochainNumero(tx, organizationId, { cle: "employe", prefix: "S", padding: 4 });
+  return prochainNumeroLibre(tx, organizationId, { cle: "employe", prefix: "S", padding: 4 }, async (candidat) => {
     const [pris] = await tx
       .select({ id: employees.id })
       .from(employees)
       .where(and(eq(employees.organizationId, organizationId), eq(employees.matricule, candidat)))
       .limit(1);
-    if (!pris) return candidat;
-  }
-  throw new Error("Aucun matricule libre : saisissez-le à la main.");
+    return Boolean(pris);
+  });
 }
 
 /**
  * Prochain code d'intervenant libre. Compteur distinct de celui des salariés :
  * mélanger les deux suites ferait sauter des matricules chez les uns au profit
- * des autres, et laisserait croire à des départs qui n'ont pas eu lieu. Même
- * saut des codes déjà pris que pour les matricules.
+ * des autres, et laisserait croire à des départs qui n'ont pas eu lieu.
  */
 async function codeIntervenantLibre(tx: Transaction, organizationId: string): Promise<string> {
-  for (let essai = 0; essai < 500; essai++) {
-    const candidat = await prochainNumero(tx, organizationId, { cle: "intervenant", prefix: "I", padding: 4 });
+  return prochainNumeroLibre(tx, organizationId, { cle: "intervenant", prefix: "I", padding: 4 }, async (candidat) => {
     const [pris] = await tx
       .select({ id: workers.id })
       .from(workers)
       .where(and(eq(workers.organizationId, organizationId), eq(workers.code, candidat)))
       .limit(1);
-    if (!pris) return candidat;
-  }
-  throw new Error("Aucun code d'intervenant libre : saisissez-le à la main.");
+    return Boolean(pris);
+  });
 }
 
 /** Même chose, hors d'une transaction existante. */

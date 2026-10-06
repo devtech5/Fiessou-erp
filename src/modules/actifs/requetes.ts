@@ -27,6 +27,8 @@ export interface ActifSuivi {
   uniteCompteur: string | null;
   /** Nom de la personne à qui l'actif est confié, quelle que soit sa nature. */
   affecteA: string | null;
+  /** Salarié affecté, quand c'en est un : conducteur, utilisateur d'un poste. */
+  employeId: string | null;
   /** Client propriétaire. Nul quand l'actif appartient à l'entreprise. */
   proprietaire: string | null;
   /** Somme des interventions non facturables : ce que l'actif a coûté. */
@@ -62,6 +64,7 @@ export async function listerActifs(
     date_acquisition: string | null;
     valeur_acquisition: string;
     unite_compteur: string | null;
+    employe_id: string | null;
     affecte_a: string | null;
     proprietaire: string | null;
     cout_maintenance: string;
@@ -78,6 +81,7 @@ export async function listerActifs(
       a.date_acquisition,
       a.valeur_acquisition,
       a.unite_compteur,
+      a.employe_id,
       coalesce(e.nom, w.nom) as affecte_a,
       t.nom as proprietaire,
       coalesce(i.cout, 0) as cout_maintenance,
@@ -121,6 +125,7 @@ export async function listerActifs(
     valeurAcquisition: Number(ligne.valeur_acquisition),
     uniteCompteur: ligne.unite_compteur,
     affecteA: ligne.affecte_a,
+    employeId: ligne.employe_id,
     proprietaire: ligne.proprietaire,
     coutMaintenance: Number(ligne.cout_maintenance),
     interventions: Number(ligne.interventions),

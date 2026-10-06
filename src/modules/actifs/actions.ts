@@ -19,6 +19,13 @@ import {
 } from "./creation";
 import { actifs } from "./schema";
 
+/** Les fiches de parc (auto, informatique) lisent les mêmes actifs. */
+function revaliderParcs() {
+  revalidatePath("/actifs", "layout");
+  revalidatePath("/parc-auto", "layout");
+  revalidatePath("/parc-informatique", "layout");
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -111,7 +118,7 @@ export async function creerActif(
       ),
     );
 
-    revalidatePath("/actifs", "layout");
+    revaliderParcs();
     return { code };
   } catch (erreur) {
     if (erreur instanceof Error) return { erreur: erreur.message };
@@ -160,7 +167,7 @@ export async function changerStatutActif(donnees: FormData): Promise<void> {
     after: { code: modifie.code, statut: analyse.data },
   });
 
-  revalidatePath("/actifs", "layout");
+  revaliderParcs();
 }
 
 // -------------------------------------------------------------- interventions
@@ -228,7 +235,7 @@ export async function enregistrerIntervention(
       ),
     );
 
-    revalidatePath("/actifs", "layout");
+    revaliderParcs();
     return { numero, message: valeurs.libelle };
   } catch (erreur) {
     if (erreur instanceof Error) return { erreur: erreur.message };
@@ -275,7 +282,7 @@ export async function enregistrerReleve(
     );
 
     await tracer({ action: "actif.releve", entite: "actif", entiteId: analyse.data.actifId, apres: { valeur: analyse.data.valeur } });
-    revalidatePath("/actifs", "layout");
+    revaliderParcs();
     return { message: `Compteur relevé à ${analyse.data.valeur}.` };
   } catch (erreur) {
     if (erreur instanceof Error) return { erreur: erreur.message };
@@ -292,7 +299,7 @@ export interface EtatEcheance {
 
 const schemaEcheance = z.object({
   actifId: z.string().regex(UUID, "Choisissez un actif."),
-  nature: z.enum(["assurance", "visite", "garantie", "entretien"]),
+  nature: z.enum(["assurance", "visite", "garantie", "entretien", "vignette", "patente"]),
   libelle: z.string().trim().max(80).optional(),
   echeanceLe: z.string().regex(DATE_ISO).optional(),
   compteurCible: entier.optional(),
@@ -335,7 +342,7 @@ export async function creerEcheance(
       ),
     );
 
-    revalidatePath("/actifs", "layout");
+    revaliderParcs();
     return { message: "Échéance enregistrée." };
   } catch (erreur) {
     if (erreur instanceof Error) return { erreur: erreur.message };

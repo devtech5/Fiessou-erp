@@ -304,3 +304,15 @@ export async function listerBonsPaiement(
     payeLe: new Date(ligne.paye_le),
   }));
 }
+
+/**
+ * Salariés en poste, pour un choix de personne : conducteur d'un véhicule,
+ * utilisateur d'un poste informatique.
+ */
+export async function salariesEnPoste(organizationId: string): Promise<{ id: string; nom: string; matricule: string }[]> {
+  return db
+    .select({ id: employees.id, nom: employees.nom, matricule: employees.matricule })
+    .from(employees)
+    .where(and(eq(employees.organizationId, organizationId), eq(employees.actif, true), isNull(employees.deletedAt)))
+    .orderBy(asc(employees.nom));
+}

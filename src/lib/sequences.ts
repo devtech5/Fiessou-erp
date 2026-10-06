@@ -90,3 +90,26 @@ export async function prochainNumero(
 
   return buildDocumentNumber({ prefix, suffix, padding, value: 1 });
 }
+
+/**
+ * Prochain numéro que personne ne porte encore.
+ *
+ * Pour les RÉFÉRENCES (matricule, code d'actif, code d'intervenant), pas pour
+ * les pièces : une référence peut être imposée — reprise d'un fichier, jeu de
+ * démonstration — sans faire avancer le compteur, et la création suivante
+ * recevait alors un numéro déjà pris. Un numéro sauté n'a pas à se justifier
+ * pour une référence ; un doublon, si. Une facture ou un ticket, eux, ne
+ * passent jamais par ici : leur suite ne tolère pas de trou.
+ */
+export async function prochainNumeroLibre(
+  tx: Transaction,
+  organizationId: string,
+  format: FormatSequence,
+  estPris: (candidat: string) => Promise<boolean>,
+): Promise<string> {
+  for (let essai = 0; essai < 500; essai++) {
+    const candidat = await prochainNumero(tx, organizationId, format);
+    if (!(await estPris(candidat))) return candidat;
+  }
+  throw new Error("Aucune référence libre : saisissez-la à la main.");
+}

@@ -23,6 +23,7 @@ import { tachesEnRetard } from "@/modules/taches/requetes";
 import { etatTresorerie, planDeTresorerie } from "@/modules/tresorerie/requetes";
 import { etatAchats } from "@/modules/achats/requetes";
 import { etatPaie } from "@/modules/paie/requetes";
+import { etatLicences } from "@/modules/parc-informatique/requetes";
 import { etatDossiers } from "@/modules/personnes/dossier";
 import { etatFiscalite } from "@/modules/fiscalite/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
@@ -98,6 +99,8 @@ const DROIT_PAR_RACINE: [string, Droit][] = [
   ["/comptabilite", "comptabilite.ecriture.consulter"],
   ["/monnaie", "valeur_electronique.consulter"],
   ["/actifs", "actifs.consulter"],
+  ["/parc-auto", "parc_auto.consulter"],
+  ["/parc-informatique", "parc_informatique.consulter"],
   ["/missions", "missions.consulter"],
   ["/projets", "projet.consulter"],
   ["/rh", "personnes.consulter"],
@@ -148,6 +151,7 @@ export default async function PageTableauDeBord() {
     paie,
     fiscalite,
     dossiers,
+    licences,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -170,6 +174,7 @@ export default async function PageTableauDeBord() {
     droits.has("personnes.paie.payer") || droits.has("personnes.paie.valider") ? etatPaie(session.organizationId, aujourdhui) : Promise.resolve(undefined),
     droits.has("comptabilite.fiscalite.declarer") ? etatFiscalite(session.organizationId, aujourdhui) : Promise.resolve(undefined),
     moduleOuvert("personnes") && droits.has("personnes.dossier.consulter") ? etatDossiers(session.organizationId, aujourdhui) : Promise.resolve(null),
+    moduleOuvert("parc_informatique") && droits.has("parc_informatique.consulter") ? etatLicences(session.organizationId) : Promise.resolve(null),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -206,8 +211,30 @@ export default async function PageTableauDeBord() {
       href: "/rh",
       nombre: dossiers.expirees + dossiers.bientot,
     });
-    toutesLesAlertes.sort((a, b) => ORDRE_GRAVITE[a.gravite] - ORDRE_GRAVITE[b.gravite]);
   }
+
+  // Licences : un poste installé au-delà des droits se facture à l'audit de
+  // l'éditeur ; une licence expirée coupe le logiciel un lundi matin.
+  if (licences && licences.depassees + licences.expirees + licences.bientot > 0) {
+    const graves = licences.depassees + licences.expirees;
+    toutesLesAlertes.push({
+      id: "licences-logicielles",
+      gravite: graves > 0 ? "critique" : "attention",
+      source: "base",
+      module: "Parc informatique",
+      titre: graves > 0 ? "Licences logicielles en défaut" : "Licences logicielles à renouveler",
+      detail: [
+        licences.depassees > 0 && `${licences.depassees} au-delà de ses postes`,
+        licences.expirees > 0 && `${licences.expirees} expirée${licences.expirees > 1 ? "s" : ""}`,
+        licences.bientot > 0 && `${licences.bientot} dans les 30 jours`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      href: "/parc-informatique/licences",
+      nombre: licences.depassees + licences.expirees + licences.bientot,
+    });
+  }
+  toutesLesAlertes.sort((a, b) => ORDRE_GRAVITE[a.gravite] - ORDRE_GRAVITE[b.gravite]);
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une

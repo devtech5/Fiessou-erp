@@ -18,7 +18,7 @@ import type { NatureIntervention } from "@/modules/actifs/schema";
 import {
   FormulaireIntervention,
   type OptionActif,
-} from "./formulaire-intervention";
+} from "@/components/actifs/formulaire-intervention";
 
 export const metadata: Metadata = { title: "Interventions" };
 

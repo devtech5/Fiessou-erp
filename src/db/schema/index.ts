@@ -40,3 +40,5 @@ export * from "@/modules/reservations/schema";
 export * from "@/modules/billetterie/schema";
 export * from "@/modules/monnaie/schema";
 export * from "@/modules/projets/schema";
+export * from "@/modules/parc-auto/schema";
+export * from "@/modules/parc-informatique/schema";

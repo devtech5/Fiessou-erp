@@ -276,6 +276,10 @@ export const natureEcheance = pgEnum("nature_echeance", [
   "visite",
   "garantie",
   "entretien",
+  // Taxe annuelle du véhicule et patente de transport : opposables comme
+  // l'assurance — un contrôle routier les demande.
+  "vignette",
+  "patente",
 ]);
 
 /**

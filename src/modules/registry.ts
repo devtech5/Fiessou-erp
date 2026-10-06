@@ -266,7 +266,29 @@ export const MODULES: ModuleDefinition[] = [
   { key: "location", name: "Location", layer: "metier", status: "planifie", requires: ["reservation"], description: "Matériel, engins, biens immobiliers, matériel événementiel." },
   { key: "transport", name: "Transport", layer: "metier", status: "planifie", requires: ["billetterie"], description: "Gares routières, lignes, billets." },
   { key: "livraison", name: "Livraison", layer: "metier", status: "planifie", requires: ["missions"], description: "Colis, déménagement, transfert." },
-  { key: "flotte", name: "Gestion de flotte", layer: "metier", status: "planifie", requires: ["actifs"], description: "Véhicules, entretiens, assurance, visite technique." },
+  {
+    key: "parc_auto",
+    name: "Parc automobile",
+    layer: "metier",
+    // En base : fiche véhicule (immatriculation, carte grise, énergie) posée
+    // sur l'actif, carnet de carburant qui alimente le compteur, consommation
+    // entre pleins complets, coût au kilomètre, échéances assurance, visite,
+    // vignette et patente. Restent les sinistres et amendes.
+    status: "en_cours",
+    requires: ["actifs"],
+    description: "Véhicules, conducteurs, carburant, kilométrage, entretiens, assurance, visite technique, vignette.",
+  },
+  {
+    key: "parc_informatique",
+    name: "Parc informatique",
+    layer: "metier",
+    // En base : fiche technique (série, système, réseau) posée sur l'actif,
+    // utilisateur attribué, pannes et garanties par le moteur, licences
+    // logicielles comptées par poste avec alerte de dépassement et d'expiration.
+    status: "en_cours",
+    requires: ["actifs"],
+    description: "Ordinateurs, imprimantes, réseau, téléphones : utilisateur, garantie, pannes, licences logicielles.",
+  },
   { key: "fitness", name: "Fitness", layer: "metier", status: "planifie", requires: ["reservation", "pos"], description: "Adhérents, formules, contrôle d'accès." },
   {
     key: "projet",

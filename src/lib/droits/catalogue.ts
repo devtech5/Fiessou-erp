@@ -238,6 +238,46 @@ export const DROITS = [
     description: "Assurance, visite technique, garantie, entretien périodique.",
   },
 
+  // ----------------------------------------------------------- parc auto
+  {
+    cle: "parc_auto.consulter",
+    moduleKey: "parc_auto",
+    libelle: "Consulter le parc automobile",
+    description: "Voir les véhicules, leur kilométrage, leur carburant et leurs échéances.",
+  },
+  {
+    cle: "parc_auto.vehicule.gerer",
+    moduleKey: "parc_auto",
+    libelle: "Gérer les véhicules",
+    description: "Ouvrir la fiche d'un véhicule, compléter sa carte grise, lui attribuer un conducteur.",
+  },
+  {
+    cle: "parc_auto.carburant.saisir",
+    moduleKey: "parc_auto",
+    libelle: "Saisir les pleins de carburant",
+    description: "Noter un plein : volume, montant, kilométrage. Le geste du conducteur ou du chef de parc.",
+  },
+
+  // --------------------------------------------------- parc informatique
+  {
+    cle: "parc_informatique.consulter",
+    moduleKey: "parc_informatique",
+    libelle: "Consulter le parc informatique",
+    description: "Voir les équipements, leurs utilisateurs, leurs garanties et les licences.",
+  },
+  {
+    cle: "parc_informatique.equipement.gerer",
+    moduleKey: "parc_informatique",
+    libelle: "Gérer les équipements informatiques",
+    description: "Ouvrir la fiche d'un équipement, compléter sa fiche technique, l'attribuer à un utilisateur.",
+  },
+  {
+    cle: "parc_informatique.licence.gerer",
+    moduleKey: "parc_informatique",
+    libelle: "Gérer les licences logicielles",
+    description: "Enregistrer une licence, voir sa clé, l'installer sur un poste ou l'en retirer.",
+  },
+
   // ---------------------------------------------------------- facturation
   {
     cle: "commercial.piece.consulter",

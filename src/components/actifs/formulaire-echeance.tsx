@@ -15,9 +15,13 @@ export interface OptionActifEcheance {
 const NATURES = [
   { valeur: "assurance", libelle: "Assurance" },
   { valeur: "visite", libelle: "Visite technique" },
+  { valeur: "vignette", libelle: "Vignette" },
+  { valeur: "patente", libelle: "Patente de transport" },
   { valeur: "entretien", libelle: "Entretien" },
   { valeur: "garantie", libelle: "Garantie" },
 ] as const;
+
+export type NatureProposee = (typeof NATURES)[number]["valeur"];
 
 /**
  * Pose d'une échéance.
@@ -28,9 +32,13 @@ const NATURES = [
  */
 export function FormulaireEcheance({
   actifs,
+  natures,
 }: {
   actifs: OptionActifEcheance[];
+  /** Natures proposées : un ordinateur n'a pas de visite technique. Toutes par défaut. */
+  natures?: readonly NatureProposee[];
 }) {
+  const proposees = natures ? NATURES.filter((n) => natures.includes(n.valeur)) : NATURES;
   const [ouvert, setOuvert] = useState(false);
   const [actifId, setActifId] = useState(actifs[0]?.id ?? "");
   const [etat, action, enCours] = useActionState<EtatEcheance, FormData>(
@@ -98,7 +106,7 @@ export function FormulaireEcheance({
 
         <Champ libelle="Nature">
           <select name="nature" defaultValue="entretien" className={CLASSE_CHAMP}>
-            {NATURES.map((n) => (
+            {proposees.map((n) => (
               <option key={n.valeur} value={n.valeur}>
                 {n.libelle}
               </option>
