@@ -15,6 +15,7 @@ import {
   supprimerBrouillon,
   type Resultat,
 } from "@/modules/facturation/actions";
+import { envoyerPiece } from "@/modules/communication/actions";
 import { resteDu, totaliserPiece } from "@/modules/facturation/calcul";
 import { ChoixCompteTresorerie } from "@/components/tresorerie/choix-compte";
 import type {
@@ -77,7 +78,7 @@ export function PiecesCommerciales({
   reglements: Record<string, ReglementVue[]>;
   options: OptionsPiece;
   aujourdHui: string;
-  droits: { gerer: boolean; annuler: boolean; encaisser: boolean };
+  droits: { gerer: boolean; annuler: boolean; encaisser: boolean; envoyer: boolean };
   /** Pièce à ouvrir d'emblée, demandée depuis la fiche d'un client. */
   ouvrir?: { nature: "devis" | "facture"; clientId: string };
 }) {
@@ -299,13 +300,13 @@ function DetailPiece({
   lignes: LignePieceVue[];
   reglements: ReglementVue[];
   aujourdHui: string;
-  droits: { gerer: boolean; annuler: boolean; encaisser: boolean };
+  droits: { gerer: boolean; annuler: boolean; encaisser: boolean; envoyer: boolean };
   enCours: boolean;
   agir: (action: () => Promise<Resultat>, apres?: (r: Resultat) => void) => void;
   onModifier: () => void;
   onSelectionner: (id: string) => void;
 }) {
-  const [panneau, setPanneau] = useState<"encaisser" | "annuler" | null>(null);
+  const [panneau, setPanneau] = useState<"encaisser" | "annuler" | "envoyer" | null>(null);
   const e = etat(piece);
   const reste = resteDu(piece.totalTtc, piece.regle);
   const parTaux = totaliserPiece(
@@ -469,6 +470,12 @@ function DetailPiece({
           </BoutonAction>
         )}
 
+        {piece.numero && piece.statut !== "annulee" && droits.envoyer && (
+          <BoutonAction disabled={enCours} onClick={() => setPanneau("envoyer")}>
+            {piece.enRetard ? "Relancer le client" : "Envoyer au client"}
+          </BoutonAction>
+        )}
+
         {piece.numero && (
           <a
             href={`/imprimer/piece/${piece.id}`}
@@ -486,6 +493,16 @@ function DetailPiece({
           pieceId={piece.id}
           reste={reste}
           aujourdHui={aujourdHui}
+          enCours={enCours}
+          onFermer={() => setPanneau(null)}
+          agir={agir}
+        />
+      )}
+
+      {panneau === "envoyer" && (
+        <FormulaireEnvoiClient
+          pieceId={piece.id}
+          relance={piece.enRetard}
           enCours={enCours}
           onFermer={() => setPanneau(null)}
           agir={agir}
@@ -661,5 +678,60 @@ function FormulaireAnnulation({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Envoi de la pièce au client, ou relance d'une facture échue : par e-mail ou
+ * WhatsApp, au contact de la pièce ou au client, sauf adresse saisie. Le
+ * message porte un lien qui ouvre la pièce sans compte.
+ */
+function FormulaireEnvoiClient({
+  pieceId,
+  relance,
+  enCours,
+  onFermer,
+  agir,
+}: {
+  pieceId: string;
+  relance: boolean;
+  enCours: boolean;
+  onFermer: () => void;
+  agir: (action: () => Promise<Resultat>, apres?: (r: Resultat) => void) => void;
+}) {
+  const [canal, setCanal] = useState<"email" | "whatsapp">("email");
+  const [adresse, setAdresse] = useState("");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        agir(
+          () => envoyerPiece(pieceId, canal, relance ? "relance" : "envoi", adresse || undefined),
+          (r) => r.ok && onFermer(),
+        );
+      }}
+      className="mt-4 space-y-3 rounded-xl border border-[var(--filet)] bg-[var(--surface-creuse)] p-3"
+    >
+      <p className="text-sm font-semibold">{relance ? "Relancer le client" : "Envoyer au client"}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Champ libelle="Canal">
+          <select value={canal} onChange={(e) => setCanal(e.target.value as "email" | "whatsapp")} className={CLASSE_CHAMP}>
+            <option value="email">E-mail</option>
+            <option value="whatsapp">WhatsApp</option>
+          </select>
+        </Champ>
+        <Champ libelle={canal === "email" ? "Adresse (facultatif)" : "Numéro (facultatif)"} precision="Vide : celle du contact de la pièce, ou du client.">
+          <input value={adresse} onChange={(e) => setAdresse(e.target.value)} className={CLASSE_CHAMP} inputMode={canal === "email" ? "email" : "tel"} />
+        </Champ>
+      </div>
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onFermer} className="h-cible rounded-lg px-3 text-sm text-[var(--encre-douce)] hover:underline">
+          Fermer
+        </button>
+        <button type="submit" disabled={enCours} className="h-cible rounded-lg bg-marque-500 px-4 text-sm font-semibold text-white disabled:opacity-50">
+          {enCours ? "Envoi…" : relance ? "Envoyer la relance" : "Envoyer"}
+        </button>
+      </div>
+    </form>
   );
 }

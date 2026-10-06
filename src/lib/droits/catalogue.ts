@@ -238,6 +238,40 @@ export const DROITS = [
     description: "Assurance, visite technique, garantie, entretien périodique.",
   },
 
+  // -------------------------------------------------------- communication
+  {
+    cle: "communication.consulter",
+    moduleKey: "communication",
+    libelle: "Consulter les envois",
+    description: "Voir le journal des e-mails et WhatsApp partis vers les clients et le personnel, et leurs échecs.",
+  },
+  {
+    cle: "communication.client.notifier",
+    moduleKey: "communication",
+    libelle: "Écrire aux clients",
+    description: "Envoyer un devis ou une facture au client, relancer une facture échue, enregistrer une désinscription.",
+  },
+  {
+    cle: "communication.campagne.gerer",
+    moduleKey: "communication",
+    libelle: "Envoyer des messages groupés",
+    description: "Préparer et envoyer un message à tout le personnel ou à une liste de clients.",
+  },
+
+  // ----------------------------------------------------------- messagerie
+  {
+    cle: "messagerie.utiliser",
+    moduleKey: "messagerie",
+    libelle: "Utiliser la messagerie",
+    description: "Écrire en privé aux autres utilisateurs et participer aux groupes dont on est membre.",
+  },
+  {
+    cle: "messagerie.groupe.gerer",
+    moduleKey: "messagerie",
+    libelle: "Créer et animer les groupes",
+    description: "Créer un groupe de discussion, y ajouter ou en retirer des membres.",
+  },
+
   // ----------------------------------------------------------- parc auto
   {
     cle: "parc_auto.consulter",
@@ -806,6 +840,7 @@ export const PRESETS_ROLES = [
       "tresorerie.bon.demander",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
+      "messagerie.utiliser",
     ],
   },
   {
@@ -823,6 +858,7 @@ export const PRESETS_ROLES = [
       "tresorerie.bon.demander",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
+      "messagerie.utiliser",
     ],
   },
   {
@@ -843,9 +879,12 @@ export const PRESETS_ROLES = [
       "personnes.consulter",
       "personnes.paie.preparer",
       "personnes.paie.payer",
+      "communication.consulter",
+      "communication.client.notifier",
       ...TRESORERIE_COMPTABLE,
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
+      "messagerie.utiliser",
     ],
   },
 ] as const satisfies readonly PresetRole[];

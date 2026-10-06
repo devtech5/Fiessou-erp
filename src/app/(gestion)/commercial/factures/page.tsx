@@ -37,13 +37,14 @@ export default async function PageFactures({
     return <AccesRefuse droit="commercial.piece.consulter" />;
   }
 
-  const [pieces, details, options, gerer, annuler, encaisser] = await Promise.all([
+  const [pieces, details, options, gerer, annuler, encaisser, envoyer] = await Promise.all([
     listerPieces(session.organizationId),
     detailsPieces(session.organizationId),
     optionsPiece(session.organizationId, session.userId),
     peut("commercial.piece.gerer"),
     peut("commercial.piece.annuler"),
     peut("commercial.reglement.encaisser"),
+    peut("communication.client.notifier"),
   ]);
 
   const factures = pieces.filter((p) => p.nature === "facture" && p.statut === "emise");
@@ -96,7 +97,7 @@ export default async function PageFactures({
         reglements={Object.fromEntries(details.reglements)}
         options={options}
         aujourdHui={aujourdHui}
-        droits={{ gerer, annuler, encaisser }}
+        droits={{ gerer, annuler, encaisser, envoyer }}
         ouvrir={gerer ? nouvelle : undefined}
       />
     </>

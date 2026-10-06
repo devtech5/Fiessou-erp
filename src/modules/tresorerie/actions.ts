@@ -34,6 +34,7 @@ import {
   reprendreComptesExistants,
 } from "./creation";
 import { bonsCaisse, comptesTresorerie } from "./schema";
+import { notifierDetenteurs } from "@/modules/communication/notifications";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -219,6 +220,17 @@ export async function demanderBon(donnees: FormData): Promise<Resultat> {
     });
     if (!analyse.success) return { ok: false, message: analyse.error.issues[0].message };
     const { numero } = await db.transaction((tx) => demanderBonDans(tx, organizationId, analyse.data, userId));
+    await notifierDetenteurs(
+      organizationId,
+      "tresorerie.bon.approuver",
+      {
+        categorie: "bon",
+        titre: `Bon de caisse ${numero} à approuver`,
+        corps: `${analyse.data.beneficiaire} — ${analyse.data.montant.toLocaleString("fr-FR")} FCFA : ${analyse.data.motif}`,
+        lien: "/tresorerie/caisse",
+      },
+      userId,
+    );
     return { ok: true, message: `Bon ${numero} demandé : il attend une approbation.` };
   });
 }

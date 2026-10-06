@@ -20,6 +20,7 @@ import {
   retirerPiece,
   type FichierJoint,
 } from "./creation";
+import { notifierDetenteurs } from "@/modules/communication/notifications";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -188,6 +189,12 @@ export async function demanderDepense(donnees: FormData): Promise<Resultat> {
       ),
     );
     await joindreTout(organizationId, { depenseId }, "facture", fichiers, userId);
+    await notifierDetenteurs(
+      organizationId,
+      "depense.approuver",
+      { categorie: "depense", titre: `Dépense ${numero} à approuver`, corps: `${analyse.data.objet} — ${analyse.data.montant.toLocaleString("fr-FR")} FCFA`, lien: "/projets/depenses" },
+      userId,
+    );
     return {
       ok: true,
       message: `Demande ${numero} enregistrée${fichiers.length ? `, ${pluriel(fichiers.length, "pièce")} jointe${fichiers.length > 1 ? "s" : ""}` : ""} — en attente d'approbation.`,

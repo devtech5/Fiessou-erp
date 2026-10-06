@@ -80,6 +80,20 @@ const schema = z.object({
   URL_PUBLIQUE: z.string().url().optional(),
 
   /**
+   * WhatsApp Business (API Cloud de Meta) : jeton d'accès et identifiant du
+   * numéro expéditeur. Vides : les envois WhatsApp sont refusés en le disant,
+   * l'e-mail reste disponible.
+   *
+   * Hors d'une conversation ouverte par le client dans les 24 heures, Meta
+   * n'accepte que des MODÈLES approuvés. `WHATSAPP_MODELE` nomme ce modèle —
+   * un corps à une variable, « {{1}} », qui reçoit le texte du message.
+   */
+  WHATSAPP_JETON: z.string().optional(),
+  WHATSAPP_NUMERO_ID: z.string().optional(),
+  WHATSAPP_MODELE: z.string().optional(),
+  WHATSAPP_LANGUE: z.string().default("fr"),
+
+  /**
    * Administrateurs de la plateforme : adresses e-mail, séparées par des
    * virgules. Ils voient toutes les entreprises et règlent leur abonnement.
    * Aucun rôle d'entreprise n'y donne accès.

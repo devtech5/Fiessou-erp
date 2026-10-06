@@ -253,6 +253,13 @@
       "when": 1791250977901,
       "tag": "0035_flaky_venus",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791253505311,
+      "tag": "0036_brave_puppet_master",
+      "breakpoints": true
     }
   ]
 }

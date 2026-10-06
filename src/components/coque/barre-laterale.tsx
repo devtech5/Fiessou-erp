@@ -61,6 +61,7 @@ const GROUPES: GroupeModules[] = [
     modules: [
       { href: "/rh", racine: "/rh", libelle: "Personnel", droit: "personnes.consulter" },
       { href: "/taches", racine: "/taches", libelle: "Tâches", droit: "taches.consulter" },
+      { href: "/messagerie", racine: "/messagerie", libelle: "Messagerie", droit: "messagerie.utiliser" },
       { href: "/documents", racine: "/documents", libelle: "Documents", droit: "documents.consulter" },
       { href: "/archives", racine: "/archives", libelle: "Archives", droit: "archives.consulter" },
     ],
@@ -71,6 +72,7 @@ const GROUPES: GroupeModules[] = [
       { href: "/membres", racine: "/membres", libelle: "Utilisateurs", droit: "organisation.membre.gerer" },
       { href: "/entreprise", racine: "/entreprise", libelle: "Entreprise", droit: "organisation.parametres.gerer" },
       { href: "/demarrage", racine: "/demarrage", libelle: "Démarrage", droit: "organisation.reprise.importer" },
+      { href: "/communication", racine: "/communication", libelle: "Communication", droit: "communication.consulter" },
       { href: "/journal", racine: "/journal", libelle: "Journal d'activité", droit: "organisation.journal.consulter" },
     ],
   },

@@ -9,6 +9,7 @@ import { peut, refusDroit } from "@/lib/droits/garde";
 
 import type { Acteur, Geste } from "./calcul";
 import { appliquerGesteDans, creerTacheDans, modifierTacheDans } from "./creation";
+import { notifier } from "@/modules/communication/notifications";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -70,6 +71,14 @@ export async function creerTache(donnees: FormData): Promise<Resultat> {
     const { numero } = await db.transaction((tx) => creerTacheDans(tx, organizationId, analyse.data, qui));
     rafraichir();
     const pourAutrui = analyse.data.assigneeUserId && analyse.data.assigneeUserId !== qui.userId;
+    if (pourAutrui && analyse.data.assigneeUserId) {
+      await notifier(organizationId, [analyse.data.assigneeUserId], {
+        categorie: "tache",
+        titre: `Nouvelle tâche ${numero} : ${analyse.data.titre}`,
+        corps: analyse.data.echeance ? `À faire avant le ${analyse.data.echeance}.` : null,
+        lien: "/taches",
+      });
+    }
     return { ok: true, message: pourAutrui ? `Tâche ${numero} créée et attribuée.` : `Tâche ${numero} ajoutée à votre liste.` };
   } catch (erreur) {
     return { ok: false, message: lisible(erreur) };

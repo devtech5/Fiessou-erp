@@ -1,6 +1,7 @@
 import { BandeauAbonnement } from "@/components/coque/bandeau-abonnement";
 import { BandeauDemo } from "@/components/coque/bandeau-demo";
 import { BarreLaterale } from "@/components/coque/barre-laterale";
+import { Cloche } from "@/components/coque/cloche";
 import { FilAriane } from "@/components/coque/fil-ariane";
 import type { OptionSelecteur } from "@/components/coque/selecteur";
 import { VerrouInactivite } from "@/components/coque/verrou-inactivite";
@@ -100,6 +101,11 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
                 exercice={active ? exerciceCourant : null}
                 exercices={[exerciceCourant]}
               />
+              {session.organizationId && (
+                <div className="ml-auto">
+                  <Cloche />
+                </div>
+              )}
             </header>
 
             {/*

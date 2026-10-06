@@ -25,7 +25,7 @@ const ROUTES_PUBLIQUES = ["/connexion", "/inscription"];
  * Ouvertes à tous, avec ou sans session : le lien de réinitialisation reçu
  * par e-mail doit marcher même sur un téléphone resté connecté.
  */
-const ROUTES_LIBRES = ["/mot-de-passe-oublie", "/reinitialiser"];
+const ROUTES_LIBRES = ["/mot-de-passe-oublie", "/reinitialiser", "/consulter/", "/desinscription/"];
 
 export default function proxy(requete: NextRequest) {
   const chemin = requete.nextUrl.pathname;

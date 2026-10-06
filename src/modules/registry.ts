@@ -183,6 +183,29 @@ export const MODULES: ModuleDefinition[] = [
     description: "Caisses, banques, mobile money, virements internes, petite caisse, avances, rapprochement bancaire, prévisions.",
   },
 
+  {
+    key: "communication",
+    name: "Communication",
+    layer: "socle",
+    // En base : notifications internes (cloche), envois e-mail et WhatsApp
+    // tracés un par un, pièces envoyées aux clients par lien signé, relances,
+    // désinscriptions, messages groupés au personnel et aux clients.
+    status: "en_cours",
+    requires: [],
+    description: "Notifications internes, envois aux clients par e-mail et WhatsApp, relances, messages groupés.",
+  },
+  {
+    key: "messagerie",
+    name: "Messagerie interne",
+    layer: "socle",
+    // En base : conversations privées et groupes, messages, pièces jointes,
+    // accusés de lecture. Le rafraîchissement se fait par interrogation
+    // régulière, pas de LISTEN/NOTIFY derrière le pooler en mode transaction.
+    status: "en_cours",
+    requires: [],
+    description: "Discussions privées entre utilisateurs et groupes créés par l'administration.",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",
