@@ -6,30 +6,15 @@ import { usePathname } from "next/navigation";
 
 import { seDeconnecter } from "@/lib/auth/actions";
 import type { Droit } from "@/lib/droits/catalogue";
-import { groupesVisibles, type CleIcone, type EntreeModule } from "@/lib/navigation";
+import { groupesVisibles, raccourcisCompte, type CleIcone, type EntreeModule } from "@/lib/navigation";
 
 import { IconeModule } from "./icone-module";
+import { SignatureFiessou } from "./signature";
 
 /** Hors groupes : l'accueil et le tableau de bord les traversent tous. */
 const ACCUEILS: { href: string; libelle: string; icone: CleIcone }[] = [
   { href: "/accueil", libelle: "Accueil", icone: "accueil" },
   { href: "/", libelle: "Tableau de bord", icone: "tableau-de-bord" },
-];
-
-/**
- * Raccourcis personnels du menu de compte.
- *
- * Ils pointent vers des modules, et disparaissent donc avec eux : « Mes
- * documents » sur un module fermé mène à un écran d'attente, ce qui est pire
- * qu'une entrée absente.
- */
-const RACCOURCIS_COMPTE: { href: string; libelle: string; module: string }[] = [
-  { href: "/taches", libelle: "Mes tâches", module: "taches" },
-  { href: "/documents", libelle: "Mes documents", module: "documents" },
-  { href: "/archives", libelle: "Mes archives", module: "archives" },
-  { href: "/rh", libelle: "Ressources humaines", module: "personnes" },
-  { href: "/abonnement", libelle: "Abonnement", module: "organisation" },
-  { href: "/mot-de-passe", libelle: "Changer de mot de passe", module: "organisation" },
 ];
 
 /**
@@ -74,8 +59,6 @@ export function BarreLaterale({
   const chemin = usePathname();
   const [replies, setReplies] = useState<string[]>([]);
   const accordes = new Set(droits);
-  // Le transverse (utilisateurs, mot de passe) n'est pas un module : toujours ouvert.
-  const ouverts = new Set([...modulesOuverts, "organisation"]);
   const groupes = groupesVisibles(droits, modulesOuverts);
 
   function basculerGroupe(titre: string) {
@@ -170,10 +153,11 @@ export function BarreLaterale({
 
         <MenuCompte
           gereLesMembres={accordes.has("organisation.membre.gerer")}
-          raccourcis={RACCOURCIS_COMPTE.filter((r) => ouverts.has(r.module))}
+          raccourcis={raccourcisCompte(modulesOuverts)}
           nomUtilisateur={nomUtilisateur}
           entrepriseActive={entrepriseActive}
         />
+        <SignatureFiessou className="hidden px-2 lg:block" />
       </div>
     </nav>
   );
@@ -186,11 +170,12 @@ export function BarreLaterale({
  * déconnexion. Le thème y figure parce qu'une caisse en plein soleil et un
  * bureau climatisé n'ont pas les mêmes besoins de contraste.
  */
-function MenuCompte({
+export function MenuCompte({
   nomUtilisateur,
   entrepriseActive,
   gereLesMembres,
   raccourcis,
+  ouverture = "haut",
 }: {
   nomUtilisateur: string;
   entrepriseActive: string | null;
@@ -198,6 +183,8 @@ function MenuCompte({
   gereLesMembres: boolean;
   /** Raccourcis vers les modules ouverts, filtrés par l'appelant. */
   raccourcis: { href: string; libelle: string }[];
+  /** `haut` en pied de barre latérale ; `bas` dans un coin d'écran, comme sur l'accueil. */
+  ouverture?: "haut" | "bas";
 }) {
   const [ouvert, setOuvert] = useState(false);
   const conteneur = useRef<HTMLDivElement>(null);
@@ -265,7 +252,9 @@ function MenuCompte({
       {ouvert && (
         <div
           role="menu"
-          className="absolute bottom-full left-0 z-50 mb-1 w-60 overflow-hidden lg:right-0 lg:w-auto rounded-xl border border-[var(--filet)] bg-[var(--surface)] shadow-lg"
+          className={`absolute z-50 overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)] shadow-lg ${
+            ouverture === "haut" ? "bottom-full left-0 mb-1 w-60 lg:right-0 lg:w-auto" : "right-0 top-full mt-1 w-64"
+          }`}
         >
           <div className="border-b border-[var(--filet)] px-3 py-2.5">
             <p className="truncate text-sm font-medium">{nomUtilisateur}</p>

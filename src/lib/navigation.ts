@@ -90,6 +90,28 @@ export const GROUPES_MODULES: GroupeModules[] = [
 ];
 
 /**
+ * Raccourcis personnels du menu de compte.
+ *
+ * Ils pointent vers des modules, et disparaissent donc avec eux : « Mes
+ * documents » sur un module fermé mène à un écran d'attente, ce qui est pire
+ * qu'une entrée absente.
+ */
+export const RACCOURCIS_COMPTE: { href: string; libelle: string; module: string }[] = [
+  { href: "/taches", libelle: "Mes tâches", module: "taches" },
+  { href: "/documents", libelle: "Mes documents", module: "documents" },
+  { href: "/archives", libelle: "Mes archives", module: "archives" },
+  { href: "/rh", libelle: "Ressources humaines", module: "personnes" },
+  { href: "/abonnement", libelle: "Abonnement", module: "organisation" },
+  { href: "/mot-de-passe", libelle: "Changer de mot de passe", module: "organisation" },
+];
+
+/** Les raccourcis du menu de compte dont le module est ouvert. */
+export function raccourcisCompte(modulesOuverts: Iterable<string>): { href: string; libelle: string }[] {
+  const ouverts = new Set([...modulesOuverts, "organisation"]);
+  return RACCOURCIS_COMPTE.filter((r) => ouverts.has(r.module)).map(({ href, libelle }) => ({ href, libelle }));
+}
+
+/**
  * Les groupes tels que la session les voit : une entrée s'affiche si le rôle
  * l'autorise ET si son module est ouvert sur l'instance. Un groupe vide
  * disparaît : un titre seul n'informe de rien.
