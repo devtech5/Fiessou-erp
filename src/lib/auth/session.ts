@@ -12,6 +12,14 @@ import { DELAI_VERROUILLAGE_DEFAUT, MARGE_SERVEUR_MINUTES, sessionVerrouillee } 
 
 export const COOKIE_SESSION = "fiessou_session";
 
+/**
+ * Où renvoyer quand le cookie est là mais ne désigne plus aucune session
+ * (révoquée, expirée). Le paramètre demande au proxy d'effacer le cookie :
+ * sans quoi le proxy, qui ne voit que sa présence, renverrait vers
+ * l'application, et l'application vers la connexion, sans fin.
+ */
+export const CONNEXION_EXPIREE = "/connexion?expiree=1";
+
 /** Trente jours : une caisse ne redemande pas ses identifiants chaque matin. */
 const DUREE_SESSION_JOURS = 30;
 

@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 
-import { lireSession, type SessionActive } from "./session";
+import { CONNEXION_EXPIREE, lireSession, type SessionActive } from "./session";
 
 /**
  * Couche d'accès : c'est ICI que se vérifie l'authentification, pas ailleurs.
@@ -36,7 +36,7 @@ export interface OptionsSession {
  */
 export async function exigerSession(options: OptionsSession = {}): Promise<SessionActive> {
   const active = await session();
-  if (!active) redirect("/connexion");
+  if (!active) redirect(CONNEXION_EXPIREE);
   // Un mot de passe provisoire est connu de celui qui l'a donné : tant qu'il
   // n'est pas remplacé, le compte n'ouvre que l'écran de changement.
   if (active.doitChangerMotDePasse) redirect("/mot-de-passe");

@@ -5,80 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { seDeconnecter } from "@/lib/auth/actions";
-import { definitionDroit, type Droit } from "@/lib/droits/catalogue";
+import type { Droit } from "@/lib/droits/catalogue";
+import { groupesVisibles, type EntreeModule } from "@/lib/navigation";
 
-export interface EntreeModule {
-  href: string;
-  racine: string;
-  libelle: string;
-  /** Droit sans lequel l'entrée ne s'affiche pas. */
-  droit: Droit;
-}
-
-export interface GroupeModules {
-  titre: string;
-  modules: EntreeModule[];
-}
-
-/** Le tableau de bord n'appartient à aucun groupe : il les traverse tous. */
-const ACCUEIL: Omit<EntreeModule, "droit"> = {
-  href: "/",
-  racine: "/",
-  libelle: "Tableau de bord",
-};
-
-const GROUPES: GroupeModules[] = [
-  {
-    titre: "Commerce",
-    modules: [
-      { href: "/commercial", racine: "/commercial", libelle: "Commercial", droit: "tiers.fiche.consulter" },
-      { href: "/stock", racine: "/stock", libelle: "Stock", droit: "stock.article.consulter" },
-      { href: "/achats", racine: "/achats", libelle: "Achats", droit: "achats.consulter" },
-      { href: "/prestataires", racine: "/prestataires", libelle: "Prestataires", droit: "prestataires.consulter" },
-      { href: "/marches", racine: "/marches", libelle: "Marchés et conventions", droit: "marches.consulter" },
-      { href: "/reservations", racine: "/reservations", libelle: "Réservations", droit: "reservation.consulter" },
-    ],
-  },
-  {
-    titre: "Terrain",
-    modules: [
-      { href: "/projets", racine: "/projets", libelle: "Projets", droit: "projet.consulter" },
-      { href: "/missions", racine: "/missions", libelle: "Missions", droit: "missions.consulter" },
-      { href: "/actifs", racine: "/actifs", libelle: "Actifs", droit: "actifs.consulter" },
-      { href: "/parc-auto", racine: "/parc-auto", libelle: "Parc auto", droit: "parc_auto.consulter" },
-      { href: "/parc-informatique", racine: "/parc-informatique", libelle: "Parc informatique", droit: "parc_informatique.consulter" },
-      { href: "/billetterie", racine: "/billetterie", libelle: "Billetterie", droit: "billetterie.consulter" },
-    ],
-  },
-  {
-    titre: "Finance",
-    modules: [
-      { href: "/comptabilite", racine: "/comptabilite", libelle: "Comptabilité", droit: "comptabilite.ecriture.consulter" },
-      { href: "/tresorerie", racine: "/tresorerie", libelle: "Trésorerie", droit: "tresorerie.bon.demander" },
-      { href: "/monnaie", racine: "/monnaie", libelle: "Guichet", droit: "valeur_electronique.consulter" },
-    ],
-  },
-  {
-    titre: "Ressources humaines",
-    modules: [
-      { href: "/rh", racine: "/rh", libelle: "Personnel", droit: "personnes.consulter" },
-      { href: "/taches", racine: "/taches", libelle: "Tâches", droit: "taches.consulter" },
-      { href: "/messagerie", racine: "/messagerie", libelle: "Messagerie", droit: "messagerie.utiliser" },
-      { href: "/boite-mail", racine: "/boite-mail", libelle: "Boîte mail", droit: "boite_mail.utiliser" },
-      { href: "/documents", racine: "/documents", libelle: "Documents", droit: "documents.consulter" },
-      { href: "/archives", racine: "/archives", libelle: "Archives", droit: "archives.consulter" },
-    ],
-  },
-  {
-    titre: "Administration",
-    modules: [
-      { href: "/membres", racine: "/membres", libelle: "Utilisateurs", droit: "organisation.membre.gerer" },
-      { href: "/entreprise", racine: "/entreprise", libelle: "Entreprise", droit: "organisation.parametres.gerer" },
-      { href: "/demarrage", racine: "/demarrage", libelle: "Démarrage", droit: "organisation.reprise.importer" },
-      { href: "/communication", racine: "/communication", libelle: "Communication", droit: "communication.consulter" },
-      { href: "/journal", racine: "/journal", libelle: "Journal d'activité", droit: "organisation.journal.consulter" },
-    ],
-  },
+/** Hors groupes : l'accueil et le tableau de bord les traversent tous. */
+const ACCUEILS = [
+  { href: "/accueil", libelle: "Accueil" },
+  { href: "/", libelle: "Tableau de bord" },
 ];
 
 /**
@@ -141,11 +74,7 @@ export function BarreLaterale({
   const accordes = new Set(droits);
   // Le transverse (utilisateurs, mot de passe) n'est pas un module : toujours ouvert.
   const ouverts = new Set([...modulesOuverts, "organisation"]);
-
-  /** Une entrée s'affiche si le rôle l'autorise ET si le module est ouvert. */
-  const affichable = (entree: EntreeModule) =>
-    accordes.has(entree.droit) &&
-    ouverts.has(definitionDroit(entree.droit).moduleKey);
+  const groupes = groupesVisibles(droits, modulesOuverts);
 
   function basculerGroupe(titre: string) {
     setReplies((actuels) =>
@@ -160,23 +89,25 @@ export function BarreLaterale({
       aria-label="Modules"
       className="nav-sombre flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-2 lg:w-56 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-2.5 lg:py-3"
     >
-      <Link
-        href={ACCUEIL.href}
-        aria-current={chemin === "/" ? "page" : undefined}
-        className={`h-cible mb-2 flex shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium lg:w-full ${
-          chemin === "/"
-            ? "bg-marque-600 text-white"
-            : "text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]"
-        }`}
-      >
-        {ACCUEIL.libelle}
-      </Link>
+      <div className="contents lg:mb-2 lg:block">
+        {ACCUEILS.map((entree) => (
+          <Link
+            key={entree.href}
+            href={entree.href}
+            aria-current={chemin === entree.href ? "page" : undefined}
+            className={`h-cible flex shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium lg:w-full ${
+              chemin === entree.href
+                ? "bg-marque-600 text-white"
+                : "text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]"
+            }`}
+          >
+            {entree.libelle}
+          </Link>
+        ))}
+      </div>
 
-      {GROUPES.map((groupe) => {
-        const visibles = groupe.modules.filter(affichable);
-        // Un groupe dont aucun module n'est accessible disparaît en entier :
-        // un titre de section seul n'informe de rien.
-        if (visibles.length === 0) return null;
+      {groupes.map((groupe) => {
+        const visibles: EntreeModule[] = groupe.modules;
 
         const replie = replies.includes(groupe.titre);
         // Un groupe qui contient la page courante ne se laisse pas replier :

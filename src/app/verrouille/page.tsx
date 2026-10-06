@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { session } from "@/lib/auth/dal";
+import { CONNEXION_EXPIREE } from "@/lib/auth/session";
 import { CarteVerrouPage } from "./carte";
 
 export const metadata: Metadata = { title: "Écran verrouillé" };
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Écran verrouillé" };
  */
 export default async function PageVerrouille() {
   const active = await session();
-  if (!active) redirect("/connexion");
+  if (!active) redirect(CONNEXION_EXPIREE);
   if (!active.verrouillee) redirect("/");
 
   return (

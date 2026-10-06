@@ -41,7 +41,15 @@ export default function proxy(requete: NextRequest) {
   }
 
   if (aUnCookie && estPublique) {
-    return NextResponse.redirect(new URL("/", requete.nextUrl));
+    // Cookie d'une session morte : l'application l'a constaté et renvoie ici.
+    // On l'efface et on sert la connexion — au pire, ce lien déconnecte le
+    // navigateur qui le suit, ce que fait déjà le bouton de déconnexion.
+    if (requete.nextUrl.searchParams.has("expiree")) {
+      const reponse = NextResponse.next();
+      reponse.cookies.delete(COOKIE_SESSION);
+      return reponse;
+    }
+    return NextResponse.redirect(new URL("/accueil", requete.nextUrl));
   }
 
   return NextResponse.next();

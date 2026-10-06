@@ -21,12 +21,14 @@ import {
 import { hacherMotDePasse, verifierMotDePasse } from "./mot-de-passe";
 import {
   choisirEntreprise,
+  CONNEXION_EXPIREE,
   fermerSession,
   lireSession,
   ouvrirSession,
 } from "./session";
 import { tracerPartout } from "@/lib/audit";
 import { estDoublon } from "@/lib/erreurs-pg";
+import { destinationApresConnexion } from "@/lib/navigation";
 
 export interface EtatConnexion {
   erreur?: string;
@@ -115,7 +117,7 @@ export async function seConnecter(
 
   await ouvrirSessionAvecContexte(compte.id);
   await tracerPartout(compte.id, { action: "connexion.reussie", entite: "compte", entiteId: compte.id });
-  redirect("/");
+  redirect(destinationApresConnexion(donnees.get("suite")));
 }
 
 export interface EtatInscription {
@@ -199,7 +201,7 @@ export async function sInscrire(
   await ouvrirSessionAvecContexte(userId);
   await tracerPartout(userId, { action: "compte.inscrire", entite: "compte", entiteId: userId, apres: { email } });
   await tracerPartout(userId, { action: "connexion.reussie", entite: "compte", entiteId: userId });
-  redirect("/");
+  redirect("/accueil");
 }
 
 export interface EtatMotDePasse {
@@ -220,7 +222,7 @@ export async function changerMotDePasse(
   donnees: FormData,
 ): Promise<EtatMotDePasse> {
   const active = await lireSession();
-  if (!active) redirect("/connexion");
+  if (!active) redirect(CONNEXION_EXPIREE);
 
   const actuel = String(donnees.get("actuel") ?? "");
   const nouveau = String(donnees.get("nouveau") ?? "");
@@ -277,7 +279,7 @@ export async function changerMotDePasse(
     apres: { provisoireRemplace: active.doitChangerMotDePasse, autresSessionsFermees: true },
   });
 
-  if (active.doitChangerMotDePasse) redirect("/");
+  if (active.doitChangerMotDePasse) redirect("/accueil");
   return { change: true };
 }
 
@@ -301,7 +303,7 @@ export async function seDeconnecter(): Promise<void> {
  */
 export async function basculerEntreprise(organizationId: string): Promise<void> {
   const active = await lireSession();
-  if (!active) redirect("/connexion");
+  if (!active) redirect(CONNEXION_EXPIREE);
   if (active.verrouillee) redirect("/verrouille");
 
   const autorises = await db

@@ -52,7 +52,7 @@ export async function creerEntreprise(
     entiteId: organizationId,
     apres: { nom: analyse.data.nom, pays: analyse.data.pays },
   });
-  redirect("/");
+  redirect("/accueil");
 }
 
 /** Bascule sur une entreprise depuis l'écran de choix. */
@@ -69,5 +69,5 @@ export async function activerEntreprise(formulaire: FormData): Promise<void> {
   }
 
   await choisirEntreprise(session.sessionId, organizationId);
-  redirect("/");
+  redirect("/accueil");
 }

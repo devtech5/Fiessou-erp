@@ -6,7 +6,7 @@ import { FormulaireConnexion } from "./formulaire";
 export const metadata: Metadata = { title: "Connexion" };
 
 export default async function PageConnexion({ searchParams }: PageProps<"/connexion">) {
-  const { reinitialise } = await searchParams;
+  const { reinitialise, suite, expiree } = await searchParams;
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[var(--fond)] p-4">
       <div className="w-full max-w-sm">
@@ -18,6 +18,12 @@ export default async function PageConnexion({ searchParams }: PageProps<"/connex
           </p>
         </header>
 
+        {expiree === "1" && reinitialise !== "1" && (
+          <p role="status" className="mb-4 rounded-lg bg-[var(--surface-creuse)] px-3 py-2.5 text-sm font-medium">
+            Votre session a pris fin. Reconnectez-vous.
+          </p>
+        )}
+
         {reinitialise === "1" && (
           <p role="status" className="mb-4 rounded-lg bg-valide-50 px-3 py-2.5 text-sm font-medium text-valide-600">
             Mot de passe changé. Connectez-vous avec le nouveau.
@@ -25,7 +31,7 @@ export default async function PageConnexion({ searchParams }: PageProps<"/connex
         )}
 
         <div className="rounded-2xl border border-[var(--filet)] bg-[var(--surface)] p-5">
-          <FormulaireConnexion />
+          <FormulaireConnexion suite={typeof suite === "string" ? suite : undefined} />
         </div>
 
         <p className="mt-4 text-center text-sm text-[var(--encre-douce)]">

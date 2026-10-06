@@ -16,7 +16,7 @@ export const CLASSE_SAISIE =
  * passe qu'on peut enregistrer est un mot de passe qu'on n'écrit pas sur un
  * papier collé à la caisse.
  */
-export function FormulaireConnexion() {
+export function FormulaireConnexion({ suite }: { suite?: string }) {
   const [etat, action, enCours] = useActionState<EtatConnexion, FormData>(
     seConnecter,
     {},
@@ -24,6 +24,8 @@ export function FormulaireConnexion() {
 
   return (
     <form action={action} className="flex flex-col gap-4">
+      {/* La page demandée avant la connexion ; l'action ne suit qu'un chemin interne. */}
+      {suite && <input type="hidden" name="suite" value={suite} />}
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium">Adresse e-mail</span>
         <input

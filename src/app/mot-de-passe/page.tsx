@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { session } from "@/lib/auth/dal";
+import { CONNEXION_EXPIREE } from "@/lib/auth/session";
 
 import { FormulaireMotDePasse } from "./formulaire";
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = { title: "Mot de passe" };
  */
 export default async function PageMotDePasse() {
   const active = await session();
-  if (!active) redirect("/connexion");
+  if (!active) redirect(CONNEXION_EXPIREE);
 
   const provisoire = active.doitChangerMotDePasse;
 

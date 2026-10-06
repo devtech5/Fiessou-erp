@@ -9,6 +9,7 @@ import { tracerPartout, tracerPour } from "@/lib/audit";
 import { apresEchec, estVerrouille } from "./identifiants";
 import { verifierMotDePasse } from "./mot-de-passe";
 import {
+  CONNEXION_EXPIREE,
   deverrouillerSessionId,
   fermerSession,
   lireSession,
@@ -64,7 +65,7 @@ export async function deverrouiller(
   donnees: FormData,
 ): Promise<EtatDeverrouillage> {
   const active = await lireSession();
-  if (!active) redirect("/connexion");
+  if (!active) redirect(CONNEXION_EXPIREE);
   if (!active.verrouillee) return { ok: true };
 
   const motDePasse = String(donnees.get("motDePasse") ?? "");
