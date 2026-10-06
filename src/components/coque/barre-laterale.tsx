@@ -34,6 +34,7 @@ const GROUPES: GroupeModules[] = [
       { href: "/commercial", racine: "/commercial", libelle: "Commercial", droit: "tiers.fiche.consulter" },
       { href: "/stock", racine: "/stock", libelle: "Stock", droit: "stock.article.consulter" },
       { href: "/achats", racine: "/achats", libelle: "Achats", droit: "achats.consulter" },
+      { href: "/prestataires", racine: "/prestataires", libelle: "Prestataires", droit: "prestataires.consulter" },
       { href: "/reservations", racine: "/reservations", libelle: "Réservations", droit: "reservation.consulter" },
     ],
   },

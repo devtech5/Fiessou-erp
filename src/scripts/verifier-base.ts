@@ -102,6 +102,8 @@ const TABLES_ATTENDUES = [
   "pleins_carburant",
   "pointages",
   "postes_caisse",
+  "prestataires",
+  "prestations",
   "preuves_mission",
   "projets",
   "receptions_achat",

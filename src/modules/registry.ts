@@ -206,6 +206,18 @@ export const MODULES: ModuleDefinition[] = [
     description: "Discussions privées entre utilisateurs et groupes créés par l'administration.",
   },
 
+  {
+    key: "prestataires",
+    name: "Prestataires externes",
+    layer: "socle",
+    // En base : annuaire des indépendants (métiers, zone, tarif, déclaré ou
+    // non) adossé à une fiche tiers, prestations de la demande au paiement,
+    // avis et note moyenne, paiement comptabilisé avec retenue à la source.
+    status: "en_cours",
+    requires: ["tiers", "tresorerie"],
+    description: "Plombiers, électriciens, photographes, monteurs vidéo : annuaire, prestations, avis et paiement.",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",

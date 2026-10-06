@@ -27,6 +27,7 @@ const ORIGINES: Record<string, string> = {
   cloture: "Clôture",
   reprise: "Reprise",
   commission: "Commission",
+  prestation: "Prestation",
 };
 
 export default async function PageEcritures() {

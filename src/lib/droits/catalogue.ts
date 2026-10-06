@@ -272,6 +272,26 @@ export const DROITS = [
     description: "Créer un groupe de discussion, y ajouter ou en retirer des membres.",
   },
 
+  // --------------------------------------------------------- prestataires
+  {
+    cle: "prestataires.consulter",
+    moduleKey: "prestataires",
+    libelle: "Consulter les prestataires",
+    description: "Voir l'annuaire des prestataires, leurs prestations et l'avis qu'on en a.",
+  },
+  {
+    cle: "prestataires.gerer",
+    moduleKey: "prestataires",
+    libelle: "Gérer les prestataires",
+    description: "Inscrire un prestataire, lui confier une prestation, en constater la réalisation, la noter.",
+  },
+  {
+    cle: "prestataires.payer",
+    moduleKey: "prestataires",
+    libelle: "Payer les prestataires",
+    description: "Régler une prestation réalisée depuis la trésorerie, retenue à la source comprise.",
+  },
+
   // ----------------------------------------------------------- parc auto
   {
     cle: "parc_auto.consulter",
