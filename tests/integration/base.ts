@@ -27,7 +27,7 @@ export async function ouvrirBaseDeTest() {
 export async function semerEntreprise(db: typeof Db, nom = "Entreprise d'essai") {
   const organizationId = newId();
   const userId = newId();
-  await db.insert(schema.organizations).values({ id: organizationId, name: nom, slug: `essai-${organizationId.slice(0, 8)}` });
-  await db.insert(schema.users).values({ id: userId, fullName: "Exploitant", email: `${userId.slice(0, 8)}@exemple.test` });
+  await db.insert(schema.organizations).values({ id: organizationId, name: nom, slug: `essai-${organizationId}` });
+  await db.insert(schema.users).values({ id: userId, fullName: "Exploitant", email: `${userId}@exemple.test` });
   return { organizationId, userId };
 }

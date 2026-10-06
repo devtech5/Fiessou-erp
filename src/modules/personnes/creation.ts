@@ -66,13 +66,7 @@ export async function creerSalarieDans(
     throw new Error("Le terme du contrat précède son début.");
   }
 
-  const matricule =
-    donnees.matricule?.trim() ||
-    (await prochainNumero(tx, organizationId, {
-      cle: "employe",
-      prefix: "S",
-      padding: 4,
-    }));
+  const matricule = donnees.matricule?.trim() || (await matriculeLibre(tx, organizationId));
 
   const id = newId();
 
@@ -106,6 +100,47 @@ export async function creerSalarieDans(
   }
 
   return { id, matricule };
+}
+
+/**
+ * Prochain matricule que personne ne porte.
+ *
+ * Un matricule imposé — reprise d'un fichier existant, jeu de démonstration —
+ * ne fait pas avancer le compteur : sans ce saut, la première embauche suivante
+ * recevait S0001, déjà pris, et l'embauche échouait sur la contrainte d'unicité.
+ * Un matricule n'est pas une pièce comptable : un numéro sauté n'a pas à se
+ * justifier, un doublon si.
+ */
+async function matriculeLibre(tx: Transaction, organizationId: string): Promise<string> {
+  for (let essai = 0; essai < 500; essai++) {
+    const candidat = await prochainNumero(tx, organizationId, { cle: "employe", prefix: "S", padding: 4 });
+    const [pris] = await tx
+      .select({ id: employees.id })
+      .from(employees)
+      .where(and(eq(employees.organizationId, organizationId), eq(employees.matricule, candidat)))
+      .limit(1);
+    if (!pris) return candidat;
+  }
+  throw new Error("Aucun matricule libre : saisissez-le à la main.");
+}
+
+/**
+ * Prochain code d'intervenant libre. Compteur distinct de celui des salariés :
+ * mélanger les deux suites ferait sauter des matricules chez les uns au profit
+ * des autres, et laisserait croire à des départs qui n'ont pas eu lieu. Même
+ * saut des codes déjà pris que pour les matricules.
+ */
+async function codeIntervenantLibre(tx: Transaction, organizationId: string): Promise<string> {
+  for (let essai = 0; essai < 500; essai++) {
+    const candidat = await prochainNumero(tx, organizationId, { cle: "intervenant", prefix: "I", padding: 4 });
+    const [pris] = await tx
+      .select({ id: workers.id })
+      .from(workers)
+      .where(and(eq(workers.organizationId, organizationId), eq(workers.code, candidat)))
+      .limit(1);
+    if (!pris) return candidat;
+  }
+  throw new Error("Aucun code d'intervenant libre : saisissez-le à la main.");
 }
 
 /** Même chose, hors d'une transaction existante. */
@@ -148,16 +183,7 @@ export async function creerIntervenantDans(
 ): Promise<{ id: string; code: string }> {
   const mode = donnees.mode ?? "journee";
 
-  const code =
-    donnees.code?.trim() ||
-    (await prochainNumero(tx, organizationId, {
-      // Compteur distinct de celui des salariés : mélanger les deux suites
-      // ferait sauter des matricules chez les uns au profit des autres, et
-      // laisserait croire à des départs qui n'ont pas eu lieu.
-      cle: "intervenant",
-      prefix: "I",
-      padding: 4,
-    }));
+  const code = donnees.code?.trim() || (await codeIntervenantLibre(tx, organizationId));
 
   const id = newId();
 

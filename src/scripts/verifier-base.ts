@@ -87,6 +87,7 @@ const TABLES_ATTENDUES = [
   "periodes_paie",
   "permissions",
   "pieces_commerciales",
+  "pieces_employe",
   "pieces_projet",
   "pointages",
   "postes_caisse",

@@ -154,6 +154,20 @@ export const DROITS = [
     description: "Embaucher, modifier un contrat, sortir des effectifs.",
   },
   {
+    cle: "personnes.dossier.consulter",
+    moduleKey: "personnes",
+    libelle: "Consulter les dossiers du personnel",
+    description:
+      "Voir les pièces des salariés — identité, CMU, casier, RIB, CV — et en ouvrir " +
+      "les fichiers. Données sensibles : chaque ouverture est tracée au journal.",
+  },
+  {
+    cle: "personnes.dossier.gerer",
+    moduleKey: "personnes",
+    libelle: "Tenir les dossiers du personnel",
+    description: "Compléter l'état civil, la photo et les pièces d'un salarié, en retirer une déposée par erreur.",
+  },
+  {
     cle: "personnes.intervenant.gerer",
     moduleKey: "personnes",
     libelle: "Gérer les intervenants",

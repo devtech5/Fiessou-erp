@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { BoutonDemonstration } from "@/components/bouton-demonstration";
+import { Portrait } from "@/components/personnes/photo";
 import {
   CarteIndicateur,
   EnTetePage,
@@ -12,8 +14,11 @@ import {
   type TonPastille,
 } from "@/components/ui/primitives";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
 import { fmt, fmtCompact, fmtEntier } from "@/lib/format";
+import { naturesParSalarie } from "@/modules/personnes/dossier";
 import { calculerBulletin, joursAvantTerme } from "@/modules/personnes/paie";
+import { piecesManquantes } from "@/modules/personnes/pieces";
 import { listerSalaries } from "@/modules/personnes/requetes";
 import type { TypeContrat } from "@/modules/personnes/schema";
 
@@ -37,7 +42,12 @@ const TON_CONTRAT: Record<TypeContrat, TonPastille> = {
 
 export default async function PageSalaries() {
   const session = await exigerEntreprise();
-  const salaries = await listerSalaries(session.organizationId);
+  const [salaries, voitLesDossiers, tientLesDossiers] = await Promise.all([
+    listerSalaries(session.organizationId),
+    peut("personnes.dossier.consulter"),
+    peut("personnes.dossier.gerer"),
+  ]);
+  const natures = voitLesDossiers ? await naturesParSalarie(session.organizationId) : null;
 
   const bulletins = salaries.map((salarie) =>
     calculerBulletin({
@@ -77,7 +87,7 @@ export default async function PageSalaries() {
             ? "Aucun salarié inscrit"
             : `${salaries.length} salariés · ${indetermines.length} en contrat à durée indéterminée`
         }
-        actions={<FormulaireSalarie premier={salaries.length === 0} />}
+        actions={<FormulaireSalarie premier={salaries.length === 0} dossier={tientLesDossiers} />}
       />
 
       {salaries.length === 0 ? (
@@ -124,6 +134,7 @@ export default async function PageSalaries() {
                 <Th>Contrat</Th>
                 <Th>Échéance</Th>
                 <Th>N° CNPS</Th>
+                {natures && <Th>Dossier</Th>}
                 <Th aligne="droite">Salaire de base</Th>
               </tr>
             </thead>
@@ -131,7 +142,12 @@ export default async function PageSalaries() {
               {echeances.map(({ salarie, jours }) => (
                 <tr key={salarie.id}>
                   <Td chiffres>{salarie.matricule}</Td>
-                  <Td fort>{salarie.nom}</Td>
+                  <Td fort>
+                    <Link href={`/rh/salaries/${salarie.id}`} className="flex items-center gap-2 hover:underline">
+                      <Portrait photo={salarie.photo} nom={salarie.nom} taille="petite" />
+                      {salarie.nom}
+                    </Link>
+                  </Td>
                   <Td>
                     <span className="text-xs text-[var(--encre-douce)]">
                       {salarie.poste}
@@ -160,6 +176,20 @@ export default async function PageSalaries() {
                         l'absence est signalée, pas laissée vide. */}
                     {salarie.numeroCnps ?? <Pastille ton="alerte">Manquant</Pastille>}
                   </Td>
+                  {natures && (
+                    <Td>
+                      {(() => {
+                        const manque = piecesManquantes(natures.get(salarie.id) ?? new Set(), Boolean(salarie.photo));
+                        return manque.length === 0 ? (
+                          <Pastille ton="valide">Complet</Pastille>
+                        ) : (
+                          <span title={`À compléter : ${manque.join(", ")}`}>
+                            <Pastille ton="alerte">{manque.length} à compléter</Pastille>
+                          </span>
+                        );
+                      })()}
+                    </Td>
+                  )}
                   <Td aligne="droite" chiffres fort>
                     {fmt(salarie.salaireBase)}
                   </Td>

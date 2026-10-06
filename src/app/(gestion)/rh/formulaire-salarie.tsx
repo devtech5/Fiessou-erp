@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { ChoixPhoto } from "@/components/personnes/photo";
 import { Champ, CLASSE_CHAMP } from "@/components/ui/primitives";
 import { embaucherSalarie, type EtatSalarie } from "@/modules/personnes/actions";
 
@@ -37,7 +38,7 @@ type Contrat = (typeof CONTRATS)[number]["valeur"];
  * visible sur un CDI ferait saisir une date « au cas où », et l'écran des
  * échéances annoncerait des fins de contrat qui n'existent pas.
  */
-export function FormulaireSalarie({ premier = false }: { premier?: boolean }) {
+export function FormulaireSalarie({ premier = false, dossier = false }: { premier?: boolean; dossier?: boolean }) {
   const [ouvert, setOuvert] = useState(false);
   const [contrat, setContrat] = useState<Contrat>("cdi");
   const [etat, action, enCours] = useActionState<EtatSalarie, FormData>(
@@ -58,8 +59,12 @@ export function FormulaireSalarie({ premier = false }: { premier?: boolean }) {
     return (
       <div className="flex items-center gap-3">
         {etat.matricule && (
-          <span className="text-sm text-valide-600">
-            <span className="chiffres">{etat.matricule}</span> embauché.
+          <span className={`text-sm ${etat.avertissement ? "text-alerte-600" : "text-valide-600"}`}>
+            {etat.avertissement ?? (
+              <>
+                <span className="chiffres">{etat.matricule}</span> embauché.
+              </>
+            )}
           </span>
         )}
         <button
@@ -166,6 +171,29 @@ export function FormulaireSalarie({ premier = false }: { premier?: boolean }) {
           <input name="email" type="email" className={CLASSE_CHAMP} />
         </Champ>
       </div>
+
+      {/* Facultatif : le dossier se complète ensuite depuis la fiche du
+          salarié — pièces d'identité, CMU, RIB, casier… */}
+      {dossier && (
+        <fieldset className="mt-5 border-t border-[var(--filet)] pt-4">
+          <legend className="sr-only">Pièces jointes</legend>
+          <p className="mb-3 text-sm font-semibold">
+            Pièces jointes <span className="font-normal text-[var(--encre-faible)]">— facultatives</span>
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <ChoixPhoto />
+            <Champ libelle="CV" precision="PDF, Word ou photo.">
+              <input name="cv" type="file" accept="application/pdf,.doc,.docx,image/*" className="block w-full text-sm file:mr-3 file:h-9 file:rounded-lg file:border file:border-[var(--filet)] file:bg-[var(--surface)] file:px-3" />
+            </Champ>
+            <Champ libelle="Lettre de motivation">
+              <input name="lettre" type="file" accept="application/pdf,.doc,.docx,image/*" className="block w-full text-sm file:mr-3 file:h-9 file:rounded-lg file:border file:border-[var(--filet)] file:bg-[var(--surface)] file:px-3" />
+            </Champ>
+          </div>
+          <p className="mt-2 text-xs text-[var(--encre-faible)]">
+            Pièces d&apos;identité, CMU, casier judiciaire, RIB et autres se joignent ensuite depuis la fiche du salarié.
+          </p>
+        </fieldset>
+      )}
 
       {etat.erreur && (
         <p

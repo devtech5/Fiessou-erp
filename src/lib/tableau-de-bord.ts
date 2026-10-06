@@ -37,7 +37,7 @@ export interface Alerte {
   nombre?: number;
 }
 
-const ORDRE: Record<Gravite, number> = {
+export const ORDRE_GRAVITE: Record<Gravite, number> = {
   critique: 0,
   attention: 1,
   information: 2,
@@ -534,7 +534,7 @@ export function alertes(
     });
   }
 
-  return liste.sort((a, b) => ORDRE[a.gravite] - ORDRE[b.gravite]);
+  return liste.sort((a, b) => ORDRE_GRAVITE[a.gravite] - ORDRE_GRAVITE[b.gravite]);
 }
 
 export interface Tresorerie {

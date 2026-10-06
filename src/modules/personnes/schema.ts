@@ -4,6 +4,7 @@ import {
   check,
   date,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -20,6 +21,7 @@ import {
   timestamps,
 } from "@/db/schema/_shared";
 import { organizations } from "@/db/schema/tenancy";
+import { NATURES_PIECE } from "./pieces";
 import { moyenReglement } from "@/modules/ventes/schema";
 
 /**
@@ -80,6 +82,25 @@ export const employees = pgTable(
     email: text("email"),
     adresse: text("adresse"),
 
+    // État civil. Facultatif : il se complète après l'embauche, au fil des
+    // pièces rapportées. Le nombre d'enfants à charge pèse sur l'impôt sur
+    // salaire (parts), d'où sa place ici et non dans une note.
+    dateNaissance: date("date_naissance"),
+    lieuNaissance: text("lieu_naissance"),
+    nationalite: text("nationalite"),
+    sexe: text("sexe"),
+    situationFamiliale: text("situation_familiale"),
+    enfantsACharge: integer("enfants_a_charge"),
+    /** Personne à prévenir : nom, lien et téléphone, tels que saisis. */
+    contactUrgence: text("contact_urgence"),
+
+    /**
+     * Photo d'identité, réduite dans le navigateur et gardée EN BASE (data
+     * URL, 96 Ko au plus) — même exception que le logo de l'entreprise : le
+     * badge et la carte professionnelle doivent s'imprimer sans réseau.
+     */
+    photo: text("photo"),
+
     /**
      * Compte de connexion du salarié, quand il en a un. La plupart n'en ont
      * pas : un magasinier n'ouvre pas le logiciel. Sans référence à `users`
@@ -101,6 +122,9 @@ export const employees = pgTable(
   (t) => [
     unique("employees_matricule_unique").on(t.organizationId, t.matricule),
     check("employees_salaire_positif", sql`${t.salaireBase} >= 0`),
+    check("employees_photo", sql`${t.photo} IS NULL OR (length(${t.photo}) <= 131072 AND ${t.photo} LIKE 'data:image/%')`),
+    check("employees_sexe", sql`${t.sexe} IS NULL OR ${t.sexe} IN ('F', 'M')`),
+    check("employees_enfants", sql`${t.enfantsACharge} IS NULL OR ${t.enfantsACharge} BETWEEN 0 AND 30`),
     /**
      * Un contrat à durée déterminée sans terme n'est pas déterminé, et un CDI
      * qui en porte un n'est pas indéterminé. L'un comme l'autre passeraient
@@ -326,9 +350,74 @@ export const bonsPaiement = pgTable(
   ],
 );
 
+/**
+ * Nature d'une pièce du dossier salarié. La liste et ce que chaque nature
+ * porte vivent dans `./pieces.ts`, lu aussi par le navigateur.
+ */
+export const naturePieceEmploye = pgEnum("nature_piece_employe", NATURES_PIECE);
+
+/**
+ * Pièce du dossier d'un salarié : CNI, passeport, CMU, permis, casier, RIB,
+ * CV, lettre de motivation…
+ *
+ * Données sensibles. Elles ne se lisent qu'avec `personnes.dossier.consulter`,
+ * et chaque ouverture de fichier se trace au journal.
+ *
+ * Le fichier ne va pas en base : il part dans le dépôt (`src/lib/stockage`),
+ * seule sa clé est ici. Une pièce peut exister sans fichier — le numéro et la
+ * date d'expiration suffisent à surveiller un permis dont le scan manque.
+ *
+ * Une pièce retirée l'est logiquement (`deleted_at`) et son fichier quitte le
+ * dépôt : la CNI d'un autre déposée par erreur ne doit pas rester lisible.
+ */
+export const piecesEmploye = pgTable(
+  "pieces_employe",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+
+    nature: naturePieceEmploye("nature").notNull(),
+    numero: text("numero"),
+    organisme: text("organisme"),
+    precision: text("precision"),
+    delivreeLe: date("delivree_le"),
+    expireLe: date("expire_le"),
+
+    /** Clé dans le dépôt : `<organisation>/<pièce>.<ext>`. */
+    chemin: text("chemin"),
+    nomFichier: text("nom_fichier"),
+    typeMime: text("type_mime"),
+    tailleOctets: integer("taille_octets"),
+
+    notes: text("notes"),
+    userId: uuid("user_id"),
+
+    ...timestamps,
+    ...rowVersion,
+  },
+  (t) => [
+    check(
+      "pieces_employe_fichier_complet",
+      sql`(${t.chemin} IS NULL) = (${t.nomFichier} IS NULL) AND (${t.chemin} IS NULL) = (${t.typeMime} IS NULL)`,
+    ),
+    check(
+      "pieces_employe_dates",
+      sql`${t.expireLe} IS NULL OR ${t.delivreeLe} IS NULL OR ${t.expireLe} >= ${t.delivreeLe}`,
+    ),
+    index("pieces_employe_salarie_idx").on(t.organizationId, t.employeeId),
+    index("pieces_employe_expiration_idx").on(t.organizationId, t.expireLe),
+  ],
+);
+
 export type Employe = typeof employees.$inferSelect;
 export type Intervenant = typeof workers.$inferSelect;
 export type Pointage = typeof pointages.$inferSelect;
 export type BonPaiement = typeof bonsPaiement.$inferSelect;
 export type TypeContrat = Employe["contrat"];
 export type ModeRemuneration = Intervenant["mode"];
+export type PieceEmploye = typeof piecesEmploye.$inferSelect;

@@ -7,7 +7,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { exigerEntreprise } from "@/lib/auth/dal";
-import { exigerDroit, refusDroit } from "@/lib/droits/garde";
+import { exigerDroit, peut, refusDroit } from "@/lib/droits/garde";
+import { violeContrainte } from "@/lib/erreurs-pg";
 import { newId } from "@/lib/ids";
 import { versQuantite } from "@/lib/quantite";
 
@@ -17,6 +18,8 @@ import {
   enregistrerBonPaiementDans,
   enregistrerPointageDans,
 } from "./creation";
+import { ajouterPiecePour, changerPhotoPour, fichierDe } from "./dossier";
+import { photoValide } from "./pieces";
 import { employees, workers } from "./schema";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -50,7 +53,10 @@ export interface EtatSalarie {
   erreur?: string;
   /** Matricule attribué au salarié embauché. */
   matricule?: string;
+  /** Le salarié est embauché, mais une pièce jointe n'a pas suivi. */
+  avertissement?: string;
 }
+
 
 const schemaSalarie = z.object({
   nom: z.string().trim().min(2, "Indiquez le nom du salarié."),
@@ -93,8 +99,9 @@ export async function embaucherSalarie(
     return { erreur: "Un contrat à durée déterminée porte un terme." };
   }
 
+  let cree: { id: string; matricule: string };
   try {
-    const { matricule } = await db.transaction((tx) =>
+    cree = await db.transaction((tx) =>
       creerSalarieDans(
         tx,
         session.organizationId,
@@ -112,13 +119,53 @@ export async function embaucherSalarie(
         session.userId,
       ),
     );
-
-    revalidatePath("/rh", "layout");
-    return { matricule };
   } catch (erreur) {
-    if (erreur instanceof Error) return { erreur: erreur.message };
-    throw erreur;
+    if (violeContrainte(erreur, "employees_matricule_unique")) return { erreur: "Ce matricule est déjà porté par un autre salarié." };
+    if (erreur instanceof Error && !erreur.message.startsWith("Failed query")) return { erreur: erreur.message };
+    console.error("Embauche refusée", erreur);
+    return { erreur: "L'embauche n'a pas abouti. Réessayez." };
   }
+
+  // Les pièces jointes à l'embauche suivent l'embauche, elles ne la
+  // conditionnent pas : un CV refusé ne doit pas faire ressaisir le contrat.
+  const avertissement = await joindreAEmbauche(session.organizationId, session.userId, cree.id, donnees);
+  revalidatePath("/rh", "layout");
+  return { matricule: cree.matricule, avertissement };
+}
+
+async function joindreAEmbauche(
+  organizationId: string,
+  userId: string,
+  employeeId: string,
+  donnees: FormData,
+): Promise<string | undefined> {
+  const photo = texte(donnees, "photo");
+  const cv = await fichierDe(donnees, "cv");
+  const lettre = await fichierDe(donnees, "lettre");
+  if (!photo && !cv && !lettre) return undefined;
+  if (!(await peut("personnes.dossier.gerer"))) {
+    return "Salarié embauché, mais les pièces jointes n'ont pas été gardées : votre rôle ne permet pas de tenir les dossiers du personnel.";
+  }
+
+  const refus: string[] = [];
+  if (photo) {
+    if (photoValide(photo)) {
+      await changerPhotoPour(organizationId, userId, employeeId, photo);
+    } else {
+      refus.push("photo illisible");
+    }
+  }
+  for (const [nature, fichier] of [["cv", cv], ["lettre_motivation", lettre]] as const) {
+    if (!fichier) continue;
+    try {
+      await ajouterPiecePour(organizationId, userId, employeeId, { nature }, fichier);
+    } catch (erreur) {
+      refus.push(erreur instanceof Error ? erreur.message : `${nature} refusé`);
+    }
+  }
+  return refus.length > 0
+    ? `Salarié embauché. À reprendre depuis sa fiche : ${refus.join(" ; ")}.`
+    : undefined;
 }
 
 /**

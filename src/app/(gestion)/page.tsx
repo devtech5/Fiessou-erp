@@ -23,6 +23,7 @@ import { tachesEnRetard } from "@/modules/taches/requetes";
 import { etatTresorerie, planDeTresorerie } from "@/modules/tresorerie/requetes";
 import { etatAchats } from "@/modules/achats/requetes";
 import { etatPaie } from "@/modules/paie/requetes";
+import { etatDossiers } from "@/modules/personnes/dossier";
 import { etatFiscalite } from "@/modules/fiscalite/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
@@ -36,6 +37,7 @@ import {
 import {
   activiteDuJour,
   alertes,
+  ORDRE_GRAVITE,
   tresorerie,
   type Gravite,
 } from "@/lib/tableau-de-bord";
@@ -145,6 +147,7 @@ export default async function PageTableauDeBord() {
     achats,
     paie,
     fiscalite,
+    dossiers,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -166,6 +169,7 @@ export default async function PageTableauDeBord() {
     moduleOuvert("achats") && droits.has("achats.consulter") ? etatAchats(session.organizationId) : Promise.resolve(undefined),
     droits.has("personnes.paie.payer") || droits.has("personnes.paie.valider") ? etatPaie(session.organizationId, aujourdhui) : Promise.resolve(undefined),
     droits.has("comptabilite.fiscalite.declarer") ? etatFiscalite(session.organizationId, aujourdhui) : Promise.resolve(undefined),
+    moduleOuvert("personnes") && droits.has("personnes.dossier.consulter") ? etatDossiers(session.organizationId, aujourdhui) : Promise.resolve(null),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -183,6 +187,27 @@ export default async function PageTableauDeBord() {
   }, caisses
     ? { ...caisses, premierDecouvert: plan && plan.comptes > 0 ? plan.premierDecouvert : null }
     : undefined, achats, paie, fiscalite);
+
+  // Pièces du personnel : un permis expiré met un chauffeur hors la loi, une
+  // CMU échue le prive de soins. Seule la pièce en vigueur compte.
+  if (dossiers && dossiers.expirees + dossiers.bientot > 0) {
+    toutesLesAlertes.push({
+      id: "pieces-personnel",
+      gravite: dossiers.expirees > 0 ? "critique" : "attention",
+      source: "base",
+      module: "Personnel",
+      titre: dossiers.expirees > 0 ? "Pièces du personnel expirées" : "Pièces du personnel bientôt expirées",
+      detail: [
+        dossiers.expirees > 0 && `${dossiers.expirees} expirée${dossiers.expirees > 1 ? "s" : ""}`,
+        dossiers.bientot > 0 && `${dossiers.bientot} dans les 30 jours`,
+      ]
+        .filter(Boolean)
+        .join(" · ") + ` — ${dossiers.salaries} salarié${dossiers.salaries > 1 ? "s" : ""}`,
+      href: "/rh",
+      nombre: dossiers.expirees + dossiers.bientot,
+    });
+    toutesLesAlertes.sort((a, b) => ORDRE_GRAVITE[a.gravite] - ORDRE_GRAVITE[b.gravite]);
+  }
 
   // Une alerte encore calculée sur un jeu d'essai ne sort pas d'ici. Elle
   // enverrait l'exploitant relancer une facture qui n'existe pas. Et une
