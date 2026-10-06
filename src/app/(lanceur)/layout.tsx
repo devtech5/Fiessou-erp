@@ -4,6 +4,7 @@ import { BandeauAbonnement } from "@/components/coque/bandeau-abonnement";
 import { BandeauDemo } from "@/components/coque/bandeau-demo";
 import { VerrouInactivite } from "@/components/coque/verrou-inactivite";
 import { exigerSession } from "@/lib/auth/dal";
+import { pointerApresReponse } from "@/modules/presences/pointage";
 
 /**
  * Coque de l'écran d'accueil : plein écran, sans barre latérale ni fil
@@ -15,6 +16,9 @@ import { exigerSession } from "@/lib/auth/dal";
  */
 export default async function LayoutLanceur({ children }: { children: ReactNode }) {
   const session = await exigerSession();
+  // L'accueil est le premier écran après la connexion : c'est là que le
+  // pointage du jour se pose, le plus souvent.
+  pointerApresReponse(session.organizationId, session.userId);
   return (
     <>
       <div

@@ -258,6 +258,32 @@ export const DROITS = [
     description: "Préparer et envoyer un message à tout le personnel ou à une liste de clients.",
   },
 
+  // ------------------------------------------------------------ présences
+  {
+    cle: "presences.consulter",
+    moduleKey: "presences",
+    libelle: "Consulter les présences de l'équipe",
+    description: "Voir qui est là, les retards, le registre du mois et les soldes de congés de tous.",
+  },
+  {
+    cle: "presences.gerer",
+    moduleKey: "presences",
+    libelle: "Gérer les présences",
+    description: "Pointer ou corriger la présence d'un salarié, régler les horaires et les jours fériés.",
+  },
+  {
+    cle: "conges.demander",
+    moduleKey: "presences",
+    libelle: "Demander un congé",
+    description: "Voir son pointage et son solde, demander un congé ou une absence pour soi.",
+  },
+  {
+    cle: "conges.valider",
+    moduleKey: "presences",
+    libelle: "Accorder les congés",
+    description: "Accorder ou refuser une demande, saisir un congé pour un salarié, ajuster un solde.",
+  },
+
   // ----------------------------------------------------------- messagerie
   {
     cle: "messagerie.utiliser",
@@ -854,7 +880,7 @@ const TRESORERIE_COMPTABLE = [
 ] as const satisfies readonly Droit[];
 
 /** Chacun tient sa liste de tâches ; attribuer aux autres reste à l'encadrement. */
-const TACHES_PERSONNELLES = ["taches.consulter", "taches.executer"] as const satisfies readonly Droit[];
+const TACHES_PERSONNELLES = ["taches.consulter", "taches.executer", "conges.demander"] as const satisfies readonly Droit[];
 
 const CONSULTATION_COMMERCE = [
   "tiers.fiche.consulter",

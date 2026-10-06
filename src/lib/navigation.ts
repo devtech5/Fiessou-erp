@@ -13,7 +13,7 @@ export const CLES_ICONE = [
   "commercial", "stock", "achats", "prestataires", "marches", "reservations",
   "projets", "missions", "actifs", "parc-auto", "parc-informatique", "billetterie",
   "comptabilite", "tresorerie", "guichet",
-  "personnel", "taches", "messagerie", "boite-mail", "documents", "archives",
+  "personnel", "presences", "taches", "messagerie", "boite-mail", "documents", "archives",
   "utilisateurs", "entreprise", "demarrage", "communication", "journal",
 ] as const;
 export type CleIcone = (typeof CLES_ICONE)[number];
@@ -70,6 +70,7 @@ export const GROUPES_MODULES: GroupeModules[] = [
     titre: "Ressources humaines",
     modules: [
       { href: "/rh", racine: "/rh", icone: "personnel", libelle: "Personnel", description: "Salariés, intervenants, dossiers et paie.", droit: "personnes.consulter" },
+      { href: "/presences", racine: "/presences", icone: "presences", libelle: "Présences et congés", description: "Pointage à la connexion, retards, congés et soldes.", droit: "conges.demander" },
       { href: "/taches", racine: "/taches", icone: "taches", libelle: "Tâches", description: "Ce qui est à faire, par qui et pour quand.", droit: "taches.consulter" },
       { href: "/messagerie", racine: "/messagerie", icone: "messagerie", libelle: "Messagerie", description: "Discussions privées et groupes de l'équipe.", droit: "messagerie.utiliser" },
       { href: "/boite-mail", racine: "/boite-mail", icone: "boite-mail", libelle: "Boîte mail", description: "Vos e-mails, sans quitter Fiessou.", droit: "boite_mail.utiliser" },

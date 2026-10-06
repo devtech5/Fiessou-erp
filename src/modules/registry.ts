@@ -143,6 +143,20 @@ export const MODULES: ModuleDefinition[] = [
   },
 
   {
+    key: "presences",
+    name: "Présences et congés",
+    layer: "socle",
+    // En base : pointage automatique à la première activité du jour (compte
+    // et fiche salarié), pointage et correction à la main, horaires et
+    // retards, jours fériés du pays, demandes de congé numérotées et
+    // décidées, soldes en centièmes de jour avec reprise et majorations.
+    // Restent l'effet des absences sans solde sur la paie et le badge QR.
+    status: "en_cours",
+    requires: ["personnes"],
+    description: "Pointage automatique à la connexion, registre des présences, retards, congés et soldes.",
+  },
+
+  {
     key: "taches",
     name: "Tâches",
     layer: "socle",

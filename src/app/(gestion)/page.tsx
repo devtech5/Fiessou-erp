@@ -26,6 +26,7 @@ import { etatPaie } from "@/modules/paie/requetes";
 import { etatMarches } from "@/modules/marches/creation";
 import { etatLicences } from "@/modules/parc-informatique/requetes";
 import { etatDossiers } from "@/modules/personnes/dossier";
+import { etatPresences } from "@/modules/presences/requetes";
 import { etatFiscalite } from "@/modules/fiscalite/requetes";
 import { etatFacturation } from "@/modules/facturation/requetes";
 import { soldesParCompte } from "@/modules/comptabilite/requetes";
@@ -155,6 +156,7 @@ export default async function PageTableauDeBord() {
     dossiers,
     licences,
     marches,
+    presencesEtat,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -179,6 +181,7 @@ export default async function PageTableauDeBord() {
     moduleOuvert("personnes") && droits.has("personnes.dossier.consulter") ? etatDossiers(session.organizationId, aujourdhui) : Promise.resolve(null),
     moduleOuvert("parc_informatique") && droits.has("parc_informatique.consulter") ? etatLicences(session.organizationId) : Promise.resolve(null),
     moduleOuvert("marches") && droits.has("marches.consulter") ? etatMarches(session.organizationId) : Promise.resolve(null),
+    moduleOuvert("presences") && droits.has("conges.valider") ? etatPresences(session.organizationId, aujourdhui) : Promise.resolve(null),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -214,6 +217,21 @@ export default async function PageTableauDeBord() {
         .join(" · ") + ` — ${dossiers.salaries} salarié${dossiers.salaries > 1 ? "s" : ""}`,
       href: "/rh",
       nombre: dossiers.expirees + dossiers.bientot,
+    });
+  }
+
+  // Congés à décider : un salarié qui attend sa réponse ne peut rien réserver.
+  if (presencesEtat && presencesEtat.demandesEnAttente > 0) {
+    const n = presencesEtat.demandesEnAttente;
+    toutesLesAlertes.push({
+      id: "conges-a-decider",
+      gravite: "attention",
+      source: "base",
+      module: "Présences",
+      titre: n > 1 ? `${n} demandes de congé à décider` : "Une demande de congé à décider",
+      detail: `${presencesEtat.presentsAujourdhui} présent${presencesEtat.presentsAujourdhui > 1 ? "s" : ""} aujourd'hui sur ${presencesEtat.salaries} salarié${presencesEtat.salaries > 1 ? "s" : ""}`,
+      href: "/presences/conges",
+      nombre: n,
     });
   }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ServiceWorkerCaisse } from "@/components/service-worker";
 import { VerrouInactivite } from "@/components/coque/verrou-inactivite";
 import { exigerEntreprise } from "@/lib/auth/dal";
+import { pointerApresReponse } from "@/modules/presences/pointage";
 import { identiteEntreprise, lignesTicket } from "@/lib/identite";
 import { peut } from "@/lib/droits/garde";
 import { listerArticles } from "@/modules/catalogue/requetes";
@@ -19,6 +20,7 @@ export default async function PageCaisse() {
   // Exemptée du verrou d'inactivité : la caisse reste ouverte entre deux
   // clients, même si un onglet de gestion voisin s'est voilé.
   const session = await exigerEntreprise({ malgreVerrou: true });
+  pointerApresReponse(session.organizationId, session.userId);
 
   // La caisse est le seul écran plein cadre : pas de coque où loger un refus,
   // donc il occupe la page.

@@ -9,6 +9,7 @@ import { exigerSession } from "@/lib/auth/dal";
 import { entreprisesAccessibles } from "@/lib/auth/entreprises";
 import { droitsActifs } from "@/lib/droits/garde";
 import { modulesOuverts } from "@/lib/modules/garde";
+import { pointerApresReponse } from "@/modules/presences/pointage";
 
 const ETIQUETTE_STATUT: Record<string, string> = {
   essai: "essai",
@@ -33,6 +34,8 @@ const ETIQUETTE_STATUT: Record<string, string> = {
  */
 export default async function LayoutGestion({ children }: LayoutProps<"/">) {
   const session = await exigerSession();
+  // Ouvrir un écran, c'est être là : le pointage du jour se pose ou s'étend.
+  pointerApresReponse(session.organizationId, session.userId);
   const entreprises = await entreprisesAccessibles(session.userId);
 
   // Sans entreprise active il n'y a pas de rôle, donc aucun droit : la barre

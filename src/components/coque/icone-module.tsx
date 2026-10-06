@@ -185,6 +185,14 @@ const DESSINS: Record<CleIcone, ReactNode> = {
       <path d="M4 42a14 14 0 0 1 28 0Z" fill={CORAIL} />
     </>
   ),
+  presences: (
+    <>
+      <circle cx="20" cy="24" r="17" fill={BLEU} />
+      <path d="M20 13v11l7 4" stroke={BLANC} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <circle cx="35" cy="35" r="10" fill={SARCELLE} />
+      <path d="m30.5 35 3 3 6-6" stroke={BLANC} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
   taches: (
     <>
       <rect x="8" y="6" width="32" height="38" rx="5" fill={SARCELLE} />

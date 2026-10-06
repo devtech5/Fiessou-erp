@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { tracerPartout, tracerPour } from "@/lib/audit";
 import { apresEchec, estVerrouille } from "./identifiants";
+import { pointerApresReponse } from "@/modules/presences/pointage";
 import { verifierMotDePasse } from "./mot-de-passe";
 import {
   CONNEXION_EXPIREE,
@@ -28,7 +29,11 @@ export async function signalerActivite(): Promise<{ verrouillee: boolean }> {
   const active = await lireSession();
   if (!active) return { verrouillee: true };
   if (active.verrouillee) return { verrouillee: true };
-  return { verrouillee: !(await signalerPresence(active.sessionId, active.delaiVerrouillage)) };
+  const vivante = await signalerPresence(active.sessionId, active.delaiVerrouillage);
+  // Une minute d'activité réelle étend la journée de présence (au plus une
+  // écriture toutes les cinq minutes, voir `pointerPresence`).
+  if (vivante) pointerApresReponse(active.organizationId, active.userId);
+  return { verrouillee: !vivante };
 }
 
 /** Voile la session à l'expiration du délai, constatée par le navigateur. */

@@ -263,6 +263,20 @@ recharger ne contourne pas le voile. Règles pures : `src/lib/auth/verrou.ts`.
 appelée depuis l'écran de caisse doit en faire autant, sinon un onglet de
 gestion voisin qui se voile bloque l'encaissement. Nulle part ailleurs.
 
+## Présences : pointage automatique
+
+Tout compte qui ouvre un écran est pointé présent : `pointerApresReponse`
+(`src/modules/presences/pointage.ts`) dans les coques gestion et accueil, la
+caisse et le signal de présence du verrou. La première activité du jour pose
+l'arrivée, les suivantes la dernière activité ; au plus une écriture toutes
+les cinq minutes par compte, APRÈS la réponse (`after`), jamais bloquante.
+Pas seulement à la connexion : une session dure trente jours.
+
+Jours de congé en CENTIÈMES entiers (2,2 j = 220), jamais en flottant. Le jour
+se calcule dans le fuseau de l'entreprise (`organizations.timezone`). La règle
+d'acquisition vient du pays (`regleConges`) et reste « à vérifier » tant que
+personne ne l'a attestée, comme le barème de paie.
+
 ## Interrogations de fond et liens publics
 
 Tout ce qui interroge le serveur en tâche de fond — la cloche, la
