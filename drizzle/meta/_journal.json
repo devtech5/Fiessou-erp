@@ -260,6 +260,13 @@
       "when": 1791253505311,
       "tag": "0036_brave_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791255088185,
+      "tag": "0037_bored_kylun",
+      "breakpoints": true
     }
   ]
 }

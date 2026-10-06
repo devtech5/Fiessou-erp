@@ -6,12 +6,14 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { exigerEntreprise, session as lireSessionCourante } from "@/lib/auth/dal";
-import { refusDroit } from "@/lib/droits/garde";
+import { peut, refusDroit } from "@/lib/droits/garde";
+import { moduleOuvert } from "@/lib/modules/garde";
 import { fmt, fmtDateIso } from "@/lib/format";
 import { identiteEntreprise } from "@/lib/identite";
 import { signerLien, urlAbsolue, verifierLien } from "@/lib/liens-publics";
 import { resteDu } from "@/modules/facturation/calcul";
 import { listerPieces } from "@/modules/facturation/requetes";
+import { totalNonLus } from "@/modules/messagerie/conversations";
 import { contactsTiers, tiers } from "@/modules/tiers/schema";
 
 import { normaliserDestinataire } from "./calcul";
@@ -36,17 +38,20 @@ export interface NotificationVue {
 }
 
 /** La cloche : non lues et dernières notifications de la personne connectée. */
-export async function etatCloche(): Promise<{ nonLues: number; dernieres: NotificationVue[] }> {
+export async function etatCloche(): Promise<{ nonLues: number; dernieres: NotificationVue[]; messages: number | null }> {
   // Interrogée en tâche de fond : une session verrouillée ne redirige pas — la
   // page conservée sous le voile serait perdue — et ne livre rien non plus.
   const session = await lireSessionCourante();
-  if (!session?.organizationId || session.verrouillee) return { nonLues: 0, dernieres: [] };
-  const [nonLues, dernieres] = await Promise.all([
+  if (!session?.organizationId || session.verrouillee) return { nonLues: 0, dernieres: [], messages: null };
+  const messagerie = moduleOuvert("messagerie") && (await peut("messagerie.utiliser"));
+  const [nonLues, dernieres, messages] = await Promise.all([
     nombreNonLues(session.organizationId, session.userId),
     notificationsDe(session.organizationId, session.userId, 15),
+    messagerie ? totalNonLus(session.organizationId, session.userId) : Promise.resolve(null),
   ]);
   return {
     nonLues,
+    messages,
     dernieres: dernieres.map((n) => ({
       id: n.id,
       categorie: n.categorie,

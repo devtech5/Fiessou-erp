@@ -26,6 +26,7 @@ const HEURE = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit
 export function Cloche() {
   const [nonLues, setNonLues] = useState(0);
   const [dernieres, setDernieres] = useState<NotificationVue[]>([]);
+  const [messages, setMessages] = useState<number | null>(null);
   const [ouvert, setOuvert] = useState(false);
   const panneau = useRef<HTMLDivElement>(null);
   const routeur = useRouter();
@@ -36,6 +37,7 @@ export function Cloche() {
       const etat = await etatCloche();
       setNonLues(etat.nonLues);
       setDernieres(etat.dernieres);
+      setMessages(etat.messages);
     } catch {
       // Réseau coupé : la cloche garde son dernier état, elle réessaiera.
     }
@@ -85,7 +87,23 @@ export function Cloche() {
   }
 
   return (
-    <div ref={panneau} className="relative">
+    <div ref={panneau} className="relative flex items-center gap-1">
+      {messages !== null && (
+        <Link
+          href="/messagerie"
+          aria-label={messages > 0 ? `${messages} message${messages > 1 ? "s" : ""} non lu${messages > 1 ? "s" : ""}` : "Messagerie"}
+          className="relative flex size-9 items-center justify-center rounded-lg text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)] hover:text-[var(--encre)]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {messages > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-marque-500 px-1 text-[10px] font-bold text-white">
+              {messages > 99 ? "99+" : messages}
+            </span>
+          )}
+        </Link>
+      )}
       <button
         type="button"
         onClick={() => {
