@@ -292,6 +292,32 @@ export const DROITS = [
     description: "Régler une prestation réalisée depuis la trésorerie, retenue à la source comprise.",
   },
 
+  // -------------------------------------------------------------- marchés
+  {
+    cle: "marches.consulter",
+    moduleKey: "marches",
+    libelle: "Consulter les marchés",
+    description: "Voir les appels d'offres en cours, les consultations de fournisseurs et les conventions.",
+  },
+  {
+    cle: "marches.soumission.gerer",
+    moduleKey: "marches",
+    libelle: "Répondre aux appels d'offres",
+    description: "Ouvrir une soumission, tenir son dossier administratif, la déposer, en noter le résultat.",
+  },
+  {
+    cle: "marches.consultation.gerer",
+    moduleKey: "marches",
+    libelle: "Consulter des fournisseurs",
+    description: "Lancer une mise en concurrence, inviter des fournisseurs, saisir et comparer leurs offres, attribuer.",
+  },
+  {
+    cle: "marches.convention.gerer",
+    moduleKey: "marches",
+    libelle: "Gérer les conventions",
+    description: "Enregistrer une convention, ses avenants, sa résiliation, et le document signé.",
+  },
+
   // ----------------------------------------------------------- parc auto
   {
     cle: "parc_auto.consulter",

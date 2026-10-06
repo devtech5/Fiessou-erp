@@ -218,6 +218,19 @@ export const MODULES: ModuleDefinition[] = [
     description: "Plombiers, électriciens, photographes, monteurs vidéo : annuaire, prestations, avis et paiement.",
   },
 
+  {
+    key: "marches",
+    name: "Appels d'offres et conventions",
+    layer: "socle",
+    // En base : soumissions aux appels d'offres avec dossier administratif à
+    // cocher et alerte de date limite ; consultations lancées aux
+    // fournisseurs, offres notées prix/technique, attribution ; conventions
+    // avec préavis, reconduction tacite, avenants et résiliation.
+    status: "en_cours",
+    requires: ["tiers"],
+    description: "Répondre aux appels d'offres, consulter des fournisseurs, suivre les conventions et leurs avenants.",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",

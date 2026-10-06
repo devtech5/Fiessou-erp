@@ -23,6 +23,7 @@ import { tachesEnRetard } from "@/modules/taches/requetes";
 import { etatTresorerie, planDeTresorerie } from "@/modules/tresorerie/requetes";
 import { etatAchats } from "@/modules/achats/requetes";
 import { etatPaie } from "@/modules/paie/requetes";
+import { etatMarches } from "@/modules/marches/creation";
 import { etatLicences } from "@/modules/parc-informatique/requetes";
 import { etatDossiers } from "@/modules/personnes/dossier";
 import { etatFiscalite } from "@/modules/fiscalite/requetes";
@@ -100,6 +101,7 @@ const DROIT_PAR_RACINE: [string, Droit][] = [
   ["/monnaie", "valeur_electronique.consulter"],
   ["/actifs", "actifs.consulter"],
   ["/parc-auto", "parc_auto.consulter"],
+  ["/marches", "marches.consulter"],
   ["/parc-informatique", "parc_informatique.consulter"],
   ["/missions", "missions.consulter"],
   ["/projets", "projet.consulter"],
@@ -152,6 +154,7 @@ export default async function PageTableauDeBord() {
     fiscalite,
     dossiers,
     licences,
+    marches,
   ] = await Promise.all([
     etatFacturation(session.organizationId),
     resumeStock(session.organizationId),
@@ -175,6 +178,7 @@ export default async function PageTableauDeBord() {
     droits.has("comptabilite.fiscalite.declarer") ? etatFiscalite(session.organizationId, aujourdhui) : Promise.resolve(undefined),
     moduleOuvert("personnes") && droits.has("personnes.dossier.consulter") ? etatDossiers(session.organizationId, aujourdhui) : Promise.resolve(null),
     moduleOuvert("parc_informatique") && droits.has("parc_informatique.consulter") ? etatLicences(session.organizationId) : Promise.resolve(null),
+    moduleOuvert("marches") && droits.has("marches.consulter") ? etatMarches(session.organizationId) : Promise.resolve(null),
   ]);
 
   const toutesLesAlertes = alertes(facturation, {
@@ -232,6 +236,37 @@ export default async function PageTableauDeBord() {
         .join(" · "),
       href: "/parc-informatique/licences",
       nombre: licences.depassees + licences.expirees + licences.bientot,
+    });
+  }
+  // Marchés : un dossier incomplet à la date limite est un dossier rejeté ;
+  // une convention qui entre dans son préavis se renégocie maintenant ou se subit.
+  if (marches && marches.soumissionsEnDanger > 0) {
+    toutesLesAlertes.push({
+      id: "soumissions-en-danger",
+      gravite: "critique",
+      source: "base",
+      module: "Marchés",
+      titre: "Appel d'offres : date limite proche, dossier incomplet",
+      detail: `${marches.soumissionsEnDanger} soumission${marches.soumissionsEnDanger > 1 ? "s" : ""} à compléter`,
+      href: "/marches",
+      nombre: marches.soumissionsEnDanger,
+    });
+  }
+  if (marches && marches.conventionsARenouveler + marches.conventionsExpireesRecemment > 0) {
+    toutesLesAlertes.push({
+      id: "conventions-echeance",
+      gravite: marches.conventionsExpireesRecemment > 0 ? "critique" : "attention",
+      source: "base",
+      module: "Marchés",
+      titre: marches.conventionsExpireesRecemment > 0 ? "Conventions expirées" : "Conventions à renouveler",
+      detail: [
+        marches.conventionsARenouveler > 0 && `${marches.conventionsARenouveler} dans leur préavis`,
+        marches.conventionsExpireesRecemment > 0 && `${marches.conventionsExpireesRecemment} expirée${marches.conventionsExpireesRecemment > 1 ? "s" : ""} ce mois-ci`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      href: "/marches/conventions",
+      nombre: marches.conventionsARenouveler + marches.conventionsExpireesRecemment,
     });
   }
   toutesLesAlertes.sort((a, b) => ORDRE_GRAVITE[a.gravite] - ORDRE_GRAVITE[b.gravite]);

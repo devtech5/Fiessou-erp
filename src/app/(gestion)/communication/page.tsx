@@ -26,6 +26,7 @@ const ORIGINE: Record<string, string> = {
   relance: "Relance",
   campagne: "Message groupé",
   essai: "Essai",
+  consultation: "Consultation",
 };
 
 /**
