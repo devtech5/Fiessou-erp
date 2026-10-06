@@ -231,6 +231,18 @@ export const MODULES: ModuleDefinition[] = [
     description: "Répondre aux appels d'offres, consulter des fournisseurs, suivre les conventions et leurs avenants.",
   },
 
+  {
+    key: "boite_mail",
+    name: "Boîte mail",
+    layer: "socle",
+    // En base : la connexion IMAP/SMTP de chaque utilisateur, mot de passe
+    // d'application chiffré. Les messages restent chez le fournisseur et se
+    // lisent en direct ; affichage isolé, images distantes bloquées.
+    status: "en_cours",
+    requires: [],
+    description: "Consulter et envoyer ses e-mails sans quitter Fiessou (Gmail, Yahoo, hébergeur…).",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",

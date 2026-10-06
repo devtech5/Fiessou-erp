@@ -318,6 +318,14 @@ export const DROITS = [
     description: "Enregistrer une convention, ses avenants, sa résiliation, et le document signé.",
   },
 
+  // ------------------------------------------------------------ boîte mail
+  {
+    cle: "boite_mail.utiliser",
+    moduleKey: "boite_mail",
+    libelle: "Utiliser sa boîte mail dans Fiessou",
+    description: "Connecter SA propre adresse e-mail et la consulter sans quitter Fiessou. Personne d'autre n'y accède.",
+  },
+
   // ----------------------------------------------------------- parc auto
   {
     cle: "parc_auto.consulter",
@@ -927,6 +935,7 @@ export const PRESETS_ROLES = [
       "personnes.paie.payer",
       "communication.consulter",
       "communication.client.notifier",
+      "boite_mail.utiliser",
       ...TRESORERIE_COMPTABLE,
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,

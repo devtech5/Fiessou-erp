@@ -6,7 +6,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // PGlite charge un PostgreSQL compilé en WebAssembly depuis son propre
   // dossier : l'empaqueter casserait les chemins vers le .wasm et les données.
-  serverExternalPackages: ["@electric-sql/pglite"],
+  // Les bibliothèques de messagerie (IMAP, MIME, SMTP) ouvrent des sockets
+  // et chargent leurs encodages à l'exécution : elles restent dans node_modules.
+  serverExternalPackages: ["@electric-sql/pglite", "imapflow", "mailparser", "nodemailer"],
   experimental: {
     serverActions: {
       // Une pièce jointe va jusqu'à 10 Mo (photo de chantier, reçu scanné) ;

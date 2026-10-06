@@ -64,6 +64,7 @@ const GROUPES: GroupeModules[] = [
       { href: "/rh", racine: "/rh", libelle: "Personnel", droit: "personnes.consulter" },
       { href: "/taches", racine: "/taches", libelle: "Tâches", droit: "taches.consulter" },
       { href: "/messagerie", racine: "/messagerie", libelle: "Messagerie", droit: "messagerie.utiliser" },
+      { href: "/boite-mail", racine: "/boite-mail", libelle: "Boîte mail", droit: "boite_mail.utiliser" },
       { href: "/documents", racine: "/documents", libelle: "Documents", droit: "documents.consulter" },
       { href: "/archives", racine: "/archives", libelle: "Archives", droit: "archives.consulter" },
     ],

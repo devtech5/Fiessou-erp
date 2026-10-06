@@ -45,6 +45,7 @@ const TABLES_ATTENDUES = [
   "commerciaux",
   "commissions",
   "comptages_caisse",
+  "comptes_courriel",
   "comptes_tresorerie",
   "consultations",
   "contacts_tiers",

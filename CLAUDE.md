@@ -263,6 +263,22 @@ recharger ne contourne pas le voile. Règles pures : `src/lib/auth/verrou.ts`.
 appelée depuis l'écran de caisse doit en faire autant, sinon un onglet de
 gestion voisin qui se voile bloque l'encaissement. Nulle part ailleurs.
 
+## Interrogations de fond et liens publics
+
+Tout ce qui interroge le serveur en tâche de fond — la cloche, la
+messagerie — lit la session par `session()` et rend un résultat VIDE si elle
+est verrouillée, sans rediriger : une redirection ferait perdre la page
+conservée sous le voile. Le navigateur suspend d'ailleurs ces interrogations
+onglet caché ou écran verrouillé (`localStorage` `fiessou-verrou`).
+
+Ce qu'un client ouvre sans compte (sa facture, sa désinscription) passe par
+`src/lib/liens-publics.ts` : jeton signé HMAC, objet et expiration dedans,
+rien en base. Les routes publiques sont listées dans `ROUTES_LIBRES` du proxy.
+
+Un secret qu'il faut RELIRE (mot de passe d'application d'une boîte mail) se
+chiffre avec `src/lib/chiffrement.ts` (AES-256-GCM, clé dérivée
+d'`AUTH_SECRET` par usage) ; un mot de passe de connexion, lui, se hache.
+
 ## Reprise de l'existant
 
 `/demarrage` (`src/modules/reprise/`) importe des CSV (articles, tiers avec

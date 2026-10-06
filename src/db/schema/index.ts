@@ -46,3 +46,4 @@ export * from "@/modules/communication/schema";
 export * from "@/modules/messagerie/schema";
 export * from "@/modules/prestataires/schema";
 export * from "@/modules/marches/schema";
+export * from "@/modules/boite-mail/schema";
