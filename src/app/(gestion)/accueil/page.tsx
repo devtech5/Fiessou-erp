@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LayoutDashboard, Store } from "lucide-react";
+
+import { IconeModule } from "@/components/coque/icone-module";
 
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { entreprisesAccessibles } from "@/lib/auth/entreprises";
@@ -36,11 +39,13 @@ export default async function PageAccueil() {
         </div>
         <div className="flex flex-wrap gap-2">
           {droits.has("pos.vente.encaisser") && (
-            <Link href="/caisse" className="h-cible flex items-center rounded-lg bg-marque-500 px-4 text-sm font-semibold text-white hover:bg-marque-600">
+            <Link href="/caisse" className="h-cible flex items-center gap-2 rounded-lg bg-marque-500 px-4 text-sm font-semibold text-white hover:bg-marque-600">
+              <Store aria-hidden className="size-4" />
               Ouvrir la caisse
             </Link>
           )}
-          <Link href="/" className="h-cible flex items-center rounded-lg border border-[var(--filet)] px-4 text-sm font-medium hover:bg-[var(--surface-creuse)]">
+          <Link href="/" className="h-cible flex items-center gap-2 rounded-lg border border-[var(--filet)] px-4 text-sm font-medium hover:bg-[var(--surface-creuse)]">
+            <LayoutDashboard aria-hidden className="size-4" />
             Tableau de bord
           </Link>
         </div>
@@ -63,10 +68,10 @@ export default async function PageAccueil() {
                   <li key={m.href}>
                     <Link
                       href={m.href}
-                      className="flex h-full items-start gap-3 rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-3 hover:border-marque-400 sm:p-4"
+                      className="group flex h-full items-start gap-3 rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-3 hover:border-marque-400 sm:p-4"
                     >
-                      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-marque-50 text-sm font-bold text-marque-600">
-                        {m.libelle.charAt(0)}
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-marque-50 text-marque-600 transition-colors group-hover:bg-marque-600 group-hover:text-white">
+                        <IconeModule cle={m.icone} className="size-5" />
                       </span>
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold">{m.libelle}</span>
