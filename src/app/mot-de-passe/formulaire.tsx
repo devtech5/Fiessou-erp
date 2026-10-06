@@ -6,6 +6,7 @@ import { changerMotDePasse, type EtatMotDePasse } from "@/lib/auth/actions";
 import { LONGUEUR_MIN_MOT_DE_PASSE } from "@/lib/auth/identifiants";
 
 import { CLASSE_SAISIE } from "../connexion/formulaire";
+import { ChampMotDePasse } from "@/components/ui/mot-de-passe";
 
 export function FormulaireMotDePasse({ provisoire }: { provisoire: boolean }) {
   const [etat, action, enCours] = useActionState<EtatMotDePasse, FormData>(
@@ -19,9 +20,8 @@ export function FormulaireMotDePasse({ provisoire }: { provisoire: boolean }) {
         <span className="mb-1.5 block text-sm font-medium">
           {provisoire ? "Mot de passe provisoire" : "Mot de passe actuel"}
         </span>
-        <input
+        <ChampMotDePasse
           name="actuel"
-          type="password"
           autoComplete="current-password"
           autoFocus
           required
@@ -31,9 +31,8 @@ export function FormulaireMotDePasse({ provisoire }: { provisoire: boolean }) {
 
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium">Nouveau mot de passe</span>
-        <input
+        <ChampMotDePasse
           name="nouveau"
-          type="password"
           autoComplete="new-password"
           required
           minLength={LONGUEUR_MIN_MOT_DE_PASSE}
@@ -46,9 +45,8 @@ export function FormulaireMotDePasse({ provisoire }: { provisoire: boolean }) {
 
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium">Confirmez</span>
-        <input
+        <ChampMotDePasse
           name="confirmation"
-          type="password"
           autoComplete="new-password"
           required
           className={CLASSE_SAISIE}

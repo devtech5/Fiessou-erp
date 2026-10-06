@@ -10,6 +10,7 @@ import {
   type EtatDeverrouillage,
 } from "@/lib/auth/actions-verrou";
 import { PAS_PRESENCE_MS, inactiviteEcoulee } from "@/lib/auth/verrou";
+import { ChampMotDePasse } from "@/components/ui/mot-de-passe";
 
 /**
  * Partagés entre onglets par `localStorage` : l'activité d'un onglet compte
@@ -223,10 +224,9 @@ export function CarteVerrou({
         {email && <input type="email" name="email" autoComplete="username" value={email} readOnly hidden />}
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">Mot de passe</span>
-          <input
+          <ChampMotDePasse
             ref={champ}
             name="motDePasse"
-            type="password"
             autoComplete="current-password"
             autoFocus
             required

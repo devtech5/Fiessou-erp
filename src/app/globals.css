@@ -156,6 +156,23 @@
   scrollbar-color: var(--filet) transparent;
 }
 
+/*
+ * Un mot de passe masqué s'affiche en étoiles, pas en points.
+ *
+ * Le navigateur remplace chaque caractère par un point (U+2022, ou U+25CF
+ * selon le moteur) et le dessine avec la police du champ. Cette police ne
+ * couvre QUE ces points, et les dessine en étoile : le champ reste un vrai
+ * `type="password"` — gestionnaire de mots de passe, clavier du téléphone,
+ * pas de copie possible — et le reste du texte retombe sur la police
+ * d'interface. Générée par `src/scripts/police-masque.py`.
+ */
+@font-face {
+  font-family: "Fiessou Masque";
+  src: url("/polices/masque-etoile.woff") format("woff");
+  unicode-range: U+00B7, U+2022, U+2027, U+2219, U+25CF, U+25E6;
+  font-display: block;
+}
+
 @layer base {
   html {
     /* Empêche le zoom élastique quand un caissier tape vite sur tablette. */
@@ -168,6 +185,11 @@
     color: var(--encre);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+
+  input[type="password"] {
+    font-family: "Fiessou Masque", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.08em;
   }
 
   /* Un fieldset prend par défaut la largeur de son contenu : une rangée

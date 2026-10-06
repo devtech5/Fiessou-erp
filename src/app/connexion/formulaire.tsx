@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { seConnecter, type EtatConnexion } from "@/lib/auth/actions";
+import { ChampMotDePasse } from "@/components/ui/mot-de-passe";
 
 export const CLASSE_SAISIE =
   "h-touche w-full rounded-xl border border-[var(--filet)] bg-[var(--fond)] px-4 text-base outline-none focus:border-marque-500";
@@ -42,9 +43,8 @@ export function FormulaireConnexion() {
 
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium">Mot de passe</span>
-        <input
+        <ChampMotDePasse
           name="motDePasse"
-          type="password"
           autoComplete="current-password"
           required
           className={CLASSE_SAISIE}
