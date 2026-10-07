@@ -13,8 +13,8 @@ export const CLES_ICONE = [
   "commercial", "stock", "achats", "prestataires", "marches", "reservations",
   "projets", "missions", "actifs", "parc-auto", "parc-informatique", "billetterie",
   "comptabilite", "tresorerie", "guichet",
-  "personnel", "presences", "taches", "messagerie", "boite-mail", "documents", "archives",
-  "utilisateurs", "entreprise", "demarrage", "communication", "journal",
+  "personnel", "presences", "planning", "taches", "messagerie", "boite-mail", "documents", "archives",
+  "utilisateurs", "entreprise", "demarrage", "communication", "rapports", "journal",
 ] as const;
 export type CleIcone = (typeof CLES_ICONE)[number];
 
@@ -71,6 +71,7 @@ export const GROUPES_MODULES: GroupeModules[] = [
     modules: [
       { href: "/rh", racine: "/rh", icone: "personnel", libelle: "Personnel", description: "Salariés, intervenants, dossiers et paie.", droit: "personnes.consulter" },
       { href: "/presences", racine: "/presences", icone: "presences", libelle: "Présences et congés", description: "Pointage à la connexion, retards, congés et soldes.", droit: "conges.demander" },
+      { href: "/planning", racine: "/planning", icone: "planning", libelle: "Planning", description: "Qui est disponible, occupé, en mission ou sur le terrain.", droit: "planning.utiliser" },
       { href: "/taches", racine: "/taches", icone: "taches", libelle: "Tâches", description: "Ce qui est à faire, par qui et pour quand.", droit: "taches.consulter" },
       { href: "/messagerie", racine: "/messagerie", icone: "messagerie", libelle: "Messagerie", description: "Discussions privées et groupes de l'équipe.", droit: "messagerie.utiliser" },
       { href: "/boite-mail", racine: "/boite-mail", icone: "boite-mail", libelle: "Boîte mail", description: "Vos e-mails, sans quitter Fiessou.", droit: "boite_mail.utiliser" },
@@ -85,6 +86,7 @@ export const GROUPES_MODULES: GroupeModules[] = [
       { href: "/entreprise", racine: "/entreprise", icone: "entreprise", libelle: "Entreprise", description: "Identité, numérotation et sécurité.", droit: "organisation.parametres.gerer" },
       { href: "/demarrage", racine: "/demarrage", icone: "demarrage", libelle: "Démarrage", description: "Reprise de l'existant : articles, tiers, soldes.", droit: "organisation.reprise.importer" },
       { href: "/communication", racine: "/communication", icone: "communication", libelle: "Communication", description: "Envois aux clients et messages groupés.", droit: "communication.consulter" },
+      { href: "/rapports", racine: "/rapports", icone: "rapports", libelle: "Rapports", description: "Ventes, stock, trésorerie, paie : chaque module en chiffres, imprimable et exportable vers Excel.", droit: "rapports.consulter" },
       { href: "/journal", racine: "/journal", icone: "journal", libelle: "Journal d'activité", description: "Qui a fait quoi, et quand.", droit: "organisation.journal.consulter" },
     ],
   },
@@ -99,6 +101,7 @@ export const GROUPES_MODULES: GroupeModules[] = [
  */
 export const RACCOURCIS_COMPTE: { href: string; libelle: string; module: string }[] = [
   { href: "/taches", libelle: "Mes tâches", module: "taches" },
+  { href: "/planning", libelle: "Mon planning", module: "planning" },
   { href: "/documents", libelle: "Mes documents", module: "documents" },
   { href: "/archives", libelle: "Mes archives", module: "archives" },
   { href: "/rh", libelle: "Ressources humaines", module: "personnes" },

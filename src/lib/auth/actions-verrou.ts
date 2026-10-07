@@ -36,18 +36,27 @@ export async function signalerActivite(): Promise<{ verrouillee: boolean }> {
   return { verrouillee: !vivante };
 }
 
-/** Voile la session à l'expiration du délai, constatée par le navigateur. */
-export async function verrouiller(): Promise<void> {
+/**
+ * Voile la session : à l'expiration du délai constatée par le navigateur, ou
+ * à la demande de son titulaire qui s'éloigne du poste (`manuel`).
+ */
+export async function verrouiller(manuel = false): Promise<void> {
   const active = await lireSession();
   if (!active) return;
   await verrouillerSessionId(active.sessionId);
   if (active.organizationId && !active.verrouillee) {
-    await tracerPour(active.organizationId, active.userId, {
-      action: "session.verrouillee",
-      entite: "compte",
-      entiteId: active.userId,
-      apres: { delaiMinutes: active.delaiVerrouillage },
-    });
+    await tracerPour(
+      active.organizationId,
+      active.userId,
+      manuel
+        ? { action: "session.verrouillee_manuel", entite: "compte", entiteId: active.userId }
+        : {
+            action: "session.verrouillee",
+            entite: "compte",
+            entiteId: active.userId,
+            apres: { delaiMinutes: active.delaiVerrouillage },
+          },
+    );
   }
 }
 

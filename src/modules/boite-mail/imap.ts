@@ -1,6 +1,6 @@
 import "server-only";
 
-import { ImapFlow } from "imapflow";
+import { ImapFlow, type MessageStructureObject } from "imapflow";
 import { simpleParser, type AddressObject } from "mailparser";
 import nodemailer from "nodemailer";
 import MailComposer from "nodemailer/lib/mail-composer";
@@ -116,6 +116,21 @@ export interface ApercuMessage {
   lu: boolean;
   suivi: boolean;
   taille: number;
+  /** Porte au moins une pièce jointe : le trombone de la liste. */
+  pieces: boolean;
+}
+
+/**
+ * Une pièce jointe se reconnaît à sa disposition, ou à un nom de fichier sur
+ * une partie qui n'est pas du texte. Une image incorporée au HTML (Content-ID,
+ * logo de signature) n'en est pas une.
+ */
+function aDesPieces(n: MessageStructureObject | undefined): boolean {
+  if (!n) return false;
+  if (n.childNodes?.length) return n.childNodes.some(aDesPieces);
+  if (n.disposition === "attachment") return true;
+  const nomme = Boolean(n.dispositionParameters?.filename ?? n.parameters?.name);
+  return nomme && !n.type.startsWith("text/") && !(n.id && n.type.startsWith("image/"));
 }
 
 /** Une page de messages, du plus récent au plus ancien. */
@@ -130,7 +145,7 @@ export async function messages(c: Connexion, dossier: string, page: number, parP
       if (fin === 0) return { total, messages: [] };
       const debut = Math.max(1, fin - parPage + 1);
       const liste: ApercuMessage[] = [];
-      for await (const m of client.fetch(`${debut}:${fin}`, { uid: true, envelope: true, flags: true, internalDate: true, size: true })) {
+      for await (const m of client.fetch(`${debut}:${fin}`, { uid: true, envelope: true, flags: true, internalDate: true, size: true, bodyStructure: true })) {
         const de = m.envelope?.from?.[0];
         const date = m.envelope?.date ?? m.internalDate;
         liste.push({
@@ -142,6 +157,7 @@ export async function messages(c: Connexion, dossier: string, page: number, parP
           lu: m.flags?.has("\\Seen") ?? false,
           suivi: m.flags?.has("\\Flagged") ?? false,
           taille: m.size ?? 0,
+          pieces: aDesPieces(m.bodyStructure),
         });
       }
       return { total, messages: liste.reverse() };
@@ -236,6 +252,34 @@ export async function corbeille(c: Connexion, dossier: string, uid: number): Pro
     try {
       if (!poubelle || poubelle === dossier) await client.messageDelete(String(uid), { uid: true });
       else await client.messageMove(String(uid), poubelle, { uid: true });
+    } finally {
+      verrou.release();
+    }
+  });
+}
+
+/** Range dans le dossier Archives du fournisseur. Sans dossier Archives déclaré, refuse plutôt que deviner. */
+export async function archiver(c: Connexion, dossier: string, uid: number): Promise<boolean> {
+  return avecImap(c, async (client) => {
+    const archives = await dossierParUsage(client, "\\Archive");
+    if (!archives || archives === dossier) return false;
+    const verrou = await client.getMailboxLock(dossier);
+    try {
+      await client.messageMove(String(uid), archives, { uid: true });
+      return true;
+    } finally {
+      verrou.release();
+    }
+  });
+}
+
+/** Pose ou retire le drapeau de suivi (\Flagged), le même que chez le fournisseur. */
+export async function marquerSuivi(c: Connexion, dossier: string, uid: number, suivi: boolean): Promise<void> {
+  await avecImap(c, async (client) => {
+    const verrou = await client.getMailboxLock(dossier);
+    try {
+      if (suivi) await client.messageFlagsAdd(String(uid), ["\\Flagged"], { uid: true });
+      else await client.messageFlagsRemove(String(uid), ["\\Flagged"], { uid: true });
     } finally {
       verrou.release();
     }

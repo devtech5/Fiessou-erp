@@ -1,6 +1,7 @@
 import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { ModuleEnPreparation } from "@/components/coque/module-en-preparation";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { lienRapports } from "@/lib/rapports/registre";
 import { droitsActifs } from "@/lib/droits/garde";
 import { moduleOuvert } from "@/lib/modules/garde";
 
@@ -24,7 +25,7 @@ export default async function LayoutPresences({ children }: LayoutProps<"/presen
 
   return (
     <>
-      <SousNavigation entrees={entrees} />
+      <SousNavigation entrees={entrees} rapports={await lienRapports("presences")} />
       {children}
     </>
   );

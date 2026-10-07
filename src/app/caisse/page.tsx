@@ -113,9 +113,12 @@ export default async function PageCaisse() {
       {/* La caisse doit pouvoir S'OUVRIR sans réseau. La vente, elle, est déjà
           hors ligne par la file locale. */}
       <ServiceWorkerCaisse />
-      {/* Ses gestes comptent comme activité, sans jamais la voiler. */}
+      {/* Ses gestes comptent comme activité. Elle ne se voile que sur un
+          verrou demandé à la main. */}
       <VerrouInactivite
         mode="presence"
+        cible="coque-caisse"
+        sessionVerrouillee={session.verrouillee}
         delaiMinutes={session.delaiVerrouillage}
         nom={session.nom}
         email={session.email}

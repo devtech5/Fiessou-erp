@@ -30,6 +30,13 @@ export const CATEGORIES_DEPENSE = {
   entretien: { libelle: "Entretien, réparation", compte: "624", libelleCompte: "Entretien, réparations et maintenance" },
   honoraires: { libelle: "Honoraires, prestataires", compte: "632", libelleCompte: "Rémunérations d'intermédiaires et de conseils" },
   main_oeuvre: { libelle: "Main-d'œuvre occasionnelle", compte: "637", libelleCompte: "Rémunérations de personnel extérieur" },
+  // Les charges qui reviennent chaque mois ou chaque année : facture CIE,
+  // SODECI, abonnement internet, assurance, patente.
+  electricite: { libelle: "Électricité", compte: "6052", libelleCompte: "Fournitures non stockables — électricité" },
+  eau: { libelle: "Eau", compte: "6051", libelleCompte: "Fournitures non stockables — eau" },
+  telecom: { libelle: "Téléphone, internet", compte: "628", libelleCompte: "Frais de télécommunications" },
+  assurance: { libelle: "Assurance", compte: "625", libelleCompte: "Primes d'assurance" },
+  impots: { libelle: "Impôts et taxes (patente…)", compte: "641", libelleCompte: "Impôts et taxes directs" },
   divers: { libelle: "Autres dépenses", compte: "638", libelleCompte: "Autres charges externes" },
 } as const;
 

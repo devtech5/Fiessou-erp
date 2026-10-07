@@ -1,6 +1,7 @@
 import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { ModuleEnPreparation } from "@/components/coque/module-en-preparation";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { lienRapports } from "@/lib/rapports/registre";
 import { peut } from "@/lib/droits/garde";
 import { moduleOuvert } from "@/lib/modules/garde";
 
@@ -15,7 +16,7 @@ export default async function LayoutAchats({ children }: LayoutProps<"/achats">)
   if (!(await peut("achats.consulter"))) return <AccesRefuse droit="achats.consulter" />;
   return (
     <>
-      <SousNavigation entrees={SECTIONS} />
+      <SousNavigation entrees={SECTIONS} rapports={await lienRapports("achats")} />
       {children}
     </>
   );

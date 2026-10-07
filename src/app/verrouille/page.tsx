@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { session } from "@/lib/auth/dal";
 import { CONNEXION_EXPIREE } from "@/lib/auth/session";
-import { CarteVerrouPage } from "./carte";
+import { EcranVerrouillagePage } from "./carte";
 
 export const metadata: Metadata = { title: "Écran verrouillé" };
 
@@ -17,13 +17,8 @@ export default async function PageVerrouille() {
   if (!active.verrouillee) redirect("/");
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-[var(--fond)] p-4">
-      <CarteVerrouPage
-        nom={active.nom}
-        email={active.email}
-        entreprise={active.organizationNom}
-        delaiMinutes={active.delaiVerrouillage}
-      />
+    <main>
+      <EcranVerrouillagePage nom={active.nom} email={active.email} entreprise={active.organizationNom} />
     </main>
   );
 }

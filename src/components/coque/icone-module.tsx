@@ -193,6 +193,18 @@ const DESSINS: Record<CleIcone, ReactNode> = {
       <path d="m30.5 35 3 3 6-6" stroke={BLANC} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </>
   ),
+  planning: (
+    <>
+      <rect x="4" y="8" width="34" height="32" rx="5" fill={VIOLET} />
+      <rect x="4" y="8" width="34" height="9" rx="4" fill={PRUNE} />
+      <rect x="11" y="4" width="4" height="8" rx="2" fill={JAUNE} />
+      <rect x="27" y="4" width="4" height="8" rx="2" fill={JAUNE} />
+      <rect x="10" y="22" width="14" height="4" rx="2" fill={BLANC} opacity=".85" />
+      <rect x="10" y="30" width="9" height="4" rx="2" fill={BLANC} opacity=".6" />
+      <circle cx="36" cy="36" r="9" fill={SARCELLE} />
+      <circle cx="36" cy="36" r="3.5" fill={BLANC} />
+    </>
+  ),
   taches: (
     <>
       <rect x="8" y="6" width="32" height="38" rx="5" fill={SARCELLE} />
@@ -270,6 +282,14 @@ const DESSINS: Record<CleIcone, ReactNode> = {
       <path d="M11 17 33 7v32L11 29Z" fill={CORAIL} />
       <rect x="4" y="16" width="10" height="14" rx="3" fill={PRUNE} />
       <rect x="11" y="27" width="7" height="14" rx="3" fill={PRUNE} />
+    </>
+  ),
+  rapports: (
+    <>
+      <rect x="5" y="5" width="38" height="38" rx="8" fill={BLEU} />
+      <rect x="12" y="24" width="6" height="12" rx="2" fill={BLANC} />
+      <rect x="21" y="15" width="6" height="21" rx="2" fill={JAUNE} />
+      <rect x="30" y="20" width="6" height="16" rx="2" fill={BLANC} />
     </>
   ),
   journal: (

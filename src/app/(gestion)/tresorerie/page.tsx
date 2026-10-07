@@ -95,6 +95,11 @@ export default async function PageTresorerie() {
                   {fmt(c.solde)} <span className="text-sm font-medium text-[var(--encre-faible)]">FCFA</span>
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
+                  {c.actif && (
+                    <Link href={`/tresorerie/mouvements?compte=${c.id}`}>
+                      <Pastille ton="marque">Mouvements</Pastille>
+                    </Link>
+                  )}
                   {!c.actif && <Pastille ton="neutre">Fermé</Pastille>}
                   {bas && <Pastille ton="alerte">Sous le seuil de {fmt(c.seuilAlerte)} F</Pastille>}
                   {c.solde < 0 && c.nature !== "banque" && <Pastille ton="danger">Solde négatif : écriture à vérifier</Pastille>}

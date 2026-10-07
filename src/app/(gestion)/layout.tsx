@@ -105,7 +105,7 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
                 exercices={[exerciceCourant]}
               />
               {session.organizationId && (
-                <div className="ml-auto">
+                <div className="ml-auto shrink-0">
                   <Cloche />
                 </div>
               )}

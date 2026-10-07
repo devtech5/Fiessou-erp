@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { verrouillerMaintenant } from "@/components/coque/verrou-inactivite";
+import { IconeCadenas } from "@/components/ui/icone-cadenas";
 import {
   ajouterArticle,
   definirRemise,
@@ -301,7 +303,7 @@ export function EcranCaisse({
   }, [enLigne, viderFile]);
 
   return (
-    <div className="flex h-dvh flex-col bg-[var(--fond)] text-[var(--encre)]">
+    <div id="coque-caisse" className="flex h-dvh flex-col bg-[var(--fond)] text-[var(--encre)]">
       <EnTete
         nomBoutique={nomBoutique}
         // Le poste porte souvent déjà le nom du magasin : ne pas le répéter.
@@ -485,6 +487,15 @@ function EnTete({
         )}
         <span className="chiffres">{heure ?? "--:--"}</span>
         <span className="font-medium text-[var(--encre)]">{caissier}</span>
+        <button
+          type="button"
+          onClick={verrouillerMaintenant}
+          title="Verrouiller la caisse le temps de s'absenter"
+          className="flex items-center gap-1.5 rounded border border-[var(--filet)] px-2.5 py-1 font-medium text-[var(--encre)] hover:bg-[var(--surface-creuse)]"
+        >
+          <IconeCadenas className="size-3.5" />
+          Verrouiller
+        </button>
       </div>
     </header>
   );

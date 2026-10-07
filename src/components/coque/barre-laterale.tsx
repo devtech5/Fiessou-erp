@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { IconeCadenas } from "@/components/ui/icone-cadenas";
 import { seDeconnecter } from "@/lib/auth/actions";
 import type { Droit } from "@/lib/droits/catalogue";
 import { groupesVisibles, raccourcisCompte, type CleIcone, type EntreeModule } from "@/lib/navigation";
 
 import { IconeModule } from "./icone-module";
 import { SignatureFiessou } from "./signature";
+import { verrouillerMaintenant } from "./verrou-inactivite";
 
 /** Hors groupes : l'accueil et le tableau de bord les traversent tous. */
 const ACCUEILS: { href: string; libelle: string; icone: CleIcone }[] = [
@@ -306,6 +308,22 @@ export function MenuCompte({
               </li>
             ))}
           </ul>
+
+          {/* Verrouiller garde la session et la page : on s'éloigne un moment,
+              on revient en ressaisissant son mot de passe. */}
+          <div className="border-t border-[var(--filet)] p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setOuvert(false);
+                verrouillerMaintenant();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-[var(--surface-creuse)]"
+            >
+              <IconeCadenas />
+              Verrouiller
+            </button>
+          </div>
 
           <form action={seDeconnecter} className="border-t border-[var(--filet)] p-1">
             <button

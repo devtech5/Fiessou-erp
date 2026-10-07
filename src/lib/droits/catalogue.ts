@@ -284,6 +284,26 @@ export const DROITS = [
     description: "Accorder ou refuser une demande, saisir un congé pour un salarié, ajuster un solde.",
   },
 
+  // ------------------------------------------------------------- planning
+  {
+    cle: "planning.utiliser",
+    moduleKey: "planning",
+    libelle: "Tenir son planning",
+    description: "Déclarer ses horaires habituels et son statut — occupé, en mission, en courses, sur le terrain — maintenant ou à l'avance.",
+  },
+  {
+    cle: "planning.equipe.consulter",
+    moduleKey: "planning",
+    libelle: "Voir le planning de l'équipe",
+    description: "Savoir qui est disponible maintenant, et le statut de chacun sur la semaine.",
+  },
+  {
+    cle: "planning.gerer",
+    moduleKey: "planning",
+    libelle: "Gérer le planning de tous",
+    description: "Poser, modifier ou supprimer le statut, les créneaux et les horaires de n'importe quel membre.",
+  },
+
   // ----------------------------------------------------------- messagerie
   {
     cle: "messagerie.utiliser",
@@ -739,6 +759,24 @@ export const DROITS = [
     libelle: "Rapprochement bancaire",
     description: "Importer un relevé, pointer ses lignes face aux écritures, comptabiliser frais et intérêts bancaires.",
   },
+  {
+    cle: "tresorerie.mouvement.saisir",
+    moduleKey: "tresorerie",
+    libelle: "Saisir les mouvements de trésorerie",
+    description:
+      "Enregistrer une entrée ou une sortie sur une caisse, une banque ou un portefeuille : versement " +
+      "d'un client, paiement d'un fournisseur ou d'un prestataire, apport, prêt, frais. Passe l'écriture " +
+      "et imprime l'ordre de virement. Annuler un mouvement le contre-passe.",
+  },
+  {
+    cle: "tresorerie.charges.gerer",
+    moduleKey: "tresorerie",
+    libelle: "Gérer les charges récurrentes et les budgets",
+    description:
+      "Déclarer loyer, électricité, abonnements ; préparer la dépense de chaque échéance ; fixer " +
+      "l'enveloppe mensuelle de chaque famille de charges. La dépense préparée attend toujours " +
+      "l'approbation d'un autre membre.",
+  },
 
   // --------------------------------------------------------- organisation
   {
@@ -746,6 +784,14 @@ export const DROITS = [
     moduleKey: TRANSVERSE,
     libelle: "Gérer les membres",
     description: "Inviter quelqu'un, changer son rôle, révoquer son accès.",
+  },
+  {
+    cle: "rapports.consulter",
+    moduleKey: TRANSVERSE,
+    libelle: "Ouvrir les rapports",
+    description:
+      "Accéder à l'espace des rapports et les exporter vers Excel. Chaque rapport exige en plus le droit " +
+      "de consulter son module : un caissier qui l'aurait ne verrait pas la paie.",
   },
   {
     cle: "organisation.journal.consulter",
@@ -877,10 +923,15 @@ const TRESORERIE_COMPTABLE = [
   "tresorerie.bon.demander",
   "tresorerie.caisse.tenir",
   "tresorerie.rapprocher",
+  "tresorerie.mouvement.saisir",
+  "tresorerie.charges.gerer",
 ] as const satisfies readonly Droit[];
 
 /** Chacun tient sa liste de tâches ; attribuer aux autres reste à l'encadrement. */
 const TACHES_PERSONNELLES = ["taches.consulter", "taches.executer", "conges.demander"] as const satisfies readonly Droit[];
+
+/** Chacun dit où il est ; voir et modifier le planning des autres reste à l'encadrement. */
+const PLANNING_PERSONNEL = ["planning.utiliser"] as const satisfies readonly Droit[];
 
 const CONSULTATION_COMMERCE = [
   "tiers.fiche.consulter",
@@ -920,6 +971,7 @@ export const PRESETS_ROLES = [
       "tresorerie.bon.demander",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
       "messagerie.utiliser",
     ],
   },
@@ -938,6 +990,24 @@ export const PRESETS_ROLES = [
       "tresorerie.bon.demander",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
+      "messagerie.utiliser",
+    ],
+  },
+  {
+    cle: "secretaire",
+    nom: "Secrétaire",
+    description:
+      "Accueille, oriente et répond au téléphone : voit à tout moment qui est disponible, " +
+      "en mission, en courses ou sur le terrain. Consulte le planning de l'équipe sans le modifier.",
+    droits: [
+      "planning.equipe.consulter",
+      "tiers.fiche.consulter",
+      "documents.consulter",
+      "boite_mail.utiliser",
+      ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
       "messagerie.utiliser",
     ],
   },
@@ -951,6 +1021,7 @@ export const PRESETS_ROLES = [
       ...CONSULTATION_COMMERCE,
       "tiers.fiche.gerer",
       "comptabilite.ecriture.consulter",
+      "rapports.consulter",
       "comptabilite.ecriture.enregistrer",
       "comptabilite.fiscalite.declarer",
       "achats.consulter",
@@ -965,6 +1036,7 @@ export const PRESETS_ROLES = [
       ...TRESORERIE_COMPTABLE,
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
       "messagerie.utiliser",
     ],
   },

@@ -16,6 +16,7 @@
     "db:check": "tsx src/scripts/verifier-base.ts",
     "db:droits": "tsx src/scripts/synchroniser-droits.ts",
     "demo:compte": "tsx src/scripts/compte-demo.ts",
+    "demo:compte:local": "dotenv -v DATABASE_URL=pglite:./.pglite -- tsx src/scripts/compte-demo.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",

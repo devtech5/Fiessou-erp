@@ -223,18 +223,40 @@ export async function changerMotDePasse(
 ): Promise<EtatMotDePasse> {
   const active = await lireSession();
   if (!active) redirect(CONNEXION_EXPIREE);
+  // Écran verrouillé : seul le déverrouillage répond. Sans cela, cette action
+  // resterait appelable sous le voile, mot de passe actuel à l'appui.
+  if (active.verrouillee) redirect("/verrouille");
 
   const actuel = String(donnees.get("actuel") ?? "");
   const nouveau = String(donnees.get("nouveau") ?? "");
   const confirmation = String(donnees.get("confirmation") ?? "");
 
   const [compte] = await db
-    .select({ passwordHash: users.passwordHash, email: users.email })
+    .select({
+      passwordHash: users.passwordHash,
+      email: users.email,
+      failedLogins: users.failedLogins,
+      lockedUntil: users.lockedUntil,
+    })
     .from(users)
     .where(eq(users.id, active.userId));
 
-  if (!compte || !(await verifierMotDePasse(compte.passwordHash, actuel))) {
-    return { erreur: "Le mot de passe actuel est incorrect." };
+  if (!compte) redirect(CONNEXION_EXPIREE);
+
+  // Vérifier le mot de passe actuel, c'est le deviner autant de fois qu'on
+  // veut si les échecs ne comptent pas : même compteur que la connexion et le
+  // déverrouillage.
+  if (estVerrouille(compte.lockedUntil)) {
+    return { erreur: `Trop d'essais infructueux. Réessayez dans ${DUREE_VERROU_MINUTES} minutes.` };
+  }
+  if (!(await verifierMotDePasse(compte.passwordHash, actuel))) {
+    const suite = apresEchec(compte.failedLogins);
+    await db.update(users).set({ ...suite, updatedAt: new Date() }).where(eq(users.id, active.userId));
+    return {
+      erreur: suite.lockedUntil
+        ? `Trop d'essais infructueux. Réessayez dans ${DUREE_VERROU_MINUTES} minutes.`
+        : "Le mot de passe actuel est incorrect.",
+    };
   }
 
   const refus = motifRefusMotDePasse(nouveau, { email: compte.email });

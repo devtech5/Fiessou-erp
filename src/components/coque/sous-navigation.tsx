@@ -17,14 +17,17 @@ export interface EntreeNav {
  * ne lit la barre : on cherche au hasard. Une fonction qui n'a pas sa place
  * dans les cinq entrées appartient à l'écran d'une autre, pas à un onglet de
  * plus.
+ *
+ * Les rapports du module ne sont pas un onglet : un lien à droite de la barre,
+ * le même dans chaque module, mène à ceux qui le concernent.
  */
-export function SousNavigation({ entrees }: { entrees: EntreeNav[] }) {
+export function SousNavigation({ entrees, rapports }: { entrees: EntreeNav[]; rapports?: string | null }) {
   const chemin = usePathname();
 
   return (
     <nav
       aria-label="Sections du module"
-      className="mb-5 flex gap-1 overflow-x-auto border-b border-[var(--filet)] pb-2"
+      className="mb-5 flex items-center gap-1 overflow-x-auto border-b border-[var(--filet)] pb-2"
     >
       {entrees.map((entree) => {
         const actif = chemin === entree.href;
@@ -43,6 +46,17 @@ export function SousNavigation({ entrees }: { entrees: EntreeNav[] }) {
           </Link>
         );
       })}
+      {rapports && (
+        <Link
+          href={rapports}
+          className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--filet)] px-3 py-1.5 text-sm font-medium text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
+            <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+          </svg>
+          Rapports
+        </Link>
+      )}
     </nav>
   );
 }

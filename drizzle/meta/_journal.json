@@ -295,6 +295,27 @@
       "when": 1791276737887,
       "tag": "0041_blushing_imperial_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791290189862,
+      "tag": "0042_charges_recurrentes",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791291045221,
+      "tag": "0043_mouvements_tresorerie",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791299335170,
+      "tag": "0044_planning",
+      "breakpoints": true
     }
   ]
 }

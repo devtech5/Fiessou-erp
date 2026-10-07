@@ -2,6 +2,7 @@ import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { ModuleEnPreparation } from "@/components/coque/module-en-preparation";
 import { SousNavigation } from "@/components/coque/sous-navigation";
 import { peut } from "@/lib/droits/garde";
+import { lienRapports } from "@/lib/rapports/registre";
 import { moduleOuvert } from "@/lib/modules/garde";
 
 const SECTIONS = [
@@ -16,7 +17,7 @@ export default async function LayoutParcAuto({ children }: { children: React.Rea
 
   return (
     <>
-      <SousNavigation entrees={SECTIONS} />
+      <SousNavigation entrees={SECTIONS} rapports={await lienRapports("parc_auto")} />
       {children}
     </>
   );

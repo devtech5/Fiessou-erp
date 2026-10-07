@@ -170,6 +170,20 @@ export const MODULES: ModuleDefinition[] = [
   },
 
   {
+    key: "planning",
+    name: "Planning",
+    layer: "socle",
+    // En base : horaires habituels par jour, créneaux de statut (occupé, en
+    // mission, en courses, sur le terrain…) sans chevauchement, statut posé
+    // « maintenant » pour une durée, vue de l'équipe et gestion par
+    // l'encadrement. Restent les créneaux récurrents et le statut affiché
+    // dans la messagerie.
+    status: "en_cours",
+    requires: [],
+    description: "Disponibilités et statut de chacun — occupé, en mission, en courses, sur le terrain — et vue de l'équipe.",
+  },
+
+  {
     key: "achats",
     name: "Achats & Fournisseurs",
     layer: "socle",

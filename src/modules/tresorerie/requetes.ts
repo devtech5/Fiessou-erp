@@ -9,6 +9,8 @@ import { sortiesPaie } from "@/modules/paie/requetes";
 import { sortiesTva } from "@/modules/fiscalite/requetes";
 import { commissionsAPayer } from "@/modules/commerciaux/requetes";
 
+import { fluxChargesRecurrentes } from "./requetes-charges";
+
 import { planTresorerie, type Flux, type NatureBon, type NatureCompte } from "./calcul";
 
 const enDate = (v: string | Date) => (v instanceof Date ? v : new Date(v));
@@ -399,12 +401,14 @@ export function ecrituresNonPointees(organizationId: string, compte: string) {
  *   − dépenses de projet approuvées et pas encore payées ;
  *   − bons de caisse approuvés et pas encore décaissés ;
  *   − ce qui reste dû aux intervenants (pointé, pas réglé) ;
- *   − les factures fournisseurs non soldées, à leur échéance.
+ *   − les factures fournisseurs non soldées, à leur échéance ;
+ *   − les échéances des charges récurrentes dont la dépense n'est pas encore préparée.
  *
  * Les montants dus sans date tombent aujourd'hui : on les doit maintenant.
  */
 export async function fluxPrevus(organizationId: string, aujourdhui: string): Promise<Flux[]> {
-  const [factures, depenses, bons, intervenants, dettes, paie, tva, commissions] = await Promise.all([
+  const horizon = new Date(Date.parse(`${aujourdhui}T00:00:00Z`) + 91 * 86_400_000).toISOString().slice(0, 10);
+  const [factures, depenses, bons, intervenants, dettes, paie, tva, commissions, recurrentes] = await Promise.all([
     db.execute<{ numero: string; client: string | null; echeance: string | Date | null; reste: string }>(sql`
       select p.numero, p.client_nom as client, coalesce(p.echeance, p.date_piece) as echeance,
              p.total_ttc - coalesce((select sum(r.montant) from reglements_piece r where r.piece_id = p.id and r.deleted_at is null), 0) as reste
@@ -433,6 +437,7 @@ export async function fluxPrevus(organizationId: string, aujourdhui: string): Pr
     sortiesPaie(organizationId, aujourdhui),
     sortiesTva(organizationId, aujourdhui),
     commissionsAPayer(organizationId),
+    fluxChargesRecurrentes(organizationId, horizon),
   ]);
 
   const flux: Flux[] = [];
@@ -444,6 +449,7 @@ export async function fluxPrevus(organizationId: string, aujourdhui: string): Pr
   for (const b of bons) flux.push({ date: aujourdhui, montant: -Number(b.montant), libelle: `${b.numero} — ${b.beneficiaire}`, origine: "bon" });
   for (const p of paie) flux.push({ date: p.date, montant: -p.montant, libelle: p.libelle, origine: "paie" });
   for (const t of tva) flux.push({ date: t.date, montant: -t.montant, libelle: t.libelle, origine: "tva" });
+  flux.push(...recurrentes);
   for (const k of commissions) if (k.total > 0) flux.push({ date: aujourdhui, montant: -k.total, libelle: `Commission ${k.mois}`, origine: "commission" });
   for (const d of dettes) {
     const reste = Number(d.reste);

@@ -1,8 +1,10 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, date, index, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, date, index, integer, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { money, primaryId, rowVersion, timestamps } from "@/db/schema/_shared";
 import { organizations } from "@/db/schema/tenancy";
+import { depenses } from "@/modules/projets/schema";
+import { tiers } from "@/modules/tiers/schema";
 
 /**
  * Trésorerie interne.
@@ -315,7 +317,174 @@ export const lignesReleve = pgTable(
   ],
 );
 
+// --------------------------------------------------------------- mouvements
+
+export const natureMouvement = pgEnum("nature_mouvement", [
+  "client",
+  "fournisseur",
+  "remboursement_client",
+  "apport",
+  "emprunt",
+  "remboursement_emprunt",
+  "frais_bancaires",
+  "produit_financier",
+  "autre_entree",
+  "autre_sortie",
+]);
+
+export const statutMouvement = pgEnum("statut_mouvement", ["valide", "annule"]);
+
+/**
+ * Mouvement libre sur un compte de trésorerie : ce qui entre ou sort sans
+ * facture, sans dépense, sans virement interne. Le versement d'un client par
+ * virement, l'ordre de virement à un prestataire, un apport, un prêt.
+ *
+ * Il passe son écriture à l'enregistrement. Une erreur ne s'efface pas : elle
+ * s'annule par contre-passation, et les deux écritures restent visibles.
+ */
+export const mouvementsTresorerie = pgTable(
+  "mouvements_tresorerie",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** MVT-2026-00001. */
+    numero: text("numero").notNull(),
+    compteId: uuid("compte_id")
+      .notNull()
+      .references(() => comptesTresorerie.id, { onDelete: "restrict" }),
+    nature: natureMouvement("nature").notNull(),
+    tiersId: uuid("tiers_id").references(() => tiers.id, { onDelete: "restrict" }),
+    /** Nom du tiers au jour du mouvement : une fiche renommée ne réécrit pas l'historique. */
+    tiersNom: text("tiers_nom"),
+    montant: money("montant").notNull(),
+    dateOperation: date("date_operation").notNull(),
+    libelle: text("libelle").notNull(),
+    /** Référence de la banque ou de l'opérateur : numéro de virement, de chèque, de transaction. */
+    reference: text("reference"),
+    /** Coordonnées bancaires du bénéficiaire, reportées sur l'ordre de virement. */
+    ribBeneficiaire: text("rib_beneficiaire"),
+    statut: statutMouvement("statut").notNull().default("valide"),
+    ecriture: text("ecriture").notNull(),
+    motifAnnulation: text("motif_annulation"),
+    userId: uuid("user_id").notNull(),
+    ...timestamps,
+    ...rowVersion,
+  },
+  (t) => [
+    unique("mouvements_tresorerie_numero_unique").on(t.organizationId, t.numero),
+    check("mouvements_tresorerie_montant", sql`${t.montant} > 0`),
+    check("mouvements_tresorerie_annulation", sql`${t.statut} <> 'annule' OR ${t.motifAnnulation} IS NOT NULL`),
+    index("mouvements_tresorerie_compte_idx").on(t.organizationId, t.compteId, t.dateOperation),
+  ],
+);
+
+// ------------------------------------------------------------------ charges
+
+export const periodiciteCharge = pgEnum("periodicite_charge", ["mensuelle", "trimestrielle", "annuelle"]);
+
+/**
+ * Charge récurrente : loyer, facture CIE, abonnement internet, assurance,
+ * patente. Ce qui revient à date fixe et qu'on ne doit pas découvrir le jour
+ * de la coupure.
+ *
+ * Elle ne passe aucune écriture. À chaque échéance, elle prépare une dépense
+ * ordinaire — demandée, approuvée par un autre, payée avec sa preuve — qui
+ * suit le même circuit que les autres. Le modèle sert à ne pas oublier, pas à
+ * contourner l'approbation.
+ */
+export const chargesRecurrentes = pgTable(
+  "charges_recurrentes",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    libelle: text("libelle").notNull(),
+    /** Nature de la dépense préparée : décide du compte de charge. */
+    categorie: text("categorie").notNull(),
+    /** Montant TTC habituel, en francs entiers. Ajustable sur la dépense préparée. */
+    montant: money("montant").notNull(),
+    /** Points de base : 1800 = 18 %. */
+    tauxTva: integer("taux_tva").notNull().default(0),
+    periodicite: periodiciteCharge("periodicite").notNull(),
+    /** Première échéance : son jour du mois se répète. */
+    premiereEcheance: date("premiere_echeance").notNull(),
+    fournisseurId: uuid("fournisseur_id").references(() => tiers.id, { onDelete: "set null" }),
+    fournisseurLibelle: text("fournisseur_libelle"),
+    actif: boolean("actif").notNull().default(true),
+    creeParUserId: uuid("cree_par_user_id"),
+    ...timestamps,
+    ...rowVersion,
+  },
+  (t) => [
+    check("charges_recurrentes_montant", sql`${t.montant} > 0 AND ${t.tauxTva} >= 0`),
+    index("charges_recurrentes_org_idx").on(t.organizationId, t.actif),
+  ],
+);
+
+/**
+ * Échéance traitée d'une charge récurrente : sa dépense préparée, ou la trace
+ * qu'elle a été écartée (payée autrement, mois offert).
+ *
+ * Une échéance par charge et par mois, garantie en base : deux clics sur
+ * « Préparer » ne font pas payer deux fois le loyer.
+ */
+export const echeancesCharge = pgTable(
+  "echeances_charge",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    chargeId: uuid("charge_id")
+      .notNull()
+      .references(() => chargesRecurrentes.id, { onDelete: "cascade" }),
+    /** Mois de l'échéance : « 2026-10 ». */
+    periode: text("periode").notNull(),
+    dateEcheance: date("date_echeance").notNull(),
+    depenseId: uuid("depense_id").references(() => depenses.id, { onDelete: "restrict" }),
+    /** Écartée sans dépense : payée autrement, ou rien à payer ce mois-là. */
+    ignoree: boolean("ignoree").notNull().default(false),
+    userId: uuid("user_id"),
+    ...timestamps,
+    ...rowVersion,
+  },
+  (t) => [
+    unique("echeances_charge_periode_unique").on(t.chargeId, t.periode),
+    check("echeances_charge_periode", sql`${t.periode} ~ '^[0-9]{4}-[0-9]{2}$'`),
+    check("echeances_charge_issue", sql`${t.ignoree} OR ${t.depenseId} IS NOT NULL`),
+    index("echeances_charge_org_idx").on(t.organizationId, t.periode),
+  ],
+);
+
+/**
+ * Enveloppe mensuelle d'une famille de charges : « pas plus de 150 000 F de
+ * carburant par mois ». Elle n'interdit rien ; elle dit quand on la dépasse.
+ */
+export const budgetsCharges = pgTable(
+  "budgets_charges",
+  {
+    id: primaryId(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Famille de charges : voir `FAMILLES_CHARGE`. */
+    famille: text("famille").notNull(),
+    montantMensuel: money("montant_mensuel").notNull(),
+    ...timestamps,
+    ...rowVersion,
+  },
+  (t) => [
+    unique("budgets_charges_famille_unique").on(t.organizationId, t.famille),
+    check("budgets_charges_montant", sql`${t.montantMensuel} > 0`),
+  ],
+);
+
 export type CompteTresorerie = typeof comptesTresorerie.$inferSelect;
 export type VirementInterne = typeof virementsInternes.$inferSelect;
 export type BonCaisse = typeof bonsCaisse.$inferSelect;
 export type AvanceTresorerie = typeof avancesTresorerie.$inferSelect;
+export type ChargeRecurrente = typeof chargesRecurrentes.$inferSelect;
+export type MouvementTresorerie = typeof mouvementsTresorerie.$inferSelect;

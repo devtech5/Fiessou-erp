@@ -89,19 +89,19 @@ export function Selecteur({
   }
 
   return (
-    <div ref={conteneur} className="relative">
+    <div ref={conteneur} className="relative min-w-0 max-w-[15rem]">
       <button
         type="button"
         onClick={() => setOuvert((o) => !o)}
         aria-expanded={ouvert}
         aria-haspopup="listbox"
-        className="flex max-w-[15rem] items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm hover:bg-[var(--surface-creuse)]"
+        className="flex max-w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm hover:bg-[var(--surface-creuse)]"
       >
         <span className="truncate font-medium">
           {valeur?.libelle ?? "Choisir…"}
         </span>
         {valeur?.badge && (
-          <span className="shrink-0 rounded border border-[var(--filet)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--encre-faible)]">
+          <span className="shrink-0 rounded border max-sm:hidden border-[var(--filet)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--encre-faible)]">
             {valeur.badge}
           </span>
         )}

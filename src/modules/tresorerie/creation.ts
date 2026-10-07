@@ -96,7 +96,7 @@ export async function soldeDuCompte(tx: Executant, organizationId: string, compt
 }
 
 /** Un compte de trésorerie, actif, de l'entreprise. Verrouillé dans la transaction. */
-async function compteDe(tx: Transaction, organizationId: string, id: string): Promise<CompteRef & { id: string; nom: string }> {
+export async function compteDe(tx: Transaction, organizationId: string, id: string): Promise<CompteRef & { id: string; nom: string }> {
   const [c] = await tx
     .select()
     .from(comptesTresorerie)

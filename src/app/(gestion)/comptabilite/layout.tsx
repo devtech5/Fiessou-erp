@@ -1,5 +1,6 @@
 import { AccesRefuse } from "@/components/coque/acces-refuse";
 import { SousNavigation } from "@/components/coque/sous-navigation";
+import { lienRapports } from "@/lib/rapports/registre";
 import { peut } from "@/lib/droits/garde";
 
 /**
@@ -24,7 +25,7 @@ export default async function LayoutComptabilite({
 
   return (
     <>
-      <SousNavigation entrees={SECTIONS} />
+      <SousNavigation entrees={SECTIONS} rapports={await lienRapports("comptabilite")} />
       {children}
     </>
   );

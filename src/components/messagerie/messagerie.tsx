@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { CLASSE_CHAMP, Champ } from "@/components/ui/primitives";
+import { ActionRuban, Avatar, EntreeDossier, Icone, LigneListe, Ruban, SeparateurRuban, TitreLecture, type NomIcone } from "@/components/ui/courrier";
+import { CLASSE_CHAMP, CLASSE_CHAMP_COMPACT, Champ } from "@/components/ui/primitives";
 import {
   actualiser,
   ajouterAuGroupe,
@@ -113,122 +114,177 @@ export function Messagerie({
     }
   }
 
-  return (
-    <div className="flex h-[calc(100dvh-9rem)] min-h-[28rem] overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
-      {/* Liste */}
-      <aside className={`flex w-full flex-col border-r border-[var(--filet)] md:w-80 md:shrink-0 ${ouverte ? "max-md:hidden" : ""}`}>
-        <div className="flex items-center gap-2 border-b border-[var(--filet)] p-2">
-          <button type="button" onClick={() => setPanneau(panneau === "nouvelle" ? null : "nouvelle")} className="h-9 flex-1 rounded-lg bg-marque-500 px-3 text-sm font-semibold text-white hover:bg-marque-600">
-            Nouvelle discussion
-          </button>
-          {gereLesGroupes && (
-            <button type="button" onClick={() => setPanneau(panneau === "groupe" ? null : "groupe")} className="h-9 rounded-lg border border-[var(--filet)] px-3 text-sm hover:bg-[var(--surface-creuse)]">
-              Groupe
-            </button>
-          )}
-        </div>
+  const [filtre, setFiltre] = useState<Filtre>("toutes");
+  const [recherche, setRecherche] = useState("");
+  const cherche = recherche.trim().toLocaleLowerCase("fr");
+  const visibles = liste.filter(
+    (c) =>
+      (filtre === "toutes" ||
+        (filtre === "non_lues" && c.nonLus > 0) ||
+        (filtre === "privees" && c.type !== "groupe") ||
+        (filtre === "groupes" && c.type === "groupe")) &&
+      (!cherche || c.nom.toLocaleLowerCase("fr").includes(cherche) || (c.apercu ?? "").toLocaleLowerCase("fr").includes(cherche)),
+  );
+  const nonLus = liste.reduce((s, c) => s + c.nonLus, 0);
+  const comptes: Record<Filtre, number> = {
+    toutes: nonLus,
+    non_lues: liste.filter((c) => c.nonLus > 0).length,
+    privees: liste.filter((c) => c.type !== "groupe").reduce((s, c) => s + c.nonLus, 0),
+    groupes: liste.filter((c) => c.type === "groupe").reduce((s, c) => s + c.nonLus, 0),
+  };
+  const rang = ouverteId ? visibles.findIndex((c) => c.id === ouverteId) : -1;
+  const voisin = (pas: number) => (rang >= 0 && visibles[rang + pas] ? () => void ouvrir(visibles[rang + pas].id) : null);
+  // Sur téléphone, un panneau de création se montre dans la liste : elle passe devant le fil.
+  const creation = panneau === "nouvelle" || panneau === "groupe";
+  const filFermer = () => {
+    setOuverte(null);
+    window.history.replaceState(null, "", "/messagerie");
+  };
 
-        {panneau === "nouvelle" && (
-          <ul className="max-h-64 overflow-y-auto border-b border-[var(--filet)]">
-            {membres.length === 0 && <li className="p-3 text-sm text-[var(--encre-faible)]">Personne d&apos;autre n&apos;a accès à la messagerie.</li>}
-            {membres.map((m) => (
-              <li key={m.userId}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    demarrer(async () => {
-                      const r = await ecrireA(m.userId);
-                      if (r.ok && r.id) await ouvrir(r.id);
-                      else setErreur(r.message);
-                    })
-                  }
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-creuse)]"
-                >
-                  {m.nom}
-                </button>
+  return (
+    <div className="flex h-[calc(100dvh-11.5rem)] min-h-[28rem] lg:h-[calc(100dvh-9rem)] flex-col gap-2">
+      <Ruban>
+        <ActionRuban principal icone="nouveau" libelle="Nouvelle discussion" actif={panneau === "nouvelle"} onClick={() => setPanneau(panneau === "nouvelle" ? null : "nouvelle")} />
+        {gereLesGroupes && <ActionRuban icone="groupe" libelle="Nouveau groupe" actif={panneau === "groupe"} onClick={() => setPanneau(panneau === "groupe" ? null : "groupe")} />}
+        <SeparateurRuban />
+        <ActionRuban
+          icone="personne"
+          libelle="Membres du groupe"
+          actif={panneau === "membres"}
+          disabled={ouverte?.type !== "groupe"}
+          onClick={() => setPanneau(panneau === "membres" ? null : "membres")}
+        />
+        <ActionRuban icone="fermer" libelle="Fermer la conversation" disabled={!ouverte} onClick={filFermer} />
+        <SeparateurRuban />
+        <ActionRuban icone="actualiser" libelle="Actualiser" onClick={() => void rafraichir(true)} />
+      </Ruban>
+
+      <div className="flex min-h-0 flex-1 gap-2">
+        {/* Filtres, à la place des dossiers d'Outlook */}
+        <nav className="hidden w-56 shrink-0 flex-col lg:flex">
+          <p className="px-2.5 pb-2 pt-1 text-sm font-semibold">Discussions</p>
+          <ul className="space-y-0.5">
+            {FILTRES.map((f) => (
+              <li key={f.cle}>
+                <EntreeDossier icone={f.icone} libelle={f.libelle} compte={comptes[f.cle]} actif={filtre === f.cle} onClick={() => setFiltre(f.cle)} />
               </li>
             ))}
           </ul>
-        )}
+        </nav>
 
-        {panneau === "groupe" && (
-          <FormulaireGroupe
-            membres={membres}
-            onCree={async (id) => {
-              setPanneau(null);
-              await ouvrir(id);
-              routeur.refresh();
-            }}
-          />
-        )}
+        {/* Liste */}
+        <aside className={`flex w-full flex-col overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)] shadow-sm md:w-80 md:shrink-0 xl:w-96 ${ouverte && !creation ? "max-md:hidden" : ""}`}>
+          <div className="flex items-center gap-2 border-b border-[var(--filet)] p-2">
+            <select value={filtre} onChange={(e) => setFiltre(e.target.value as Filtre)} aria-label="Afficher" className={`${CLASSE_CHAMP_COMPACT} h-9 shrink-0 lg:hidden`}>
+              {FILTRES.map((f) => (
+                <option key={f.cle} value={f.cle}>
+                  {f.libelle}
+                </option>
+              ))}
+            </select>
+            <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg bg-[var(--surface-creuse)] px-2.5 text-[var(--encre-faible)]">
+              <Icone nom="recherche" />
+              <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher" aria-label="Rechercher une conversation" className="min-w-0 flex-1 bg-transparent text-sm text-[var(--encre)] outline-none" />
+            </label>
+          </div>
 
-        {erreur && <p className="m-2 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-600">{erreur}</p>}
+          {panneau === "nouvelle" && (
+            <ul className="max-h-64 overflow-y-auto border-b border-[var(--filet)]">
+              {membres.length === 0 && <li className="p-3 text-sm text-[var(--encre-faible)]">Personne d&apos;autre n&apos;a accès à la messagerie.</li>}
+              {membres.map((m) => (
+                <li key={m.userId}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      demarrer(async () => {
+                        const r = await ecrireA(m.userId);
+                        if (r.ok && r.id) await ouvrir(r.id);
+                        else setErreur(r.message);
+                      })
+                    }
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-creuse)]"
+                  >
+                    {m.nom}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <ul className="flex-1 overflow-y-auto">
-          {liste.length === 0 && <li className="p-4 text-center text-sm text-[var(--encre-faible)]">Aucune conversation. Écrivez à un collègue.</li>}
-          {liste.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => void ouvrir(c.id)}
-                className={`flex w-full items-start gap-3 border-b border-[var(--filet)] px-3 py-2.5 text-left hover:bg-[var(--surface-creuse)] ${c.id === ouverteId ? "bg-[var(--surface-creuse)]" : ""}`}
-              >
-                <Pastille nom={c.nom} groupe={c.type === "groupe"} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className={`truncate text-sm ${c.nonLus > 0 ? "font-semibold" : "font-medium"}`}>{c.nom}</span>
-                    <span className="chiffres shrink-0 text-[11px] text-[var(--encre-faible)]">{quand(c.dernierLe)}</span>
+          {panneau === "groupe" && (
+            <FormulaireGroupe
+              membres={membres}
+              onCree={async (id) => {
+                setPanneau(null);
+                await ouvrir(id);
+                routeur.refresh();
+              }}
+            />
+          )}
+
+          {erreur && <p className="m-2 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-600">{erreur}</p>}
+
+          <ul className="flex-1 overflow-y-auto">
+            {liste.length === 0 && <li className="p-4 text-center text-sm text-[var(--encre-faible)]">Aucune conversation. Écrivez à un collègue.</li>}
+            {liste.length > 0 && visibles.length === 0 && <li className="p-4 text-center text-sm text-[var(--encre-faible)]">Aucune conversation ne correspond.</li>}
+            {visibles.map((c) => (
+              <li key={c.id}>
+                <LigneListe actif={c.id === ouverteId} nonLu={c.nonLus > 0} onClick={() => void ouvrir(c.id)}>
+                  <Avatar nom={c.nom} groupe={c.type === "groupe"} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={`truncate text-sm ${c.nonLus > 0 ? "font-semibold" : "font-medium"}`}>{c.nom}</span>
+                      <span className="chiffres shrink-0 text-[11px] text-[var(--encre-faible)]">{quand(c.dernierLe)}</span>
+                    </span>
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={`truncate text-xs ${c.nonLus > 0 ? "font-semibold text-marque-600" : "text-[var(--encre-douce)]"}`}>
+                        {c.retire ? "Vous avez quitté ce groupe" : (c.apercu ?? (c.type === "groupe" ? `${c.membres} membres` : "Nouvelle conversation"))}
+                      </span>
+                      {c.nonLus > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-marque-500 px-1.5 text-[11px] font-bold text-white">{c.nonLus}</span>}
+                    </span>
                   </span>
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs text-[var(--encre-douce)]">{c.retire ? "Vous avez quitté ce groupe" : (c.apercu ?? (c.type === "groupe" ? `${c.membres} membres` : "Nouvelle conversation"))}</span>
-                    {c.nonLus > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-marque-500 px-1.5 text-[11px] font-bold text-white">{c.nonLus}</span>}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
+                </LigneListe>
+              </li>
+            ))}
+          </ul>
+        </aside>
 
-      {/* Fil */}
-      <section className={`flex min-w-0 flex-1 flex-col ${ouverte ? "" : "max-md:hidden"}`}>
-        {!ouverte ? (
-          <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-[var(--encre-faible)]">Choisissez une conversation, ou écrivez à un collègue.</div>
-        ) : (
-          <Fil
-            key={ouverte.id}
-            moi={moi}
-            conversation={ouverte}
-            membres={membres}
-            gereLesGroupes={gereLesGroupes}
-            panneauMembres={panneau === "membres"}
-            basculerMembres={() => setPanneau(panneau === "membres" ? null : "membres")}
-            fermer={() => {
-              setOuverte(null);
-              window.history.replaceState(null, "", "/messagerie");
-            }}
-            apresEnvoi={() => void rafraichir()}
-            recharger={() => void rafraichir(true)}
-          />
-        )}
-      </section>
+        {/* Fil */}
+        <section className={`flex min-w-0 flex-1 flex-col gap-2 ${ouverte && !creation ? "" : "max-md:hidden"}`}>
+          {!ouverte ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[var(--filet)] p-6 text-center text-sm text-[var(--encre-faible)]">
+              <Icone nom="discussions" className="size-10" />
+              Choisissez une conversation, ou écrivez à un collègue.
+            </div>
+          ) : (
+            <Fil
+              key={ouverte.id}
+              moi={moi}
+              conversation={ouverte}
+              membres={membres}
+              gereLesGroupes={gereLesGroupes}
+              panneauMembres={panneau === "membres"}
+              fermer={filFermer}
+              precedent={voisin(-1)}
+              suivant={voisin(1)}
+              apresEnvoi={() => void rafraichir()}
+              recharger={() => void rafraichir(true)}
+            />
+          )}
+        </section>
+      </div>
     </div>
   );
 }
 
-function Pastille({ nom, groupe }: { nom: string; groupe: boolean }) {
-  const initiales = nom
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((m) => m[0]?.toUpperCase())
-    .join("");
-  return (
-    <span aria-hidden className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${groupe ? "bg-alerte-50 text-alerte-600" : "bg-marque-50 text-marque-600"}`}>
-      {groupe ? "#" : initiales || "?"}
-    </span>
-  );
-}
+type Filtre = "toutes" | "non_lues" | "privees" | "groupes";
+
+const FILTRES: { cle: Filtre; libelle: string; icone: NomIcone }[] = [
+  { cle: "toutes", libelle: "Toutes les discussions", icone: "discussions" },
+  { cle: "non_lues", libelle: "Non lues", icone: "enveloppe" },
+  { cle: "privees", libelle: "Privées", icone: "personne" },
+  { cle: "groupes", libelle: "Groupes", icone: "groupe" },
+];
 
 function Fil({
   moi,
@@ -236,8 +292,9 @@ function Fil({
   membres,
   gereLesGroupes,
   panneauMembres,
-  basculerMembres,
   fermer,
+  precedent,
+  suivant,
   apresEnvoi,
   recharger,
 }: {
@@ -246,8 +303,9 @@ function Fil({
   membres: MembreEchangeable[];
   gereLesGroupes: boolean;
   panneauMembres: boolean;
-  basculerMembres: () => void;
   fermer: () => void;
+  precedent: (() => void) | null;
+  suivant: (() => void) | null;
   apresEnvoi: () => void;
   recharger: () => void;
 }) {
@@ -299,86 +357,79 @@ function Fil({
 
   return (
     <>
-      <header className="flex items-center gap-3 border-b border-[var(--filet)] px-3 py-2">
-        <button type="button" onClick={fermer} className="text-sm text-[var(--encre-douce)] md:hidden" aria-label="Retour à la liste">
-          ←
-        </button>
-        <Pastille nom={conversation.nom} groupe={conversation.type === "groupe"} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{conversation.nom}</p>
-          <p className="truncate text-xs text-[var(--encre-faible)]">
-            {conversation.type === "groupe" ? conversation.membres.map((m) => (m.userId === moi ? "vous" : m.nom.split(" ")[0])).join(", ") : "Conversation privée"}
-          </p>
-        </div>
-        {conversation.type === "groupe" && (
-          <button type="button" onClick={basculerMembres} className="h-8 rounded-lg border border-[var(--filet)] px-2.5 text-xs hover:bg-[var(--surface-creuse)]">
-            Membres
-          </button>
+      <TitreLecture
+        titre={conversation.nom}
+        sousTitre={conversation.type === "groupe" ? conversation.membres.map((m) => (m.userId === moi ? "vous" : m.nom.split(" ")[0])).join(", ") : "Conversation privée"}
+        fermer={fermer}
+        precedent={precedent}
+        suivant={suivant}
+        actions={<Avatar nom={conversation.nom} groupe={conversation.type === "groupe"} className="size-9 text-xs max-sm:hidden" />}
+      />
+
+      <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--filet)] bg-[var(--surface)] shadow-sm">
+        {panneauMembres && conversation.type === "groupe" && (
+          <GestionGroupe moi={moi} conversation={conversation} membres={membres} peutAdministrer={peutAdministrer} recharger={recharger} />
         )}
-      </header>
 
-      {panneauMembres && conversation.type === "groupe" && (
-        <GestionGroupe moi={moi} conversation={conversation} membres={membres} peutAdministrer={peutAdministrer} recharger={recharger} />
-      )}
+        <div ref={fond} className="flex-1 space-y-4 overflow-y-auto bg-[var(--fond)] px-3 py-4">
+          {parJour.length === 0 && <p className="text-center text-sm text-[var(--encre-faible)]">Aucun message. Écrivez le premier.</p>}
+          {parJour.map((g) => (
+            <div key={g.jour} className="space-y-1.5">
+              <p className="text-center text-[11px] font-medium uppercase tracking-wide text-[var(--encre-faible)]">{g.jour}</p>
+              {g.messages.map((m) => (
+                <Bulle key={m.id} message={m} mien={m.auteurId === moi} groupe={conversation.type === "groupe"} />
+              ))}
+            </div>
+          ))}
+        </div>
 
-      <div ref={fond} className="flex-1 space-y-4 overflow-y-auto bg-[var(--fond)] px-3 py-4">
-        {parJour.length === 0 && <p className="text-center text-sm text-[var(--encre-faible)]">Aucun message. Écrivez le premier.</p>}
-        {parJour.map((g) => (
-          <div key={g.jour} className="space-y-1.5">
-            <p className="text-center text-[11px] font-medium uppercase tracking-wide text-[var(--encre-faible)]">{g.jour}</p>
-            {g.messages.map((m) => (
-              <Bulle key={m.id} message={m} mien={m.auteurId === moi} groupe={conversation.type === "groupe"} />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {conversation.retire ? (
-        <p className="border-t border-[var(--filet)] p-3 text-center text-sm text-[var(--encre-faible)]">Vous ne faites plus partie de ce groupe.</p>
-      ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            partir();
-          }}
-          className="border-t border-[var(--filet)] p-2"
-        >
-          {erreur && <p className="mb-2 rounded-lg bg-danger-50 px-3 py-1.5 text-xs text-danger-600">{erreur}</p>}
-          {piece && (
-            <p className="mb-2 flex items-center justify-between rounded-lg bg-[var(--surface-creuse)] px-3 py-1.5 text-xs">
-              📎 {piece.name}
-              <button type="button" onClick={() => setPiece(null)} className="text-danger-600">
-                Retirer
+        {conversation.retire ? (
+          <p className="border-t border-[var(--filet)] p-3 text-center text-sm text-[var(--encre-faible)]">Vous ne faites plus partie de ce groupe.</p>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              partir();
+            }}
+            className="border-t border-[var(--filet)] p-2"
+          >
+            {erreur && <p className="mb-2 rounded-lg bg-danger-50 px-3 py-1.5 text-xs text-danger-600">{erreur}</p>}
+            {piece && (
+              <p className="mb-2 flex items-center justify-between rounded-lg bg-[var(--surface-creuse)] px-3 py-1.5 text-xs">
+                📎 {piece.name}
+                <button type="button" onClick={() => setPiece(null)} className="text-danger-600">
+                  Retirer
+                </button>
+              </p>
+            )}
+            <div className="flex items-end gap-2">
+              <input ref={fichier} type="file" className="sr-only" aria-label="Joindre un fichier" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => setPiece(e.target.files?.[0] ?? null)} />
+              <button type="button" onClick={() => fichier.current?.click()} className="flex size-10 shrink-0 items-center justify-center rounded-lg text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]" aria-label="Joindre un fichier" title="Joindre un fichier">
+                📎
               </button>
-            </p>
-          )}
-          <div className="flex items-end gap-2">
-            <input ref={fichier} type="file" className="sr-only" aria-label="Joindre un fichier" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => setPiece(e.target.files?.[0] ?? null)} />
-            <button type="button" onClick={() => fichier.current?.click()} className="flex size-10 shrink-0 items-center justify-center rounded-lg text-[var(--encre-douce)] hover:bg-[var(--surface-creuse)]" aria-label="Joindre un fichier" title="Joindre un fichier">
-              📎
-            </button>
-            <textarea
-              ref={champ}
-              value={texte}
-              onChange={(e) => setTexte(e.target.value)}
-              onKeyDown={(e) => {
-                // Entrée envoie, Maj+Entrée revient à la ligne — comme partout ailleurs.
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  partir();
-                }
-              }}
-              rows={1}
-              placeholder="Votre message…"
-              aria-label="Votre message"
-              className={`${CLASSE_CHAMP} h-auto max-h-40 min-h-10 resize-none py-2`}
-            />
-            <button type="submit" disabled={enCours || (!texte.trim() && !piece)} className="h-10 shrink-0 rounded-lg bg-marque-500 px-4 text-sm font-semibold text-white disabled:opacity-50">
-              Envoyer
-            </button>
-          </div>
-        </form>
-      )}
+              <textarea
+                ref={champ}
+                value={texte}
+                onChange={(e) => setTexte(e.target.value)}
+                onKeyDown={(e) => {
+                  // Entrée envoie, Maj+Entrée revient à la ligne — comme partout ailleurs.
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    partir();
+                  }
+                }}
+                rows={1}
+                placeholder="Votre message…"
+                aria-label="Votre message"
+                className={`${CLASSE_CHAMP} h-auto max-h-40 min-h-10 resize-none py-2`}
+              />
+              <button type="submit" disabled={enCours || (!texte.trim() && !piece)} className="h-10 shrink-0 rounded-lg bg-marque-500 px-4 text-sm font-semibold text-white disabled:opacity-50">
+                Envoyer
+              </button>
+            </div>
+          </form>
+        )}
+      </article>
     </>
   );
 }

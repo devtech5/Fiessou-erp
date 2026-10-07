@@ -184,6 +184,30 @@ export async function mettreCorbeille(dossier: string, uid: number): Promise<Res
   }
 }
 
+export async function archiverMessage(dossier: string, uid: number): Promise<Resultat> {
+  const m = await maConnexion();
+  if (echoue(m)) return m;
+  try {
+    const range = await imap.archiver(m.connexion, dossier.slice(0, 300), uid);
+    return range
+      ? { ok: true, message: "Message archivé." }
+      : { ok: false, message: "Cette boîte n'a pas de dossier Archives, ou le message y est déjà." };
+  } catch (erreur) {
+    return { ok: false, message: imap.messageErreur(erreur) };
+  }
+}
+
+export async function marquerSuivi(dossier: string, uid: number, suivi: boolean): Promise<Resultat> {
+  const m = await maConnexion();
+  if (echoue(m)) return m;
+  try {
+    await imap.marquerSuivi(m.connexion, dossier.slice(0, 300), uid, suivi === true);
+    return { ok: true, message: suivi ? "Message marqué pour suivi." : "Suivi retiré." };
+  } catch (erreur) {
+    return { ok: false, message: imap.messageErreur(erreur) };
+  }
+}
+
 export async function marquerNonLu(dossier: string, uid: number): Promise<Resultat> {
   const m = await maConnexion();
   if (echoue(m)) return m;
