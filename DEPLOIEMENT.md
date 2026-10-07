@@ -48,6 +48,83 @@ curl https://app.exemple.ci/api/health
 Puis ouvrir le domaine, cliquer sur « Créer votre espace » : le premier compte
 crée la première entreprise.
 
+## Avec Dokploy
+
+C'est ainsi que tourne `fiessou.cloud`. Dokploy apporte déjà son proxy
+(Traefik) et le HTTPS : `docker-compose.prod.yml` n'y sert pas, son Caddy se
+disputerait les ports 80 et 443 avec Traefik. On déploie l'application seule,
+à côté d'une base gérée par Dokploy.
+
+### Base
+
+Dans le projet Dokploy, créer une base **PostgreSQL**, la démarrer, et copier
+son **Internal Connection URL**. Laisser **External Port** vide : la base ne
+se joint que par le réseau interne, comme dans la pile compose. Elle doit être
+dans le **même projet** que l'application, sinon son nom d'hôte ne se résout
+pas.
+
+Un mot de passe contenant `@`, `:`, `/` ou `#` coupe l'URL : le choisir
+alphanumérique, ou encoder ces caractères (`@` s'écrit `%40`).
+
+### Application
+
+| Onglet | Réglage |
+|---|---|
+| General | Dépôt GitHub, branche `main`, **Build Type : Dockerfile** |
+| Environment | Les variables ci-dessous, dans **Environment Settings** |
+| Advanced → Volumes | **Volume Mount** `fiessou-fichiers` sur `/donnees/fichiers` |
+| Domains | Le domaine, **port 3000**, HTTPS Let's Encrypt |
+
+**Dockerfile, pas Nixpacks.** Nixpacks devine la version de Node et a pris
+Node 18 : pnpm 11 (`packageManager`) y plante dès l'installation, sur
+`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`. Le Dockerfile fixe Node 22, construit
+argon2 sur Debian, tourne sans privilège et prépare `/donnees/fichiers`.
+
+**Volume Mount, pas Bind Mount.** Un dossier de l'hôte appartient à `root`, et
+l'application tourne sous l'utilisateur `fiessou` : le dépôt d'une pièce
+échouerait en « permission denied ». Un volume nommé reprend les droits que
+l'image pose sur le dossier.
+
+Variables minimales :
+
+```
+DATABASE_URL=<Internal Connection URL de la base>
+AUTH_SECRET=<48 caractères aléatoires, 32 au moins>
+MIGRATIONS_AU_DEMARRAGE=1
+STOCKAGE_LOCAL=/donnees/fichiers
+URL_PUBLIQUE=https://fiessou.cloud
+DEFAULT_COUNTRY=CI
+INSTANCE_DEMO=0
+ADMINS_PLATEFORME=<adresses des administrateurs>
+```
+
+`DATABASE_URL_MIGRATION` est inutile : la connexion est directe, sans pooler.
+Une variable présente mais vide qui attend une URL (`URL_PUBLIQUE=`) fait
+échouer le démarrage : la remplir ou la retirer.
+
+**Toute modification des variables exige un Redeploy.** Dokploy les injecte à
+la création du conteneur ; les enregistrer ne suffit pas. Un conteneur qui
+journalise « Configuration invalide … received undefined » en boucle les a
+reçues vides, et Traefik répond alors « Bad Gateway » tant que la sonde de
+santé échoue.
+
+### Sauvegardes
+
+Déclarer une destination S3 dans **Settings → S3 Destinations** (Backblaze B2,
+Wasabi…), puis programmer :
+
+- la base : onglet **Backups** de la base, par exemple `0 3 * * *`, 14 gardées ;
+- les pièces jointes : onglet **Volume Backups** de l'application, volume
+  `fiessou-fichiers`, `30 3 * * *`, 14 gardées.
+
+Les deux vont ensemble : une pièce sans sa ligne en base, ou l'inverse, ne sert
+à rien. La restauration se teste une fois, ailleurs, avant d'en avoir besoin.
+
+### Mettre à jour
+
+Pousser sur `main`, puis **Deploy** dans Dokploy — ou activer l'Auto Deploy.
+Les migrations s'appliquent au démarrage du nouveau conteneur.
+
 ## Variables de `.env.production`
 
 | Variable | Rôle |

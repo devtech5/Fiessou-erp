@@ -9,7 +9,8 @@ import { env } from "@/env";
 import type { FichierADeposer, ResultatDepot } from "./index";
 
 /**
- * Adaptateur disque, pour le développement sans Supabase.
+ * Adaptateur disque : le développement sur PGlite, et la production sur VPS
+ * (dossier sur un volume persistant et sauvegardé, jamais un disque éphémère).
  *
  * Il reproduit ce qui compte du dépôt réel : un chemin préfixé par
  * l'entreprise, aucun lien direct, une URL signée qui expire. La signature

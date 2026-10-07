@@ -241,6 +241,11 @@ Après un arrêt brutal pendant une installation, Turbopack peut servir des
 quotidienne). `MIGRATIONS_AU_DEMARRAGE=1` fait appliquer migrations et droits
 par `instrumentation.ts` au démarrage (`src/db/demarrage.ts`).
 
+La production (`fiessou.cloud`) tourne sur Dokploy : build **Dockerfile**
+(Nixpacks prend Node 18, où pnpm 11 plante), base PostgreSQL gérée par Dokploy
+sur le réseau interne, volume nommé sur `/donnees/fichiers`. Section « Avec
+Dokploy » de `DEPLOIEMENT.md`.
+
 ## Abonnement
 
 `organizations.status`, `trial_ends_at`, `paye_jusqu_au` ; paiements dans
