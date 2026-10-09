@@ -9,27 +9,26 @@ pays voisin.
 
 ## Démarrer
 
-Prérequis : Node 22+ et pnpm. La base est hébergée sur Supabase — il n'y a rien
-à installer localement.
+Prérequis : Node 22+ et pnpm. La plateforme ne dépend que de PostgreSQL et
+d'un dossier pour les pièces jointes — aucun service d'hébergeur.
 
 ```bash
 pnpm install
 ```
 
-Copier `.env.example` vers `.env.local`, puis y renseigner les deux chaînes de
-connexion Supabase (`Settings → Database → Connection string`) et une clé de
+Copier `.env.example` vers `.env.local`, puis y renseigner une clé de
 signature :
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Les deux chaînes ne diffèrent que par le port : **6543** pour l'application,
-**5432** pour les migrations. Elles ne sont pas interchangeables — un pooler en
-mode transaction rend la connexion après chaque requête, alors qu'une migration
-exige une session stable.
+Le plus simple, sans rien installer : `pnpm dev:local`, sur PGlite — un vrai
+PostgreSQL en WebAssembly, données dans `.pglite/`. Migrations et droits
+s'appliquent au démarrage.
 
-Appliquer le schéma, contrôler, démarrer :
+Avec un PostgreSQL (`docker compose up -d`, ou tout autre serveur), renseigner
+`DATABASE_URL`, puis appliquer le schéma, contrôler, démarrer :
 
 ```bash
 pnpm db:migrate
@@ -37,11 +36,10 @@ pnpm db:check
 pnpm dev
 ```
 
-`db:check` vérifie la connexion, la présence des quinze tables du socle et
+`db:check` vérifie la connexion, la présence des tables attendues et
 l'activation de la sécurité au niveau ligne sur chacune.
 
-Un `docker-compose.yml` reste fourni pour un PostgreSQL local, mais ce n'est pas
-la voie normale du projet.
+La production tourne sur un VPS avec Dokploy : voir [DEPLOIEMENT.md](./DEPLOIEMENT.md).
 
 ## Architecture
 
@@ -80,8 +78,8 @@ connexion.
 ## Quand ça casse en production
 
 Toute erreur serveur part sur la sortie d'erreur, en une ligne JSON portant
-`"evenement":"erreur_requete"`. Render conserve ce flux : c'est le journal, et
-il se filtre sur ce champ.
+`"evenement":"erreur_requete"`. Dokploy conserve ce flux (onglet **Logs** de
+l'application) : c'est le journal, et il se filtre sur ce champ.
 
 L'écran d'erreur affiche un `digest` — dix chiffres. C'est la même valeur que
 la ligne de journal. Quelqu'un le lit au téléphone, on cherche ce nombre dans

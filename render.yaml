@@ -7,9 +7,8 @@ services:
   - type: web
     name: fiessou
     runtime: node
-    # Francfort est la région la plus proche de la base Supabase (eu-west-1,
-    # Irlande). Choisir Oregon ajouterait un aller-retour transatlantique à
-    # chaque requête.
+    # La région doit être celle de la base : un aller-retour transatlantique
+    # à chaque requête se sent sur une caisse.
     region: frankfurt
     # Le plan gratuit éteint le service après quinze minutes sans requête, et
     # la requête suivante attend le redémarrage — près d'une minute. Sur une
@@ -29,9 +28,9 @@ services:
       - key: NODE_VERSION
         value: "22"
 
-      # Chaîne du pooler en mode transaction (port 6543). Le pool applicatif
-      # s'adapte seul : Render fait tourner un process durable, donc plusieurs
-      # connexions, contrairement à une fonction sans serveur.
+      # Chaîne de connexion PostgreSQL. Le pool applicatif s'adapte seul :
+      # Render fait tourner un process durable, donc plusieurs connexions,
+      # contrairement à une fonction sans serveur.
       - key: DATABASE_URL
         sync: false
 

@@ -24,25 +24,13 @@ const schema = z.object({
   INSTANCE_DEMO: z.enum(["0", "1"]).default("0"),
 
   /**
-   * Dépôt de fichiers — Supabase Storage.
+   * Dépôt de fichiers sur disque : `pnpm dev:local`, ou le VPS (volume
+   * persistant, inclus dans la sauvegarde). Jamais sur un hébergeur à disque
+   * éphémère.
    *
-   * Facultatifs : sans eux, la bibliothèque de documents se lit toujours, et
+   * Facultatif : sans lui, la bibliothèque de documents se lit toujours, et
    * seul l'ajout de fichier refuse en disant pourquoi. Une variable oubliée ne
    * doit pas fermer un module entier.
-   *
-   * `SUPABASE_SERVICE_ROLE_KEY` CONTOURNE RLS sur tout le projet. Aucun
-   * préfixe `NEXT_PUBLIC_`, aucune lecture hors d'un module `server-only` : une
-   * clé de ce niveau dans le navigateur donne l'écriture sur toutes les
-   * entreprises.
-   */
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  /** Bucket PRIVÉ. Public, il rendrait tout contrat lisible par qui devine l'URL. */
-  SUPABASE_BUCKET: z.string().default("documents"),
-  /**
-   * Dépôt sur disque : `pnpm dev:local`, ou le VPS (volume persistant, inclus
-   * dans la sauvegarde). Supabase reste prioritaire quand il est configuré.
-   * Jamais sur un hébergeur à disque éphémère.
    */
   STOCKAGE_LOCAL: z.string().optional(),
 

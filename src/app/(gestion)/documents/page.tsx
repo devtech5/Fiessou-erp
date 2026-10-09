@@ -104,9 +104,8 @@ export default async function PageDocuments() {
           <strong className="font-semibold">Dépôt de fichiers inactif.</strong> Les
           fiches se créent et les échéances se suivent, mais aucune pièce ne peut
           être jointe ni ouverte. Renseignez{" "}
-          <span className="chiffres">SUPABASE_URL</span> et{" "}
-          <span className="chiffres">SUPABASE_SERVICE_ROLE_KEY</span>, et créez le
-          bucket <span className="chiffres">documents</span> en accès privé.
+          <span className="chiffres">STOCKAGE_LOCAL</span> : un dossier sur un
+          volume persistant et sauvegardé.
         </p>
       )}
 

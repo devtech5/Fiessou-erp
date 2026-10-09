@@ -189,28 +189,25 @@ Copier `.env.example` vers `.env.local` avant le premier démarrage.
 ## Les fichiers vivent dans un dépôt, pas dans la base
 
 Le module Documents joint des pièces aux entités métier. Le fichier ne va pas
-en base : il part dans Supabase Storage, et seule sa clé est stockée.
+en base : il part dans le dossier `STOCKAGE_LOCAL` (un volume persistant et
+sauvegardé), et seule sa clé est stockée.
 
-Tout passe par `src/lib/stockage/` — une interface, un adaptateur derrière,
-comme `src/lib/auth/canaux/` pour l'envoi des codes. Le reste de l'application
-ne connaît que l'interface. C'est ce qui garde la base portable vers n'importe
-quel PostgreSQL malgré l'arrivée d'un SDK d'hébergeur.
+Tout passe par `src/lib/stockage/` — une interface, un adaptateur derrière
+(`local.ts`, le disque), comme `src/lib/auth/canaux/` pour l'envoi des codes.
+Le reste de l'application ne connaît que l'interface : passer un jour à un
+stockage objet (S3) revient à écrire un adaptateur. **Aucun SDK d'hébergeur** :
+la plateforme ne dépend que de PostgreSQL et du système de fichiers.
 
-**La clé employée contourne RLS sur tout le projet.** `SUPABASE_SERVICE_ROLE_KEY`
-ne prend jamais de préfixe `NEXT_PUBLIC_` et ne se lit que dans un module
-marqué `import "server-only"`. Dans le navigateur, elle donnerait l'écriture
-sur toutes les entreprises.
-
-**Le bucket est PRIVÉ.** Aucun lien direct ne fonctionne : chaque ouverture
-passe par une URL signée valable cinq minutes, demandée au clic et jamais
-rendue dans le HTML — une adresse posée dans une page en cache resterait
-valable pour qui la retrouve.
+**Aucun lien direct ne fonctionne.** Chaque ouverture passe par `/fichiers/…`
+avec une URL signée HMAC (`AUTH_SECRET`) valable cinq minutes, demandée au clic
+et jamais rendue dans le HTML — une adresse posée dans une page en cache
+resterait valable pour qui la retrouve.
 
 Le chemin d'un fichier commence par l'identifiant de l'entreprise
-(`<org>/<document>.<ext>`), pour qu'une policy de stockage puisse isoler sur le
-préfixe comme `organization_id` isole les lignes.
+(`<org>/<document>.<ext>`), pour isoler sur le préfixe comme `organization_id`
+isole les lignes.
 
-Sans ces variables, le module reste utilisable : les fiches se créent, les
+Sans `STOCKAGE_LOCAL`, le module reste utilisable : les fiches se créent, les
 échéances se suivent, et seul l'ajout de pièce refuse en disant pourquoi.
 
 ## Base locale sans serveur : PGlite
@@ -226,10 +223,9 @@ Deux limites à connaître : un seul processus ouvre le dossier (les scripts
 rend postgres-js. Jamais en production.
 
 Les pièces jointes (photos de projet, preuves de paiement, documents) vont
-alors dans `.pglite/fichiers/` : `STOCKAGE_LOCAL` active un adaptateur disque
-(`src/lib/stockage/local.ts`) servi par `/fichiers/…` avec une URL signée HMAC
-qui expire, comme celle de Supabase. Le même adaptateur sert sur le VPS, où le
-dossier vit sur un volume sauvegardé ; jamais sur un disque éphémère.
+alors dans `.pglite/fichiers/`, par le même adaptateur disque qu'en
+production, où le dossier vit sur un volume sauvegardé ; jamais sur un disque
+éphémère.
 
 Après un arrêt brutal pendant une installation, Turbopack peut servir des
 404 sur toutes les routes : supprimer `.next/dev` et relancer.
@@ -306,21 +302,21 @@ reprise est une facture émise, une dette une facture fournisseur : elles se
 règlent et se lettrent comme les autres. Contrepartie : le compte d'attente
 4711, à reclasser par le comptable. Un fichier passe en entier ou pas du tout.
 
-## La base est sur Supabase
+## La base est un PostgreSQL, n'importe lequel
 
-Le projet travaille directement sur Supabase, pas sur un PostgreSQL local. Le
-`docker-compose.yml` reste fourni mais n'est pas la voie normale.
+Aucun hébergeur imposé. En production, le PostgreSQL géré par Dokploy, joint
+par le réseau interne (`DATABASE_URL` seule). En développement, PGlite
+(`pnpm dev:local`) ou le `docker-compose.yml`.
 
-Deux conséquences à ne pas perdre de vue :
+**Derrière un pooler en mode transaction** (PgBouncer, `pgbouncer=true` dans
+l'URL), `src/db/index.ts` désactive les requêtes préparées, et les migrations
+passent par `DATABASE_URL_MIGRATION`, une connexion directe : drizzle-kit exige
+une session stable. Sans pooler, `DATABASE_URL_MIGRATION` reste vide.
 
-**Deux chaînes de connexion**, qui ne diffèrent que par le port. `DATABASE_URL`
-sur **6543** pour l'application — pooler en mode transaction, d'où requêtes
-préparées désactivées et pool ramené à 1. `DATABASE_URL_MIGRATION` sur **5432**
-pour drizzle-kit, qui exige une session stable.
-
-**RLS est actif sur les quinze tables** (migration 0001) et doit le rester.
-Supabase expose une API REST sur le schéma `public`, lisible avec la clé
-publiable — laquelle est publique par conception. Une table sans RLS y est
-lisible par n'importe qui. Aucune policy n'est définie : Fiessou se connecte
-directement avec un rôle propriétaire, qui contourne RLS, et l'isolation entre
-entreprises reste assurée par le filtre `organization_id`.
+**RLS est actif sur toutes les tables** et doit le rester : toute nouvelle
+table l'active dans la migration qui la crée. Aucune policy n'est définie :
+Fiessou se connecte avec un rôle propriétaire, qui contourne RLS, et
+l'isolation entre entreprises est assurée par le filtre `organization_id`.
+RLS est la défense en profondeur — si un outil expose un jour le schéma
+`public` (API REST automatique, rôle de lecture), rien n'y fuit.
+`pnpm db:check` le vérifie.

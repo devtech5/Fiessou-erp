@@ -127,7 +127,7 @@ export async function deposerDocument(
       return {
         erreur:
           "Le dépôt de fichiers n'est pas configuré. La fiche peut être créée " +
-          "sans pièce jointe, ou renseignez SUPABASE_URL et la clé de service.",
+          "sans pièce jointe, ou renseignez STOCKAGE_LOCAL.",
       };
     }
     if (brut.size > TAILLE_MAX_OCTETS) {

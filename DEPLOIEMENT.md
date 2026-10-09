@@ -197,15 +197,15 @@ l'entreprise passe en **lecture seule** : elle voit tout, ne crée plus rien.
 Les tickets de caisse encaissés hors ligne avant la bascule se synchronisent
 quand même.
 
-## Garder Supabase pour la base
+## Base PostgreSQL externe
 
-La pile embarque PostgreSQL. Pour rester sur Supabase, retirer le service
-`postgres` et `sauvegarde` du fichier compose, et remplacer dans `app` :
+La pile embarque PostgreSQL. Pour une base managée ailleurs (n'importe quel
+PostgreSQL 15+), retirer les services `postgres` et `sauvegarde` du fichier
+compose, et renseigner `DATABASE_URL` dans `app`.
 
-```yaml
-DATABASE_URL: <chaîne du pooler, port 6543>
-DATABASE_URL_MIGRATION: <chaîne de session, port 5432>
-```
+Derrière un pooler en mode transaction (PgBouncer), les requêtes préparées
+sont désactivées d'elles-mêmes (`pgbouncer=true` dans l'URL), et les
+migrations ont besoin d'une connexion directe dans `DATABASE_URL_MIGRATION`.
 
-Les sauvegardes relèvent alors du plan Supabase (7 jours sur le gratuit, sans
-retour à un instant précis).
+Les sauvegardes relèvent alors de l'hébergeur de la base ; celles des pièces
+jointes restent à programmer sur le volume.

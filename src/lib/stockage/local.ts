@@ -12,8 +12,8 @@ import type { FichierADeposer, ResultatDepot } from "./index";
  * Adaptateur disque : le développement sur PGlite, et la production sur VPS
  * (dossier sur un volume persistant et sauvegardé, jamais un disque éphémère).
  *
- * Il reproduit ce qui compte du dépôt réel : un chemin préfixé par
- * l'entreprise, aucun lien direct, une URL signée qui expire. La signature
+ * Ce qui compte : un chemin préfixé par l'entreprise, aucun lien direct, une
+ * URL signée qui expire. La signature
  * est un HMAC sur AUTH_SECRET : sans elle, quiconque devinerait un chemin
  * lirait la pièce.
  */
@@ -43,7 +43,7 @@ export async function deposerLocal(fichier: FichierADeposer): Promise<ResultatDe
   try {
     const cible = emplacement(fichier.chemin);
     await mkdir(path.dirname(cible), { recursive: true });
-    // `wx` : jamais d'écrasement, comme `upsert: false` côté Supabase.
+    // `wx` : jamais d'écrasement — un chemin déjà pris est une erreur, pas une mise à jour.
     await writeFile(cible, Buffer.from(fichier.contenu), { flag: "wx" });
     return { ok: true, chemin: fichier.chemin };
   } catch (erreur) {

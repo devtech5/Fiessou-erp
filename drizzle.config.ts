@@ -5,15 +5,14 @@ import type { Config } from "drizzle-kit";
 loadEnv({ path: ".env.local", quiet: true });
 
 /**
- * Les migrations n'empruntent pas la même connexion que l'application.
+ * Les migrations peuvent emprunter une autre connexion que l'application.
  *
- * L'application passe par le pooler en mode transaction (port 6543), qui rend
- * la connexion au pool après chaque requête. drizzle-kit, lui, modifie le
- * schéma : il lui faut une session stable, donc la connexion directe ou le
- * pooler en mode session (port 5432).
+ * Derrière un pooler en mode transaction (PgBouncer), la connexion retourne au
+ * pool après chaque requête. drizzle-kit, lui, modifie le schéma : il lui faut
+ * une session stable, donc une connexion directe.
  *
  * DATABASE_URL_MIGRATION prime quand elle est renseignée ; sinon on retombe
- * sur DATABASE_URL, ce qui convient pour un PostgreSQL local sans pooler.
+ * sur DATABASE_URL, ce qui convient à un PostgreSQL joint sans pooler.
  */
 const url = process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL;
 

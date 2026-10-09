@@ -94,8 +94,8 @@ export function FormulaireDocument({
         <p className="mb-4 rounded-lg border-l-4 border-alerte-500 bg-alerte-50 px-3 py-2.5 text-sm text-alerte-600">
           <strong className="font-semibold">Dépôt de fichiers inactif.</strong> La
           fiche s&apos;enregistre, mais aucune pièce ne peut être jointe tant que{" "}
-          <span className="chiffres">SUPABASE_URL</span> et la clé de service ne
-          sont pas renseignées, et le bucket privé créé.
+          <span className="chiffres">STOCKAGE_LOCAL</span> n&apos;est pas
+          renseigné.
         </p>
       )}
 

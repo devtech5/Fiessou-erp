@@ -2,20 +2,22 @@ import "server-only";
 
 import { env } from "@/env";
 
+import { deposerLocal, lireLocal, supprimerLocal, urlSigneeLocale } from "./local";
+
 /**
  * Dépôt de fichiers — une interface, un adaptateur derrière.
  *
  * Le reste de l'application ne connaît QUE ce module. C'est le même dispositif
  * que `src/lib/auth/canaux/` pour l'envoi des codes : le jour où le stockage
- * change d'hébergeur, il y a un fichier à écrire, pas un module à reprendre.
+ * change d'hébergeur (un stockage objet compatible S3, par exemple), il y a un
+ * fichier à écrire, pas un module à reprendre.
  *
- * La base, elle, reste portable vers n'importe quel PostgreSQL — c'est la
- * position posée dans `.env.example`, et cette frontière est ce qui permet de
- * la tenir malgré l'arrivée d'un SDK d'hébergeur.
+ * Aujourd'hui un seul adaptateur : le disque (`./local`), sur un volume
+ * persistant et sauvegardé. Aucun SDK d'hébergeur : la plateforme ne dépend
+ * que de PostgreSQL et du système de fichiers.
  *
- * Rien ici n'est accessible depuis le navigateur : la clé employée contourne
- * RLS sur tout le projet. D'où `server-only` en tête, et aucun préfixe
- * `NEXT_PUBLIC_` sur les variables.
+ * Rien ici n'est accessible depuis le navigateur : les URL se signent avec
+ * `AUTH_SECRET`. D'où `server-only` en tête.
  */
 
 export interface FichierADeposer {
@@ -33,9 +35,9 @@ export type ResultatDepot =
  * Clé d'un fichier dans le dépôt.
  *
  * L'identifiant de l'entreprise vient EN TÊTE, et pas en suffixe : c'est ce
- * qui permettra plus tard d'isoler les fichiers par une policy de stockage sur
- * le préfixe, exactement comme `organization_id` isole les lignes. Un chemin
- * qui mêle les entreprises ne se rattrape pas après coup.
+ * qui permet d'isoler les fichiers par préfixe, exactement comme
+ * `organization_id` isole les lignes. Un chemin qui mêle les entreprises ne se
+ * rattrape pas après coup.
  *
  * L'identifiant du document sert de nom : deux fichiers homonymes déposés le
  * même jour ne s'écrasent pas, et le nom d'origine reste en base pour
@@ -55,57 +57,42 @@ export function cheminDe(
 /**
  * Le dépôt est-il configuré ?
  *
- * Renvoie faux tant que l'URL du projet ou la clé manquent. Les écrans
- * restent alors utilisables — la bibliothèque se lit, les échéances
- * s'affichent — et seul l'ajout de fichier refuse, en disant pourquoi. Une
- * variable oubliée ne doit pas fermer un module entier.
+ * Renvoie faux tant que `STOCKAGE_LOCAL` manque. Les écrans restent alors
+ * utilisables — la bibliothèque se lit, les échéances s'affichent — et seul
+ * l'ajout de fichier refuse, en disant pourquoi. Une variable oubliée ne doit
+ * pas fermer un module entier.
+ *
+ * Dépôt sur disque : le développement (`pnpm dev:local`), et le VPS, où le
+ * dossier vit sur un volume persistant que la sauvegarde emporte. Jamais sur
+ * un hébergeur à disque éphémère : le redéploiement l'effacerait.
  */
 export function stockageConfigure(): boolean {
-  return supabaseConfigure() || localActif();
-}
-
-function supabaseConfigure(): boolean {
-  return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
-}
-
-/**
- * Dépôt sur disque : le développement (`pnpm dev:local`), et le VPS, où le
- * dossier vit sur un volume persistant que la sauvegarde quotidienne emporte.
- * Jamais sur un hébergeur à disque éphémère : le redéploiement l'effacerait.
- */
-function localActif(): boolean {
   return Boolean(env.STOCKAGE_LOCAL);
 }
 
 const RAISON_NON_CONFIGURE =
-  "Le dépôt de fichiers n'est pas configuré : renseignez STOCKAGE_LOCAL (dossier " +
-  "sur un volume persistant), ou SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY avec un bucket privé.";
+  "Le dépôt de fichiers n'est pas configuré : renseignez STOCKAGE_LOCAL " +
+  "(dossier sur un volume persistant et sauvegardé).";
 
 export async function deposer(fichier: FichierADeposer): Promise<ResultatDepot> {
   if (!stockageConfigure()) return { ok: false, raison: RAISON_NON_CONFIGURE };
-  if (!supabaseConfigure()) return (await import("./local")).deposerLocal(fichier);
-
-  const { deposerSupabase } = await import("./supabase");
-  return deposerSupabase(fichier);
+  return deposerLocal(fichier);
 }
 
 /**
  * URL de lecture, valable un temps limité.
  *
- * Le bucket est PRIVÉ : aucun lien direct ne fonctionne, et c'est voulu. Une
- * pièce d'identité, un contrat de travail ou un bulletin de paie lisibles par
- * quiconque devine l'adresse, c'est exactement ce que ce module doit empêcher.
- * L'URL se signe au moment où l'écran s'ouvre, et expire toute seule.
+ * Aucun lien direct ne fonctionne, et c'est voulu. Une pièce d'identité, un
+ * contrat de travail ou un bulletin de paie lisibles par quiconque devine
+ * l'adresse, c'est exactement ce que ce module doit empêcher. L'URL se signe
+ * au moment où l'écran s'ouvre, et expire toute seule.
  */
 export async function urlSignee(
   chemin: string,
   secondes = 300,
 ): Promise<string | null> {
   if (!stockageConfigure()) return null;
-  if (!supabaseConfigure()) return (await import("./local")).urlSigneeLocale(chemin, secondes);
-
-  const { urlSigneeSupabase } = await import("./supabase");
-  return urlSigneeSupabase(chemin, secondes);
+  return urlSigneeLocale(chemin, secondes);
 }
 
 /**
@@ -116,10 +103,7 @@ export async function urlSignee(
  */
 export async function lireFichier(chemin: string): Promise<Uint8Array | null> {
   if (!stockageConfigure()) return null;
-  if (!supabaseConfigure()) return (await import("./local")).lireLocal(chemin);
-
-  const { lireSupabase } = await import("./supabase");
-  return lireSupabase(chemin);
+  return lireLocal(chemin);
 }
 
 /**
@@ -131,8 +115,5 @@ export async function lireFichier(chemin: string): Promise<Uint8Array | null> {
  */
 export async function supprimer(chemin: string): Promise<boolean> {
   if (!stockageConfigure()) return false;
-  if (!supabaseConfigure()) return (await import("./local")).supprimerLocal(chemin);
-
-  const { supprimerSupabase } = await import("./supabase");
-  return supprimerSupabase(chemin);
+  return supprimerLocal(chemin);
 }
