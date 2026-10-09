@@ -7,9 +7,15 @@
  * l'adresse est connue d'avance, la connexion mène directement au tableau de
  * bord.
  *
- * Le mot de passe vient de `DEMO_MOT_DE_PASSE` s'il est fourni ; sinon il est
- * tiré au hasard et affiché UNE fois dans ce terminal. Relancer le script le
- * remplace : c'est aussi la façon de le retrouver.
+ * Deux comptes, dans la même entreprise :
+ *   · le propriétaire (`demo@fiessou.ci`), qui voit tout ;
+ *   · le gérant (`gerant@fiessou.ci`), rôle préréglé `gerant` — de quoi montrer
+ *     ce que voit un responsable d'exploitation, et ce qu'il ne voit pas.
+ *
+ * Les mots de passe viennent de `DEMO_MOT_DE_PASSE` et
+ * `DEMO_MOT_DE_PASSE_GERANT` s'ils sont fournis ; sinon ils sont tirés au
+ * hasard et affichés UNE fois dans ce terminal. Relancer le script les
+ * remplace : c'est aussi la façon de les retrouver.
  *
  * Le script est idempotent — le relancer ne duplique rien. Un compte de
  * démonstration créé du temps de la connexion par téléphone est repris et
@@ -50,6 +56,8 @@ if (!url) {
 
 /** Adresse de démonstration. */
 const EMAIL = "demo@fiessou.ci";
+const EMAIL_GERANT = "gerant@fiessou.ci";
+const NOM_GERANT = "Gérant de démonstration";
 /** Numéro de l'ancien compte de démonstration, repris s'il existe. */
 const ANCIEN_TELEPHONE = "+2250700000000";
 const NOM = "Compte de démonstration";
@@ -91,16 +99,39 @@ async function ouvrir(chaine: string): Promise<Base & { dossierPglite?: string }
   };
 }
 
+/** Quatre groupes de quatre caractères, sans les signes qu'on confond (0/o, 1/l/i). */
+function motDePasseAuHasard(): string {
+  return Array.from({ length: 4 }, () =>
+    Array.from({ length: 4 }, () => "abcdefghjkmnpqrstuvwxyz23456789"[randomInt(0, 31)]).join(""),
+  ).join("-");
+}
+
+/**
+ * Crée le compte, ou le remet en état : mot de passe remplacé, verrou levé,
+ * aucun changement de mot de passe exigé à la connexion.
+ */
+async function compte(base: Base, email: string, nom: string, motDePasse: string): Promise<string> {
+  const [utilisateur] = await base.requete(
+    `insert into users (email, full_name, password_hash, must_change_password)
+    values ($1, $2, $3, false)
+    on conflict (email) do update set
+      full_name = excluded.full_name,
+      password_hash = excluded.password_hash,
+      must_change_password = false,
+      failed_logins = 0,
+      locked_until = null
+    returning id`,
+    [email, nom, await hash(motDePasse)],
+  );
+  return utilisateur.id;
+}
+
 async function main() {
   const base = await ouvrir(url!);
 
   try {
-    const motDePasse =
-      process.env.DEMO_MOT_DE_PASSE ??
-      Array.from({ length: 4 }, () =>
-        Array.from({ length: 4 }, () => "abcdefghjkmnpqrstuvwxyz23456789"[randomInt(0, 31)]).join(""),
-      ).join("-");
-    const empreinte = await hash(motDePasse);
+    const motDePasse = process.env.DEMO_MOT_DE_PASSE ?? motDePasseAuHasard();
+    const motDePasseGerant = process.env.DEMO_MOT_DE_PASSE_GERANT ?? motDePasseAuHasard();
 
     // L'ancien compte (connexion par téléphone) reçoit l'adresse, s'il n'y a
     // pas déjà un compte qui la porte.
@@ -111,20 +142,10 @@ async function main() {
       [EMAIL, ANCIEN_TELEPHONE],
     );
 
-    const [utilisateur] = await base.requete(
-      `insert into users (email, full_name, password_hash, must_change_password)
-      values ($1, $2, $3, false)
-      on conflict (email) do update set
-        full_name = excluded.full_name,
-        password_hash = excluded.password_hash,
-        must_change_password = false,
-        failed_logins = 0,
-        locked_until = null
-      returning id`,
-      [EMAIL, NOM, empreinte],
-    );
+    const proprietaireId = await compte(base, EMAIL, NOM, motDePasse);
+    const gerantId = await compte(base, EMAIL_GERANT, NOM_GERANT, motDePasseGerant);
 
-    const slug = `demo-${utilisateur.id.slice(0, 8)}`;
+    const slug = `demo-${proprietaireId.slice(0, 8)}`;
 
     const [entreprise] = await base.requete(
       `insert into organizations (name, slug, country_code, status)
@@ -146,37 +167,49 @@ async function main() {
       );
     }
 
-    const [role] = await base.requete(
-      `select id from roles
-      where organization_id = $1 and key = 'proprietaire'`,
-      [entreprise.id],
-    );
+    const roleDe = async (cle: string): Promise<string> => {
+      const [role] = await base.requete(
+        `select id from roles where organization_id = $1 and key = $2`,
+        [entreprise.id, cle],
+      );
+      return role.id;
+    };
 
     await base.requete(
       `insert into memberships (organization_id, user_id, role_id, status, is_owner, joined_at)
       values ($1, $2, $3, 'actif', true, now())
       on conflict (organization_id, user_id) do update set status = 'actif'`,
-      [entreprise.id, utilisateur.id, role.id],
+      [entreprise.id, proprietaireId, await roleDe("proprietaire")],
     );
 
-    if (base.dossierPglite) {
-      writeFileSync(
-        join(base.dossierPglite, "identifiants-demo.txt"),
-        `Adresse       ${EMAIL}
-Mot de passe  ${motDePasse}
+    // Le gérant reprend son rôle à chaque passage : un essai fait pendant une
+    // démonstration ne doit pas fausser la suivante.
+    await base.requete(
+      `insert into memberships (organization_id, user_id, role_id, status, is_owner, joined_at)
+      values ($1, $2, $3, 'actif', false, now())
+      on conflict (organization_id, user_id) do update set
+        role_id = excluded.role_id,
+        status = 'actif',
+        is_owner = false`,
+      [entreprise.id, gerantId, await roleDe("gerant")],
+    );
+
+    const identifiants = `Propriétaire  ${EMAIL}
+              ${motDePasse}
+Gérant        ${EMAIL_GERANT}
+              ${motDePasseGerant}
 Entreprise    ${ENTREPRISE}
-`,
-      );
+`;
+
+    if (base.dossierPglite) {
+      writeFileSync(join(base.dossierPglite, "identifiants-demo.txt"), identifiants);
     }
 
     console.info(`
-  Compte de démonstration prêt.
+  Comptes de démonstration prêts.
 
-    Adresse       ${EMAIL}
-    Mot de passe  ${motDePasse}
-    Entreprise    ${ENTREPRISE}
-
-  Le mot de passe n'est affiché qu'ici. Relancer le script en tire un autre.
+${identifiants.replace(/^(?=.)/gm, "    ")}
+  Les mots de passe ne sont affichés qu'ici. Relancer le script en tire d'autres.
 `);
   } finally {
     await base.fermer();
