@@ -25,6 +25,13 @@
  * les alias de chemins du tsconfig, et un script d'exploitation n'a pas à
  * dépendre de la couche applicative.
  *
+ * En production, l'image Docker l'embarque, empaqueté par esbuild
+ * (`pnpm build:scripts`). Depuis le terminal du conteneur (Dokploy) :
+ *
+ *   node scripts/compte-demo.cjs
+ *
+ * Il prend DATABASE_URL dans l'environnement du conteneur.
+ *
  * Sur la base locale PGlite : `pnpm demo:compte:local`, serveur ARRÊTÉ (un
  * seul processus ouvre le dossier). Les identifiants sont alors aussi écrits
  * dans `.pglite/identifiants-demo.txt`, à côté de la base qu'ils ouvrent.
@@ -32,8 +39,6 @@
 import { randomInt } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-
-import { PGlite } from "@electric-sql/pglite";
 
 import { hash } from "@node-rs/argon2";
 import { config as loadEnv } from "dotenv";
@@ -75,6 +80,9 @@ async function ouvrir(chaine: string): Promise<Base & { dossierPglite?: string }
   if (chaine.startsWith("pglite:")) {
     const dossier = resolve(chaine.slice("pglite:".length) || "./.pglite");
     mkdirSync(dossier, { recursive: true });
+    // Import différé : l'image de production n'embarque pas PGlite, et le
+    // script y tourne sur PostgreSQL.
+    const { PGlite } = await import("@electric-sql/pglite");
     const client = new PGlite(dossier);
     await client.waitReady;
     // Les tables viennent des migrations, appliquées au démarrage du serveur.

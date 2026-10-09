@@ -120,6 +120,25 @@ Wasabi…), puis programmer :
 Les deux vont ensemble : une pièce sans sa ligne en base, ou l'inverse, ne sert
 à rien. La restauration se teste une fois, ailleurs, avant d'en avoir besoin.
 
+### Comptes de démonstration
+
+L'image embarque le script de `pnpm demo:compte`. Dans Dokploy, onglet
+**Terminal** de l'application (shell `sh`) :
+
+```bash
+node scripts/compte-demo.cjs
+```
+
+Il crée, ou remet en état, l'entreprise « Quincaillerie Akwaba » (active,
+sans échéance d'abonnement), son propriétaire `demo@fiessou.ci` et son gérant
+`gerant@fiessou.ci`. Les mots de passe s'affichent **une fois** dans le
+terminal ; relancer la commande en tire d'autres. Pour les fixer :
+`DEMO_MOT_DE_PASSE=… DEMO_MOT_DE_PASSE_GERANT=… node scripts/compte-demo.cjs`.
+
+Cette entreprise vit dans la même base que les vraies : elle n'en voit
+aucune donnée, l'isolation par `organization_id` vaut pour elle comme pour
+les autres.
+
 ### Mettre à jour
 
 Pousser sur `main`, puis **Deploy** dans Dokploy — ou activer l'Auto Deploy.

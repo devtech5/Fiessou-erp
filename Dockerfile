@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile
 FROM base AS construction
 COPY --from=dependances /app/node_modules ./node_modules
 COPY . .
-RUN pnpm build
+RUN pnpm build && pnpm build:scripts
 
 FROM node:22-bookworm-slim AS execution
 WORKDIR /app
@@ -33,6 +33,10 @@ COPY --from=construction --chown=fiessou:fiessou /app/.next/static ./.next/stati
 COPY --from=construction --chown=fiessou:fiessou /app/public ./public
 # Lues au démarrage par MIGRATIONS_AU_DEMARRAGE=1.
 COPY --from=construction --chown=fiessou:fiessou /app/drizzle ./drizzle
+# Scripts d'exploitation empaquetés (esbuild), lancés depuis le terminal du
+# conteneur : `node scripts/compte-demo.cjs`. Seul @node-rs/argon2 reste
+# externe, et le serveur autonome l'embarque déjà.
+COPY --from=construction --chown=fiessou:fiessou /app/build/scripts ./scripts
 
 USER fiessou
 EXPOSE 3000
