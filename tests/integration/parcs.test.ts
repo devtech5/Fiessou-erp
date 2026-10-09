@@ -36,6 +36,11 @@ describe("parc automobile en base", () => {
     const poses = await db.select({ nature: echeances.nature }).from(echeances).where(eq(echeances.actifId, id));
     expect(poses.map((e) => e.nature).sort()).toEqual(["assurance", "visite"]);
 
+    // Le relevé d'ouverture est daté de la création. Les pleins ci-dessous sont
+    // en octobre 2026 : sans ce recul, une fois l'horloge passée le 1er octobre,
+    // le relevé d'ouverture est le plus récent et le compteur ne bouge plus.
+    await db.update(relevesCompteur).set({ releveLe: new Date("2026-09-30T12:00:00Z") }).where(eq(relevesCompteur.actifId, id));
+
     // Même immatriculation, saisie autrement : refusée.
     await expect(creerVehiculePour(org, { immatriculation: "1234-FX-01" })).rejects.toThrow();
 
