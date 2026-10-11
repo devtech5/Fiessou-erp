@@ -1,6 +1,7 @@
 import { BandeauAbonnement } from "@/components/coque/bandeau-abonnement";
 import { BandeauDemo } from "@/components/coque/bandeau-demo";
 import { BarreLaterale } from "@/components/coque/barre-laterale";
+import { Calculette } from "@/components/coque/calculette";
 import { Cloche } from "@/components/coque/cloche";
 import { FilAriane } from "@/components/coque/fil-ariane";
 import type { OptionSelecteur } from "@/components/coque/selecteur";
@@ -105,7 +106,8 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
                 exercices={[exerciceCourant]}
               />
               {session.organizationId && (
-                <div className="ml-auto shrink-0">
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                  <Calculette />
                   <Cloche />
                 </div>
               )}

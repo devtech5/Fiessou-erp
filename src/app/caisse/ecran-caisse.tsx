@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Calculette } from "@/components/coque/calculette";
 import { verrouillerMaintenant } from "@/components/coque/verrou-inactivite";
 import { IconeCadenas } from "@/components/ui/icone-cadenas";
 import {
@@ -485,6 +486,7 @@ function EnTete({
         {dernierTicket && (
           <span className="chiffres text-valide-600">{dernierTicket}</span>
         )}
+        <Calculette />
         <span className="chiffres">{heure ?? "--:--"}</span>
         <span className="font-medium text-[var(--encre)]">{caissier}</span>
         <button

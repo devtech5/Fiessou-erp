@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { MenuCompte } from "@/components/coque/barre-laterale";
+import { Calculette } from "@/components/coque/calculette";
 import { Cloche } from "@/components/coque/cloche";
 import { IconeModule } from "@/components/coque/icone-module";
 import { SignatureFiessou } from "@/components/coque/signature";
@@ -52,6 +53,7 @@ export default async function PageAccueil() {
     <main className="flex flex-1 flex-col px-4 pt-3 lg:px-10">
       {/* Seul reste du bandeau : le coin des notifications et du compte. */}
       <div className="flex items-center justify-end gap-1">
+        <Calculette />
         <Cloche />
         <MenuCompte
           ouverture="bas"
