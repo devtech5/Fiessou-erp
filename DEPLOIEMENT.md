@@ -144,6 +144,62 @@ les autres.
 Pousser sur `main`, puis **Deploy** dans Dokploy — ou activer l'Auto Deploy.
 Les migrations s'appliquent au démarrage du nouveau conteneur.
 
+## Vidéosurveillance (module Sécurité)
+
+Les images ne passent ni par l'application ni par la base. Trois pièces :
+
+```
+enregistreur du site ──RTSP──▶ relais du site (go2rtc)
+                                   │ RTSPS, sortant : rien à ouvrir sur la box
+                                   ▼
+                     serveur vidéo (MediaMTX, sur le VPS) ──WebRTC──▶ navigateur
+                                   │
+                                   └── demande à Fiessou : /api/video/autorisation
+```
+
+### Serveur vidéo, une fois
+
+Dans le projet Dokploy, un service **Docker** `bluenviron/mediamtx` (version
+fixée, pas `latest`), avec `deploiement/mediamtx.yml` monté sur
+`/mediamtx.yml` et les certificats TLS du domaine monté sur `/certificats`.
+
+| Réglage | Valeur |
+|---|---|
+| Domaine | `video.fiessou.cloud` → **port 8889** (WHEP, HTTPS par Traefik) |
+| Ports publiés | **8322/tcp** (publication RTSPS des relais), **8189/udp et 8189/tcp** (média WebRTC) |
+| Pare-feu du VPS | ouvrir 8322/tcp et 8189 (udp + tcp) |
+
+Le RTSPS ne passe pas par Traefik : MediaMTX présente lui-même le certificat
+de `video.fiessou.cloud` (Let's Encrypt, renouvelé par certbot sur l'hôte).
+
+Côté application, deux variables puis **Redeploy** :
+
+```
+VIDEO_URL_PUBLIQUE=https://video.fiessou.cloud
+VIDEO_PUBLICATION=video.fiessou.cloud:8322
+```
+
+### Relais, un par site
+
+Un petit ordinateur toujours allumé sur le réseau de l'enregistreur (mini-PC,
+Raspberry Pi 4, ou le PC de la caisse), avec [go2rtc](https://github.com/AlexxIT/go2rtc).
+
+1. Dans Fiessou : **Sécurité → Sites et caméras → le site**, déclarer les
+   caméras (canal de l'enregistreur), puis **Émettre la clé du relais** —
+   elle ne s'affiche qu'une fois — et **Télécharger la configuration**.
+2. Sur le boîtier, définir trois variables d'environnement :
+   `NVR_UTILISATEUR`, `NVR_MOT_DE_PASSE` (un compte de **lecture seule** créé
+   sur l'enregistreur) et `RELAIS_CLE`.
+3. Lancer go2rtc avec le fichier téléchargé, en service qui redémarre seul.
+
+Le relais passe « En ligne » dans Fiessou à sa première publication. Après
+l'ajout ou le retrait d'une caméra, retélécharger la configuration et
+relancer go2rtc.
+
+**Débit.** Chaque caméra au mur publie son flux secondaire en continu (environ
+512 kbit/s), plus le principal si la haute définition est cochée (environ
+2 Mbit/s). L'écran du site affiche le total à tenir sur la liaison montante.
+
 ## Variables de `.env.production`
 
 | Variable | Rôle |

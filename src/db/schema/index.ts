@@ -51,3 +51,4 @@ export * from "@/modules/boite-mail/schema";
 export * from "@/modules/presences/schema";
 export * from "@/modules/restauration/schema";
 export * from "@/modules/enquetes/schema";
+export * from "@/modules/securite/schema";

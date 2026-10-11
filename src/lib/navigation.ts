@@ -10,7 +10,7 @@ import { definitionDroit, type Droit } from "@/lib/droits/catalogue";
 
 export const CLES_ICONE = [
   "accueil", "tableau-de-bord", "caisse",
-  "boutique", "restaurant", "maquis", "enquetes",
+  "boutique", "restaurant", "maquis", "enquetes", "securite",
   "commercial", "stock", "achats", "prestataires", "marches", "reservations",
   "projets", "missions", "actifs", "parc-auto", "parc-informatique", "billetterie",
   "comptabilite", "tresorerie", "guichet",
@@ -90,6 +90,7 @@ export const GROUPES_MODULES: GroupeModules[] = [
       { href: "/membres", racine: "/membres", icone: "utilisateurs", libelle: "Utilisateurs", description: "Comptes, rôles et accès.", droit: "organisation.membre.gerer" },
       { href: "/entreprise", racine: "/entreprise", icone: "entreprise", libelle: "Entreprise", description: "Identité, numérotation et sécurité.", droit: "organisation.parametres.gerer" },
       { href: "/demarrage", racine: "/demarrage", icone: "demarrage", libelle: "Démarrage", description: "Reprise de l'existant : articles, tiers, soldes.", droit: "organisation.reprise.importer" },
+      { href: "/securite", racine: "/securite", icone: "securite", libelle: "Sécurité", description: "Caméras des magasins, entrepôts et bureaux en direct.", droit: "securite.consulter" },
       { href: "/communication", racine: "/communication", icone: "communication", libelle: "Communication", description: "Envois aux clients et messages groupés.", droit: "communication.consulter" },
       { href: "/rapports", racine: "/rapports", icone: "rapports", libelle: "Rapports", description: "Ventes, stock, trésorerie, paie : chaque module en chiffres, imprimable et exportable vers Excel.", droit: "rapports.consulter" },
       { href: "/journal", racine: "/journal", icone: "journal", libelle: "Journal d'activité", description: "Qui a fait quoi, et quand.", droit: "organisation.journal.consulter" },

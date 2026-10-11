@@ -330,6 +330,13 @@
       "when": 1791717720957,
       "tag": "0046_enquetes",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791718748452,
+      "tag": "0047_securite",
+      "breakpoints": true
     }
   ]
 }

@@ -92,6 +92,20 @@ const schema = z.object({
    * numéro Wave ou Orange Money, compte bancaire, contact. Texte libre.
    */
   ABONNEMENT_PAIEMENT: z.string().default(""),
+
+  /**
+   * Serveur vidéo (MediaMTX) du module Sécurité.
+   *
+   * `VIDEO_URL_PUBLIQUE` — adresse où les navigateurs lisent les caméras en
+   * WebRTC (WHEP) : https://video.fiessou.cloud. `VIDEO_PUBLICATION` — hôte
+   * et port où les relais des sites publient en RTSPS : video.fiessou.cloud:8322.
+   * Vides : le module se configure, mais aucune image ne s'affiche.
+   */
+  VIDEO_URL_PUBLIQUE: z.string().url().optional(),
+  VIDEO_PUBLICATION: z
+    .string()
+    .regex(/^[a-z0-9.-]+:\d{2,5}$/i, "VIDEO_PUBLICATION : hôte:port, par exemple video.fiessou.cloud:8322")
+    .optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

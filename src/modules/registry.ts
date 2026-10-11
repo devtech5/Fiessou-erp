@@ -271,6 +271,22 @@ export const MODULES: ModuleDefinition[] = [
     description: "Consulter et envoyer ses e-mails sans quitter Fiessou (Gmail, Yahoo, hébergeur…).",
   },
 
+  {
+    key: "securite",
+    name: "Sécurité",
+    layer: "socle",
+    // En base : sites surveillés (magasins, entrepôts, bureaux) avec leur
+    // enregistreur Hikvision ou Dahua, caméras par canal, relais du site
+    // (clé dont seule l'empreinte est gardée, configuration go2rtc sans
+    // secret). Images : relais → serveur vidéo MediaMTX → navigateur en
+    // WebRTC, chaque publication et chaque lecture autorisées par Fiessou,
+    // chaque visionnage journalisé. Restent la main courante, les rondes des
+    // gardiens, le registre des visiteurs et la relecture des enregistrements.
+    status: "en_cours",
+    requires: [],
+    description: "Caméras des magasins, entrepôts et bureaux en direct, sur un mur d'images, avec le journal de qui regarde.",
+  },
+
   // --------------------------------------------------------------- moteurs
   {
     key: "actifs",

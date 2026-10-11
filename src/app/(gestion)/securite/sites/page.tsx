@@ -1,0 +1,72 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { FormulaireSite } from "@/components/securite/formulaires";
+import { EnTetePage, EtatVide, Pastille, Tableau, Td, Th } from "@/components/ui/primitives";
+import { exigerEntreprise } from "@/lib/auth/dal";
+import { peut } from "@/lib/droits/garde";
+import { fmtEntier } from "@/lib/format";
+import { LIBELLE_NATURE, debitMontant, relaisEnLigne } from "@/modules/securite/calcul";
+import { sitesAvecCameras } from "@/modules/securite/requetes";
+
+export const metadata: Metadata = { title: "Sites et caméras" };
+
+/** Les sites surveillés : enregistreur, caméras, état du relais, débit à prévoir. */
+export default async function PageSites() {
+  const session = await exigerEntreprise();
+  const [sites, gerer] = await Promise.all([sitesAvecCameras(session.organizationId), peut("securite.gerer")]);
+  const maintenant = new Date();
+
+  return (
+    <>
+      <EnTetePage
+        titre="Sites et caméras"
+        sousTitre={sites.length === 0 ? "Aucun site" : `${sites.length} site${sites.length > 1 ? "s" : ""}`}
+        actions={gerer ? <FormulaireSite /> : undefined}
+      />
+      {sites.length === 0 ? (
+        <EtatVide titre="Aucun site" message="Un site est un lieu qui a son enregistreur : un magasin, un entrepôt, un bureau. Déclarez-le, puis ses caméras." />
+      ) : (
+        <Tableau>
+          <thead>
+            <tr>
+              <Th>Site</Th>
+              <Th>Enregistreur</Th>
+              <Th aligne="droite">Caméras</Th>
+              <Th aligne="droite">Débit montant</Th>
+              <Th>Relais</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {sites.map((s) => {
+              const actives = s.cameras.filter((c) => c.actif);
+              const enLigne = relaisEnLigne(s.relaisVuLe, maintenant);
+              return (
+                <tr key={s.id}>
+                  <Td fort>
+                    <Link href={`/securite/sites/${s.id}`} className="hover:underline">
+                      {s.nom}
+                    </Link>
+                    <span className="block text-xs font-normal text-[var(--encre-faible)]">{LIBELLE_NATURE[s.nature]}</span>
+                  </Td>
+                  <Td>
+                    <span className="capitalize">{s.marque}</span> · <span className="chiffres">{s.enregistreurAdresse}</span>
+                  </Td>
+                  <Td aligne="droite" chiffres>
+                    {fmtEntier(actives.length)}
+                  </Td>
+                  <Td aligne="droite" chiffres>
+                    {actives.length ? `${fmtEntier(debitMontant(actives))} kbit/s` : "—"}
+                  </Td>
+                  <Td>
+                    {!s.relaisEmpreinte ? <Pastille>À installer</Pastille> : enLigne ? <Pastille ton="valide">En ligne</Pastille> : <Pastille ton="alerte">Hors ligne</Pastille>}
+                  </Td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Tableau>
+      )}
+    </>
+  );
+}

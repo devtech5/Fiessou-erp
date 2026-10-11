@@ -94,6 +94,12 @@ const LIBELLES: Record<string, string> = {
   "enquete.lien_activer": "a rétabli le lien public d'une enquête",
   "enquete.lien_couper": "a coupé le lien public d'une enquête",
 
+  "site_securite.creer": "a déclaré un site surveillé",
+  "site_securite.cle_relais": "a émis la clé du relais d'un site",
+  "camera.creer": "a ajouté une caméra",
+  "camera.regler": "a réglé une caméra",
+  "camera.visionner": "a regardé une caméra",
+
   "brouillon.creer": "a préparé un devis ou une facture",
   "brouillon.modifier": "a modifié un brouillon",
   "brouillon.supprimer": "a supprimé un brouillon",
@@ -380,6 +386,7 @@ const FAMILLE_EXPLICITE: Record<string, Categorie> = {
   "declaration_tva.deposer": "creation",
   "declaration_tva.payer": "creation",
   "exercice.cloturer": "modification",
+  "camera.visionner": "consultation",
 };
 
 const VERBES: [RegExp, Categorie][] = [
@@ -425,6 +432,8 @@ const MODULES: Record<string, string> = {
   ligne_salle: "Restauration",
   table_salle: "Restauration",
   enquete: "Enquêtes",
+  site_securite: "Sécurité",
+  camera: "Sécurité",
   ecriture: "Comptabilité",
   lettrage: "Comptabilité",
   salarie: "Personnel",

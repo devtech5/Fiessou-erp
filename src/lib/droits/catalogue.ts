@@ -768,6 +768,26 @@ export const DROITS = [
     description: "Compter le tiroir, relever les soldes opérateur et passer l'écriture de la journée.",
   },
 
+  // -------------------------------------------------------------- sécurité
+  {
+    cle: "securite.consulter",
+    moduleKey: "securite",
+    libelle: "Consulter les sites surveillés",
+    description: "Voir les sites, leurs caméras et l'état de leurs relais — pas les images.",
+  },
+  {
+    cle: "securite.visionner",
+    moduleKey: "securite",
+    libelle: "Regarder les caméras",
+    description: "Ouvrir le mur d'images en direct. Chaque caméra ouverte est inscrite au journal.",
+  },
+  {
+    cle: "securite.gerer",
+    moduleKey: "securite",
+    libelle: "Gérer la vidéosurveillance",
+    description: "Déclarer les sites et les caméras, émettre la clé d'un relais, télécharger sa configuration.",
+  },
+
   // -------------------------------------------------------------- enquêtes
   {
     cle: "enquetes.consulter",
