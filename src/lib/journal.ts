@@ -87,6 +87,13 @@ const LIBELLES: Record<string, string> = {
   "ligne_salle.servie": "a marqué servi",
   "ligne_salle.annuler": "a annulé une ligne de commande",
 
+  "enquete.creer": "a créé une enquête",
+  "enquete.modifier": "a modifié le questionnaire d'une enquête",
+  "enquete.ouvrir": "a ouvert une enquête aux réponses",
+  "enquete.fermer": "a clos une enquête",
+  "enquete.lien_activer": "a rétabli le lien public d'une enquête",
+  "enquete.lien_couper": "a coupé le lien public d'une enquête",
+
   "brouillon.creer": "a préparé un devis ou une facture",
   "brouillon.modifier": "a modifié un brouillon",
   "brouillon.supprimer": "a supprimé un brouillon",
@@ -417,6 +424,7 @@ const MODULES: Record<string, string> = {
   commande_salle: "Restauration",
   ligne_salle: "Restauration",
   table_salle: "Restauration",
+  enquete: "Enquêtes",
   ecriture: "Comptabilité",
   lettrage: "Comptabilité",
   salarie: "Personnel",

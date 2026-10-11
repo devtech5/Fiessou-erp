@@ -10,7 +10,7 @@ import { definitionDroit, type Droit } from "@/lib/droits/catalogue";
 
 export const CLES_ICONE = [
   "accueil", "tableau-de-bord", "caisse",
-  "boutique", "restaurant", "maquis",
+  "boutique", "restaurant", "maquis", "enquetes",
   "commercial", "stock", "achats", "prestataires", "marches", "reservations",
   "projets", "missions", "actifs", "parc-auto", "parc-informatique", "billetterie",
   "comptabilite", "tresorerie", "guichet",
@@ -55,6 +55,7 @@ export const GROUPES_MODULES: GroupeModules[] = [
     titre: "Terrain",
     modules: [
       { href: "/projets", racine: "/projets", icone: "projets", libelle: "Projets", description: "Projets, budgets, dépenses, photos et preuves.", droit: "projet.consulter" },
+      { href: "/enquetes", racine: "/enquetes", icone: "enquetes", libelle: "Enquêtes", description: "Satisfaction des clients et enquêtes de terrain.", droit: "enquetes.consulter" },
       { href: "/missions", racine: "/missions", icone: "missions", libelle: "Missions", description: "Missions assignées, étapes et preuves de terrain.", droit: "missions.consulter" },
       { href: "/actifs", racine: "/actifs", icone: "actifs", libelle: "Actifs", description: "Engins et matériel : interventions et échéances.", droit: "actifs.consulter" },
       { href: "/parc-auto", racine: "/parc-auto", icone: "parc-auto", libelle: "Parc auto", description: "Véhicules, pleins, consommation et vignettes.", droit: "parc_auto.consulter" },

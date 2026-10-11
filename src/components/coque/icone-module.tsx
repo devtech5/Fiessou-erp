@@ -316,6 +316,16 @@ const DESSINS: Record<CleIcone, ReactNode> = {
       <rect x="33" y="24" width="10" height="8" fill={BLANC} opacity=".75" />
     </>
   ),
+  enquetes: (
+    <>
+      <rect x="7" y="5" width="28" height="38" rx="4" fill={SARCELLE} />
+      <rect x="12" y="12" width="5" height="5" rx="1.5" fill={BLANC} opacity=".85" />
+      <rect x="20" y="13" width="10" height="3" rx="1.5" fill={BLANC} opacity=".85" />
+      <rect x="12" y="22" width="5" height="5" rx="1.5" fill={BLANC} opacity=".85" />
+      <rect x="20" y="23" width="10" height="3" rx="1.5" fill={BLANC} opacity=".85" />
+      <path d="m36 22 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9Z" fill={JAUNE} />
+    </>
+  ),
   journal: (
     <>
       <circle cx="25" cy="25" r="19" fill={SARCELLE} />

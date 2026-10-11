@@ -768,6 +768,26 @@ export const DROITS = [
     description: "Compter le tiroir, relever les soldes opérateur et passer l'écriture de la journée.",
   },
 
+  // -------------------------------------------------------------- enquêtes
+  {
+    cle: "enquetes.consulter",
+    moduleKey: "enquetes",
+    libelle: "Consulter les enquêtes",
+    description: "Voir les enquêtes, leurs résultats et la satisfaction mesurée.",
+  },
+  {
+    cle: "enquetes.gerer",
+    moduleKey: "enquetes",
+    libelle: "Gérer les enquêtes",
+    description: "Composer un questionnaire, ouvrir et clore une enquête, envoyer le lien public.",
+  },
+  {
+    cle: "enquetes.saisir",
+    moduleKey: "enquetes",
+    libelle: "Recueillir des réponses",
+    description: "Remplir le questionnaire sur le terrain, répondant après répondant.",
+  },
+
   // ---------------------------------------------------------------- achats
   {
     cle: "achats.consulter",

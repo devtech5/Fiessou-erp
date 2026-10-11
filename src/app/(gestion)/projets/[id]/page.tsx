@@ -7,6 +7,8 @@ import { CarteIndicateur, EnTetePage, EtatVide, Pastille, Tableau, Td, Th } from
 import { exigerEntreprise } from "@/lib/auth/dal";
 import { peut } from "@/lib/droits/garde";
 import { fmt, fmtCompact, fmtTauxBp } from "@/lib/format";
+import { moduleOuvert } from "@/lib/modules/garde";
+import { listerEnquetes } from "@/modules/enquetes/requetes";
 import { LIBELLE_STATUT_PROJET } from "@/modules/projets/calcul";
 import { ficheProjet, membresActifs, type PieceVue } from "@/modules/projets/requetes";
 import { listerTiers } from "@/modules/tiers/requetes";
@@ -50,6 +52,9 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
   ]);
   if (!fiche) notFound();
   const { projet, depenses, pieces, factures } = fiche;
+  // Les enquêtes du projet, si le module est ouvert et la session les voit.
+  const enquetes =
+    moduleOuvert("enquetes") && (await peut("enquetes.consulter")) ? await listerEnquetes(session.organizationId, id) : null;
   const { bilan } = projet;
   const benefice = bilan.resultat >= 0;
   // Sans facture ni prix convenu, le projet ne doit rien rapporter : c'est un coût, pas une perte.
@@ -357,6 +362,34 @@ export default async function PageProjet({ params }: { params: Promise<{ id: str
           <TableauDepenses depenses={depenses} pieces={parDepense} droits={{ approuver, payer, demander }} afficherProjet={false} />
         )}
       </section>
+
+      {enquetes && (
+        <section className="mt-6">
+          <h2 className="mb-2 text-sm font-semibold">Enquêtes et satisfaction ({enquetes.length})</h2>
+          {enquetes.length === 0 ? (
+            <p className="text-sm text-[var(--encre-faible)]">
+              Aucune enquête sur ce projet.{" "}
+              <Link href="/enquetes" className="font-medium text-marque-600 hover:underline">
+                Mesurer la satisfaction de ses clients
+              </Link>
+            </p>
+          ) : (
+            <ul className="divide-y divide-[var(--filet)] rounded-xl border border-[var(--filet)] bg-[var(--surface)]">
+              {enquetes.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2.5 text-sm">
+                  <Link href={`/enquetes/${e.id}`} className="font-medium hover:underline">
+                    {e.titre}
+                  </Link>
+                  <span className="chiffres text-[var(--encre-douce)]">
+                    {e.reponses} réponse{e.reponses > 1 ? "s" : ""}
+                    {e.satisfaction !== null && <> · satisfaction {e.satisfaction} / 100</>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </>
   );
 }

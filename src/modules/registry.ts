@@ -421,6 +421,19 @@ export const MODULES: ModuleDefinition[] = [
     requires: [],
     description: "Projets, affectation, budget, dépenses tracées de la demande au paiement, photos et preuves.",
   },
+  {
+    key: "enquetes",
+    name: "Enquêtes et satisfaction",
+    layer: "metier",
+    // En base : questionnaires composés par l'entreprise (notes, recommandation,
+    // choix, oui/non, texte, nombre), rattachés à un projet, figés à la
+    // première réponse ; réponses de terrain localisées, ou en ligne par un
+    // lien public signé ; synthèse question par question et indice de
+    // satisfaction. Restent la saisie hors connexion et l'envoi groupé du lien.
+    status: "en_cours",
+    requires: ["projet"],
+    description: "Satisfaction des clients et enquêtes de terrain, rattachées aux projets : par un enquêteur ou par un lien public.",
+  },
   { key: "collecte", name: "Collecte de données terrain", layer: "metier", status: "planifie", requires: ["missions"], description: "Formulaires hors connexion. Le cas qui exige le plus la synchronisation différée." },
 ];
 
