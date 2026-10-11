@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ApercuA4 } from "@/components/impression/feuille-a4";
 import { BulletinDocument } from "@/components/paie/bulletin-document";
 import { BoutonImprimer } from "@/components/ui/bouton-imprimer";
 import { exigerEntreprise } from "@/lib/auth/dal";
@@ -65,11 +66,9 @@ export default async function PageBulletin({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      <div className="-mx-3 overflow-x-auto bg-[var(--surface-creuse)] px-3 py-5 sm:rounded-xl print:m-0 print:overflow-visible print:bg-white print:p-0">
-        <div className="w-fit min-w-full">
-          <BulletinDocument detail={detail} identite={identite} />
-        </div>
-      </div>
+      <ApercuA4>
+        <BulletinDocument detail={detail} identite={identite} />
+      </ApercuA4>
     </>
   );
 }

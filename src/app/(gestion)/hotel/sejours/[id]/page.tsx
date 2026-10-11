@@ -61,7 +61,7 @@ export default async function PageSejour({ params }: { params: Promise<{ id: str
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Pastille ton={statut.ton}>{statut.libelle}</Pastille>
             {s.statut !== "annule" && (
-              <Link href={`/imprimer/note-chambre/${s.id}`} className="h-cible inline-flex items-center rounded-lg border border-[var(--filet)] px-3.5 text-sm font-medium hover:bg-[var(--surface-creuse)]">
+              <Link href={`/hotel/sejours/${s.id}/note`} className="h-cible inline-flex items-center rounded-lg border border-[var(--filet)] px-3.5 text-sm font-medium hover:bg-[var(--surface-creuse)]">
                 {s.statut === "restitue" ? "Facture" : "Note provisoire"}
               </Link>
             )}

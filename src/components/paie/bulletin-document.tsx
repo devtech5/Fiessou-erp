@@ -1,4 +1,5 @@
 import { EnTeteDocument, PiedDocument } from "@/components/impression/entete-document";
+import { FeuilleA4 } from "@/components/impression/feuille-a4";
 import { fmt, fmtTauxBp } from "@/lib/format";
 import type { IdentiteEntreprise } from "@/lib/identite";
 import { libelleMois } from "@/modules/paie/calcul";
@@ -7,12 +8,8 @@ import type { bulletinDetail } from "@/modules/paie/requetes";
 type Detail = NonNullable<Awaited<ReturnType<typeof bulletinDetail>>>;
 
 /**
- * Le bulletin de paie sur une feuille A4 (210 × 297 mm), tel qu'il s'imprime. Le même rendu sert
- * l'aperçu dans l'application et la page d'impression seule : ce qu'on voit
- * à l'écran est exactement ce qui sort de l'imprimante.
- *
- * `id="document-imprimable"` : à l'impression, seule cette feuille sort, sans
- * la barre latérale ni l'en-tête de l'application (voir `globals.css`).
+ * Le bulletin de paie sur une feuille A4, tel qu'il s'imprime : ce qu'on voit
+ * dans l'application est exactement ce qui sort de l'imprimante.
  */
 export function BulletinDocument({ detail, identite }: { detail: Detail; identite: IdentiteEntreprise }) {
   const { bulletin: b, periode } = detail;
@@ -29,12 +26,7 @@ export function BulletinDocument({ detail, identite }: { detail: Detail; identit
   ];
 
   return (
-    <article
-      id="document-imprimable"
-      className="mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[14mm] py-[12mm] text-[10.5pt] leading-snug text-black shadow-lg print:h-[296mm] print:shadow-none"
-    >
-      {/* Feuille A4 sans marge d'imprimante : les 14 mm de la feuille en tiennent lieu. */}
-      <style>{"@page { size: A4 portrait; margin: 0; }"}</style>
+    <FeuilleA4 pied={<PiedDocument identite={identite} />}>
       <EnTeteDocument identite={identite}>
         <p className="text-xl font-bold uppercase">Bulletin de paie</p>
         <p className="font-mono">{b.numero}</p>
@@ -82,10 +74,6 @@ export function BulletinDocument({ detail, identite }: { detail: Detail; identit
         {b.payeLe && <p className="mt-2">Payé le {new Date(`${String(b.payeLe).slice(0, 10)}T00:00:00Z`).toLocaleDateString("fr-FR", { timeZone: "UTC" })}.</p>}
         <p className="mt-6">Dans votre intérêt et pour vous aider à faire valoir vos droits, conservez ce bulletin sans limitation de durée.</p>
       </section>
-      {/* Le pied de page descend au bas de la feuille, comme sur un bulletin imprimé. */}
-      <div className="mt-auto">
-        <PiedDocument identite={identite} />
-      </div>
-    </article>
+    </FeuilleA4>
   );
 }
