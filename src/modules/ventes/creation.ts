@@ -405,6 +405,8 @@ export interface NouveauPoste {
   prefixe?: string;
   depotId: string;
   deviceId?: string | null;
+  /** `serveur` pour l'encaissement en salle : aucun appareil ne s'y rattache. */
+  numerotation?: "appareil" | "serveur";
 }
 
 export async function creerPosteCaisseDans(
@@ -422,7 +424,8 @@ export async function creerPosteCaisseDans(
     nom: donnees.nom.trim(),
     prefixe: (donnees.prefixe ?? `${donnees.code.trim()}-`).toUpperCase(),
     depotId: donnees.depotId,
-    deviceId: donnees.deviceId ?? null,
+    numerotation: donnees.numerotation ?? "appareil",
+    deviceId: donnees.numerotation === "serveur" ? null : (donnees.deviceId ?? null),
   });
 
   if (userId) {

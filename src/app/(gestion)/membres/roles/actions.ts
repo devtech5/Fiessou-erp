@@ -31,7 +31,7 @@ function droitsCoches(donnees: FormData): string[] {
 /**
  * Compose un rôle propre à l'entreprise.
  *
- * Les cinq rôles fournis couvrent la boutique, le maquis et l'atelier. Ils ne
+ * Les rôles fournis couvrent la boutique, le maquis et l'atelier. Ils ne
  * couvrent pas tout : une pharmacie veut un préparateur qui voit le stock sans
  * toucher aux prix, une station-service un pompiste qui encaisse sans voir la
  * marge. Plutôt que d'allonger la liste des préréglages jusqu'à ce que

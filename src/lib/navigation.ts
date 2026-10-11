@@ -10,6 +10,7 @@ import { definitionDroit, type Droit } from "@/lib/droits/catalogue";
 
 export const CLES_ICONE = [
   "accueil", "tableau-de-bord", "caisse",
+  "boutique", "restaurant", "maquis",
   "commercial", "stock", "achats", "prestataires", "marches", "reservations",
   "projets", "missions", "actifs", "parc-auto", "parc-informatique", "billetterie",
   "comptabilite", "tresorerie", "guichet",
@@ -39,6 +40,9 @@ export const GROUPES_MODULES: GroupeModules[] = [
   {
     titre: "Commerce",
     modules: [
+      { href: "/boutique", racine: "/boutique", icone: "boutique", libelle: "Commerce", description: "Le jour en chiffres : ventes, affluence, marge et ruptures.", droit: "boutique.consulter" },
+      { href: "/restaurant", racine: "/restaurant", icone: "restaurant", libelle: "Restaurant", description: "Plan de salle, commandes, cuisine et encaissement des tables.", droit: "restaurant.consulter" },
+      { href: "/maquis", racine: "/maquis", icone: "maquis", libelle: "Maquis", description: "Tables et tournées, grill et bar, encaissement à la table.", droit: "maquis.consulter" },
       { href: "/commercial", racine: "/commercial", icone: "commercial", libelle: "Commercial", description: "Clients, devis, factures et encaissements.", droit: "tiers.fiche.consulter" },
       { href: "/stock", racine: "/stock", icone: "stock", libelle: "Stock", description: "Articles, mouvements, inventaires et réapprovisionnement.", droit: "stock.article.consulter" },
       { href: "/achats", racine: "/achats", icone: "achats", libelle: "Achats", description: "Commandes et factures fournisseurs.", droit: "achats.consulter" },

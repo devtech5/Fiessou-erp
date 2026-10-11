@@ -26,6 +26,18 @@ import { depots } from "@/modules/stock/schema";
 import { tiers } from "@/modules/tiers/schema";
 
 /**
+ * Qui tient le compteur de tickets d'un poste.
+ *
+ *   · `appareil` — la caisse : le compteur vit sur le terminal, qui vend sans
+ *     réseau. C'est le cas général.
+ *   · `serveur` — l'encaissement en salle, depuis la commande d'une table : le
+ *     compteur est `dernier_numero`, avancé par `UPDATE … RETURNING`. Aucun
+ *     appareil ne s'y rattache, sans quoi deux compteurs se disputeraient la
+ *     même suite.
+ */
+export const numerotationPoste = pgEnum("numerotation_poste", ["appareil", "serveur"]);
+
+/**
  * Poste d'encaissement.
  *
  * UN POSTE, UN APPAREIL. Ce n'est pas une recommandation d'exploitation, c'est
@@ -64,8 +76,12 @@ export const postesCaisse = pgTable(
       .notNull()
       .references(() => depots.id, { onDelete: "restrict" }),
 
-    /** Dernier numéro reçu du terrain. Miroir, jamais la source. */
+    /**
+     * Dernier numéro reçu du terrain. Miroir, jamais la source — sauf pour un
+     * poste numéroté par le serveur, dont c'est le compteur.
+     */
     dernierNumero: integer("dernier_numero").notNull().default(0),
+    numerotation: numerotationPoste("numerotation").notNull().default("appareil"),
 
     /** Appareil rattaché, tel que la session le connaît. */
     deviceId: text("device_id"),

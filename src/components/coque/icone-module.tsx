@@ -292,6 +292,30 @@ const DESSINS: Record<CleIcone, ReactNode> = {
       <rect x="30" y="20" width="6" height="16" rx="2" fill={BLANC} />
     </>
   ),
+  boutique: (
+    <>
+      <path d="M8 17h32l-2.5 23a3 3 0 0 1-3 2.7h-21a3 3 0 0 1-3-2.7Z" fill={ORANGE} />
+      <path d="M17 20v-6a7 7 0 0 1 14 0v6" stroke={PRUNE} strokeWidth="3.5" strokeLinecap="round" fill="none" />
+      <rect x="15" y="27" width="18" height="4" rx="2" fill={BLANC} opacity=".8" />
+    </>
+  ),
+  restaurant: (
+    <>
+      <rect x="4" y="36" width="40" height="5" rx="2.5" fill={PRUNE} />
+      <path d="M7 34a17 17 0 0 1 34 0Z" fill={SARCELLE} />
+      <circle cx="24" cy="13" r="3.5" fill={JAUNE} />
+      <path d="M15 27a10 10 0 0 1 7-8" stroke={BLANC} strokeWidth="2.5" strokeLinecap="round" fill="none" opacity=".75" />
+    </>
+  ),
+  maquis: (
+    <>
+      <rect x="4" y="26" width="26" height="6" rx="3" fill={PRUNE} />
+      <path d="M8 32h18l-3 10H11Z" fill={CORAIL} />
+      <path d="M10 22c0-4 4-4 4-8M17 22c0-4 4-4 4-8M24 22c0-4 4-4 4-8" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <path d="M36 4h4v7l3 5v26a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2V16l3-5Z" fill={JAUNE} />
+      <rect x="33" y="24" width="10" height="8" fill={BLANC} opacity=".75" />
+    </>
+  ),
   journal: (
     <>
       <circle cx="25" cy="25" r="19" fill={SARCELLE} />

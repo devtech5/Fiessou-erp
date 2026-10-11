@@ -345,8 +345,40 @@ export const MODULES: ModuleDefinition[] = [
   },
 
   // -------------------------------------------------------------- métiers
-  { key: "boutique", name: "Boutique / Magasin", layer: "metier", status: "planifie", requires: ["pos", "stock"], description: "Commerce de détail." },
-  { key: "restaurant", name: "Maquis / Restaurant", layer: "metier", status: "planifie", requires: ["pos", "stock"], description: "Tables, commandes, envoi cuisine." },
+  {
+    key: "boutique",
+    name: "Commerce",
+    layer: "metier",
+    // Pas de table propre : un tableau de bord posé sur la caisse et le stock
+    // — chiffre du jour, affluence, meilleures ventes, marge, ruptures — et un
+    // catalogue de départ. Restent les étiquettes de rayon et la fidélité.
+    status: "en_cours",
+    requires: ["pos", "stock"],
+    description: "Commerce de détail : le jour en chiffres, l'affluence, les meilleures ventes et les ruptures.",
+  },
+  {
+    key: "restaurant",
+    name: "Restaurant",
+    layer: "metier",
+    // En base, sur le moteur de restauration partagé avec le maquis : tables,
+    // commandes numérotées, lignes envoyées en cuisine ou au bar, bons de
+    // production, encaissement de la table en une transaction par un poste
+    // numéroté par le serveur. Restent les fiches techniques (un plat qui
+    // consomme ses ingrédients), le transfert de table et l'addition partagée.
+    status: "en_cours",
+    requires: ["pos", "stock"],
+    description: "Plan de salle, commandes par table, envoi en cuisine et au bar, encaissement de la table.",
+  },
+  {
+    key: "maquis",
+    name: "Maquis",
+    layer: "metier",
+    // Même moteur que le restaurant, sans couverts ; le grill tient lieu de
+    // cuisine. Restent la consigne des bouteilles et des casiers.
+    status: "en_cours",
+    requires: ["pos", "stock"],
+    description: "Tables et tournées, grill et bar, encaissement à la table.",
+  },
   { key: "kiosque", name: "Kiosque mobile money", layer: "metier", status: "planifie", requires: ["valeur_electronique"], description: "Agent de transfert et vente de crédit." },
   { key: "garage", name: "Garage", layer: "metier", status: "planifie", requires: ["actifs", "tiers"], description: "Interventions sur des actifs appartenant au client, donc facturables." },
   { key: "btp", name: "BTP", layer: "metier", status: "planifie", requires: ["missions", "stock", "personnes"], description: "Chantiers, matériaux, main-d'œuvre à la tâche." },

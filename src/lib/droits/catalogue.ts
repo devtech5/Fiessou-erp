@@ -113,6 +113,92 @@ export const DROITS = [
     description: "Compter le tiroir et constater l'écart.",
   },
 
+  // ------------------------------------------------------------- commerce
+  {
+    cle: "boutique.consulter",
+    moduleKey: "boutique",
+    libelle: "Consulter le tableau de bord du commerce",
+    description: "Chiffre du jour, affluence, meilleures ventes, marge et ruptures.",
+  },
+
+  // ----------------------------------------------------------- restaurant
+  // Le restaurant et le maquis partagent un moteur ; leurs droits restent
+  // séparés parce que les modules se vendent séparément.
+  {
+    cle: "restaurant.consulter",
+    moduleKey: "restaurant",
+    libelle: "Consulter le restaurant",
+    description: "Voir le plan de salle, les commandes et les bons de cuisine.",
+  },
+  {
+    cle: "restaurant.commande.prendre",
+    moduleKey: "restaurant",
+    libelle: "Prendre les commandes",
+    description: "Ouvrir une table, envoyer en cuisine et au bar, annuler une ligne, marquer servi.",
+  },
+  {
+    cle: "restaurant.commande.encaisser",
+    moduleKey: "restaurant",
+    libelle: "Encaisser une table",
+    description: "Transformer la commande en ticket, avec son stock et son écriture.",
+  },
+  {
+    cle: "restaurant.commande.annuler",
+    moduleKey: "restaurant",
+    libelle: "Annuler une commande entière",
+    description: "Geste de contrôle : la table repart sans rien devoir.",
+  },
+  {
+    cle: "restaurant.cuisine.preparer",
+    moduleKey: "restaurant",
+    libelle: "Tenir la cuisine et le bar",
+    description: "Voir les bons à préparer et marquer les plats prêts.",
+  },
+  {
+    cle: "restaurant.salle.gerer",
+    moduleKey: "restaurant",
+    libelle: "Gérer la salle",
+    description: "Créer et retirer les tables, ouvrir le poste d'encaissement de salle.",
+  },
+
+  // --------------------------------------------------------------- maquis
+  {
+    cle: "maquis.consulter",
+    moduleKey: "maquis",
+    libelle: "Consulter le maquis",
+    description: "Voir le plan de salle, les commandes et les bons du grill et du bar.",
+  },
+  {
+    cle: "maquis.commande.prendre",
+    moduleKey: "maquis",
+    libelle: "Prendre les commandes",
+    description: "Ouvrir une table, envoyer au grill et au bar, annuler une ligne, marquer servi.",
+  },
+  {
+    cle: "maquis.commande.encaisser",
+    moduleKey: "maquis",
+    libelle: "Encaisser une table",
+    description: "Transformer la commande en ticket, avec son stock et son écriture.",
+  },
+  {
+    cle: "maquis.commande.annuler",
+    moduleKey: "maquis",
+    libelle: "Annuler une commande entière",
+    description: "Geste de contrôle : la table repart sans rien devoir.",
+  },
+  {
+    cle: "maquis.cuisine.preparer",
+    moduleKey: "maquis",
+    libelle: "Tenir le grill et le bar",
+    description: "Voir les bons à préparer et marquer prêt.",
+  },
+  {
+    cle: "maquis.salle.gerer",
+    moduleKey: "maquis",
+    libelle: "Gérer la salle",
+    description: "Créer et retirer les tables, ouvrir le poste d'encaissement de salle.",
+  },
+
   // --------------------------------------------------------- comptabilité
   {
     cle: "comptabilite.ecriture.consulter",
@@ -969,6 +1055,43 @@ export const PRESETS_ROLES = [
       "stock.article.consulter",
       "tiers.fiche.consulter",
       "tresorerie.bon.demander",
+      ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
+      "messagerie.utiliser",
+    ],
+  },
+  {
+    cle: "serveur",
+    nom: "Serveur",
+    description:
+      "Tient ses tables au restaurant et au maquis : ouvre, envoie en cuisine et " +
+      "au bar, sert et encaisse. N'annule pas une commande entière.",
+    droits: [
+      "restaurant.consulter",
+      "restaurant.commande.prendre",
+      "restaurant.commande.encaisser",
+      "maquis.consulter",
+      "maquis.commande.prendre",
+      "maquis.commande.encaisser",
+      "stock.article.consulter",
+      "tiers.fiche.consulter",
+      ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
+      "messagerie.utiliser",
+    ],
+  },
+  {
+    cle: "cuisinier",
+    nom: "Cuisinier",
+    description: "Tient la cuisine, le grill ou le bar : voit les bons et marque ce qui est prêt.",
+    droits: [
+      "restaurant.consulter",
+      "restaurant.cuisine.preparer",
+      "maquis.consulter",
+      "maquis.cuisine.preparer",
+      "stock.article.consulter",
       ...ARCHIVAGE_PERSONNEL,
       ...TACHES_PERSONNELLES,
       ...PLANNING_PERSONNEL,

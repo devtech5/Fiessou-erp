@@ -49,3 +49,4 @@ export * from "@/modules/prestataires/schema";
 export * from "@/modules/marches/schema";
 export * from "@/modules/boite-mail/schema";
 export * from "@/modules/presences/schema";
+export * from "@/modules/restauration/schema";

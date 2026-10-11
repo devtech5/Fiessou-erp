@@ -48,7 +48,9 @@ export async function posteDeLAppareil(
   organizationId: string,
   deviceId: string | null,
 ): Promise<PosteAvecDepot | null> {
-  const postes = await listerPostes(organizationId);
+  // Un poste numéroté par le serveur encaisse les tables : un terminal qui le
+  // prendrait ferait courir deux compteurs sur la même suite.
+  const postes = (await listerPostes(organizationId)).filter((poste) => poste.numerotation === "appareil");
   if (postes.length === 0) return null;
 
   if (deviceId) {

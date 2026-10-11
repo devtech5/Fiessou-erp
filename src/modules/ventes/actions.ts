@@ -259,6 +259,7 @@ export async function rattacherPoste(
       and(
         eq(postesCaisse.id, posteId),
         eq(postesCaisse.organizationId, session.organizationId),
+        eq(postesCaisse.numerotation, "appareil"),
         sql`${postesCaisse.deviceId} is null or ${postesCaisse.deviceId} = ${deviceId}`,
       ),
     );
