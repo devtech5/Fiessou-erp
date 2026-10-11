@@ -142,6 +142,13 @@ export const contratsLocation = pgTable(
     notes: text("notes"),
     userId: uuid("user_id"),
 
+    /**
+     * Module métier qui pilote le contrat (`hotellerie`), nul pour une
+     * location du comptoir. Un séjour se solde au départ, pas à la remise :
+     * l'écran générique ne doit ni l'encaisser ni le restituer.
+     */
+    pilote: text("pilote"),
+
     ...timestamps,
     ...rowVersion,
   },

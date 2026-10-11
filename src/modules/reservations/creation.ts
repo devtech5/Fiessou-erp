@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { auditLogs } from "@/db/schema";
 import { ecritureVenteComptoir } from "@/lib/comptabilite/ecritures";
@@ -113,6 +113,48 @@ export interface NouveauContrat {
   debut: string;
   fin: string;
   notes?: string | null;
+  /** Module métier qui pilotera le contrat ; voir `contratsLocation.pilote`. */
+  pilote?: string | null;
+}
+
+/**
+ * Contrôle qu'il reste assez d'exemplaires sur la période. À appeler la
+ * ressource VERROUILLÉE (`for update`) : c'est le verrou qui empêche deux
+ * comptoirs de réserver le même dernier exemplaire.
+ *
+ * `sauf` écarte un contrat de l'occupation : celui dont on déplace les dates
+ * ne se gêne pas lui-même.
+ */
+export async function verifierDisponibiliteDans(
+  tx: Transaction,
+  ressource: { id: string; designation: string; quantite: number },
+  periode: { debut: string; fin: string; quantite: number; sauf?: string },
+): Promise<void> {
+  const engages = await tx
+    .select({ debut: contratsLocation.debut, fin: contratsLocation.fin, quantite: contratsLocation.quantite })
+    .from(contratsLocation)
+    .where(
+      and(
+        eq(contratsLocation.ressourceId, ressource.id),
+        inArray(contratsLocation.statut, ["reserve", "en_cours"]),
+        sql`${contratsLocation.debut} <= ${periode.fin} and ${contratsLocation.fin} >= ${periode.debut}`,
+        periode.sauf ? sql`${contratsLocation.id} <> ${periode.sauf}` : undefined,
+      ),
+    );
+
+  const pris = occupationMax(
+    engages.map((e) => ({ debut: String(e.debut), fin: String(e.fin), quantite: e.quantite })),
+    periode.debut,
+    periode.fin,
+  );
+  const libres = ressource.quantite - pris;
+  if (periode.quantite > libres) {
+    throw new Error(
+      libres <= 0
+        ? `« ${ressource.designation} » est complet sur cette période.`
+        : `Il ne reste que ${libres} exemplaire${libres > 1 ? "s" : ""} sur cette période.`,
+    );
+  }
 }
 
 /**
@@ -148,30 +190,7 @@ export async function reserverDans(
     .where(and(eq(tiers.id, donnees.clientId), eq(tiers.organizationId, organizationId)));
   if (!client) throw new Error("Client introuvable.");
 
-  const engages = await tx
-    .select({ debut: contratsLocation.debut, fin: contratsLocation.fin, quantite: contratsLocation.quantite })
-    .from(contratsLocation)
-    .where(
-      and(
-        eq(contratsLocation.ressourceId, ressource.id),
-        inArray(contratsLocation.statut, ["reserve", "en_cours"]),
-        sql`${contratsLocation.debut} <= ${donnees.fin} and ${contratsLocation.fin} >= ${donnees.debut}`,
-      ),
-    );
-
-  const pris = occupationMax(
-    engages.map((e) => ({ debut: String(e.debut), fin: String(e.fin), quantite: e.quantite })),
-    donnees.debut,
-    donnees.fin,
-  );
-  const libres = ressource.quantite - pris;
-  if (donnees.quantite > libres) {
-    throw new Error(
-      libres <= 0
-        ? `« ${ressource.designation} » est complet sur cette période.`
-        : `Il ne reste que ${libres} exemplaire${libres > 1 ? "s" : ""} sur cette période.`,
-    );
-  }
+  await verifierDisponibiliteDans(tx, ressource, donnees);
 
   const jours = joursEntre(donnees.debut, donnees.fin);
   const prix = prixPeriode(ressource, jours);
@@ -201,6 +220,7 @@ export async function reserverDans(
     caution: ressource.caution * donnees.quantite,
     notes: donnees.notes ?? null,
     userId: userId ?? null,
+    pilote: donnees.pilote ?? null,
   });
 
   await journaliser(tx, organizationId, userId, "contrat.reserver", id, { numero, montant });
@@ -220,6 +240,7 @@ async function lireContrat(tx: Transaction, organizationId: string, id: string) 
     .where(and(eq(contratsLocation.id, id), eq(contratsLocation.organizationId, organizationId)))
     .for("update", { of: contratsLocation });
   if (!ligne) throw new Error("Contrat introuvable.");
+  if (ligne.contrat.pilote === "hotellerie") throw new Error("Ce séjour se gère depuis l'écran Hôtel.");
   return ligne;
 }
 
@@ -348,6 +369,7 @@ export async function annulerContratDans(
         eq(contratsLocation.id, contratId),
         eq(contratsLocation.organizationId, organizationId),
         eq(contratsLocation.statut, "reserve"),
+        isNull(contratsLocation.pilote),
       ),
     )
     .returning({ numero: contratsLocation.numero });

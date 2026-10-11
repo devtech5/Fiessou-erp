@@ -398,7 +398,20 @@ export const MODULES: ModuleDefinition[] = [
   { key: "kiosque", name: "Kiosque mobile money", layer: "metier", status: "planifie", requires: ["valeur_electronique"], description: "Agent de transfert et vente de crédit." },
   { key: "garage", name: "Garage", layer: "metier", status: "planifie", requires: ["actifs", "tiers"], description: "Interventions sur des actifs appartenant au client, donc facturables." },
   { key: "btp", name: "BTP", layer: "metier", status: "planifie", requires: ["missions", "stock", "personnes"], description: "Chantiers, matériaux, main-d'œuvre à la tâche." },
-  { key: "hotellerie", name: "Hôtellerie / Résidence", layer: "metier", status: "planifie", requires: ["reservation"], description: "La ressource est une chambre, la réservation un séjour." },
+  {
+    key: "hotellerie",
+    name: "Hôtellerie / Résidence",
+    layer: "metier",
+    // En base, sur le moteur de réservation : la chambre est une ressource, le
+    // séjour un contrat piloté par l'hôtel (nuits, arrivée sans paiement, note
+    // de chambre, acomptes en 4191, solde au départ en une écriture, caution
+    // des résidences), ménage, fiche de police et registre. Restent le report
+    // des additions du restaurant sur la chambre, le changement de chambre en
+    // cours de séjour et la taxe de séjour.
+    status: "en_cours",
+    requires: ["reservation"],
+    description: "Chambres du jour, séjours, note de chambre, ménage et registre des voyageurs.",
+  },
   { key: "location", name: "Location", layer: "metier", status: "planifie", requires: ["reservation"], description: "Matériel, engins, biens immobiliers, matériel événementiel." },
   { key: "transport", name: "Transport", layer: "metier", status: "planifie", requires: ["billetterie"], description: "Gares routières, lignes, billets." },
   { key: "livraison", name: "Livraison", layer: "metier", status: "planifie", requires: ["missions"], description: "Colis, déménagement, transfert." },

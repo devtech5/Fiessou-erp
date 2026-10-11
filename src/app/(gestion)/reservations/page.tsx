@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { sql } from "drizzle-orm";
 
 import {
@@ -192,7 +193,13 @@ export default async function PageContrats() {
                     </Td>
                     {gerer && (
                       <Td aligne="droite">
-                        <ActionsContrat id={contrat.id} statut={contrat.statut} caution={contrat.caution} />
+                        {contrat.pilote === "hotellerie" ? (
+                          <Link href="/hotel/sejours" className="text-xs font-medium text-marque-600 hover:underline">
+                            Séjour d&apos;hôtel
+                          </Link>
+                        ) : (
+                          <ActionsContrat id={contrat.id} statut={contrat.statut} caution={contrat.caution} />
+                        )}
                       </Td>
                     )}
                   </tr>

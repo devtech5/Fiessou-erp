@@ -88,6 +88,8 @@ export interface ContratVue {
   etatRestitution: string | null;
   retenue: number;
   motif: string | null;
+  /** Module qui pilote le contrat : un séjour d'hôtel se gère depuis l'écran Hôtel. */
+  pilote: string | null;
 }
 
 export async function listerContrats(organizationId: string): Promise<ContratVue[]> {
@@ -109,11 +111,12 @@ export async function listerContrats(organizationId: string): Promise<ContratVue
     etat_restitution: string | null;
     retenue: string;
     motif: string | null;
+    pilote: string | null;
   }>(sql`
     select c.id, c.numero, c.ressource_id, r.designation as ressource, r.code as code_ressource,
            t.nom as client, c.quantite, c.debut, c.fin, c.base_tarif, c.montant, c.caution,
            c.statut, (c.statut = 'en_cours' and c.fin < current_date) as en_retard,
-           c.etat_restitution, c.retenue, c.motif
+           c.etat_restitution, c.retenue, c.motif, c.pilote
     from contrats_location c
       join ressources r on r.id = c.ressource_id
       join tiers t on t.id = c.client_id
@@ -141,6 +144,7 @@ export async function listerContrats(organizationId: string): Promise<ContratVue
     etatRestitution: l.etat_restitution,
     retenue: Number(l.retenue),
     motif: l.motif,
+    pilote: l.pilote,
   }));
 }
 

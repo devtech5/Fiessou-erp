@@ -199,6 +199,34 @@ export const DROITS = [
     description: "Créer et retirer les tables, ouvrir le poste d'encaissement de salle.",
   },
 
+  // ------------------------------------------------------------ hôtellerie
+  {
+    cle: "hotellerie.consulter",
+    moduleKey: "hotellerie",
+    libelle: "Consulter l'hôtel",
+    description: "Voir les chambres du jour, les séjours, les notes et le registre des voyageurs.",
+  },
+  {
+    cle: "hotellerie.sejour.gerer",
+    moduleKey: "hotellerie",
+    libelle: "Tenir la réception",
+    description:
+      "Réserver, remplir la fiche de police, installer le client, porter ses consommations " +
+      "sur la note, recevoir un acompte, solder le départ, annuler.",
+  },
+  {
+    cle: "hotellerie.menage",
+    moduleKey: "hotellerie",
+    libelle: "Tenir le ménage",
+    description: "Marquer une chambre faite ou à refaire.",
+  },
+  {
+    cle: "hotellerie.chambre.gerer",
+    moduleKey: "hotellerie",
+    libelle: "Gérer les chambres",
+    description: "Ajouter une chambre, fixer ses tarifs, son étage et sa capacité, la mettre hors service.",
+  },
+
   // --------------------------------------------------------- comptabilité
   {
     cle: "comptabilite.ecriture.consulter",
@@ -1133,6 +1161,35 @@ export const PRESETS_ROLES = [
       "maquis.cuisine.preparer",
       "stock.article.consulter",
       ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
+      "messagerie.utiliser",
+    ],
+  },
+  {
+    cle: "receptionniste",
+    nom: "Réceptionniste",
+    description:
+      "Tient la réception de l'hôtel : réservations, fiches de police, arrivées, " +
+      "notes de chambre, acomptes et départs.",
+    droits: [
+      "hotellerie.consulter",
+      "hotellerie.sejour.gerer",
+      "hotellerie.menage",
+      "tiers.fiche.consulter",
+      ...ARCHIVAGE_PERSONNEL,
+      ...TACHES_PERSONNELLES,
+      ...PLANNING_PERSONNEL,
+      "messagerie.utiliser",
+    ],
+  },
+  {
+    cle: "agent_menage",
+    nom: "Agent de ménage",
+    description: "Voit l'état des chambres et marque celles qui sont faites.",
+    droits: [
+      "hotellerie.consulter",
+      "hotellerie.menage",
       ...TACHES_PERSONNELLES,
       ...PLANNING_PERSONNEL,
       "messagerie.utiliser",

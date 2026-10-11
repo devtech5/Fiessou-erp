@@ -316,6 +316,16 @@ const DESSINS: Record<CleIcone, ReactNode> = {
       <rect x="33" y="24" width="10" height="8" fill={BLANC} opacity=".75" />
     </>
   ),
+  hotel: (
+    <>
+      <rect x="4" y="10" width="5" height="32" rx="2.5" fill={PRUNE} />
+      <rect x="39" y="22" width="5" height="20" rx="2.5" fill={PRUNE} />
+      <rect x="6" y="28" width="36" height="8" rx="2" fill={SARCELLE} />
+      <rect x="10" y="20" width="10" height="7" rx="3.5" fill={BLANC} opacity=".85" />
+      <path d="M21 27v-4a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4v4Z" fill={ORANGE} />
+      <circle cx="35" cy="9" r="3" fill={JAUNE} />
+    </>
+  ),
   securite: (
     <>
       <rect x="4" y="13" width="30" height="20" rx="5" fill={CANARD} />

@@ -52,3 +52,4 @@ export * from "@/modules/presences/schema";
 export * from "@/modules/restauration/schema";
 export * from "@/modules/enquetes/schema";
 export * from "@/modules/securite/schema";
+export * from "@/modules/hotellerie/schema";
