@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 
@@ -29,6 +29,16 @@ export async function bulletinDetail(organizationId: string, id: string) {
   if (!b) return null;
   const [periode] = await db.select().from(periodesPaie).where(eq(periodesPaie.id, b.periodeId));
   return { bulletin: b, periode };
+}
+
+/** Bulletins numérotés d'une période, dans l'ordre des numéros : pour passer de l'un à l'autre. */
+export async function bulletinsNumerotes(organizationId: string, periodeId: string): Promise<{ id: string; numero: string; nom: string }[]> {
+  const lignes = await db
+    .select({ id: bulletinsPaie.id, numero: bulletinsPaie.numero, nom: bulletinsPaie.nom })
+    .from(bulletinsPaie)
+    .where(and(eq(bulletinsPaie.organizationId, organizationId), eq(bulletinsPaie.periodeId, periodeId), isNotNull(bulletinsPaie.numero)))
+    .orderBy(asc(bulletinsPaie.numero));
+  return lignes.map((l) => ({ id: l.id, numero: l.numero ?? "", nom: l.nom }));
 }
 
 export interface EtatPaie {

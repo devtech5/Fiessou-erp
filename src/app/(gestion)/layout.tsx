@@ -77,17 +77,22 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
      * défilement et `vh` laisse alors une bande morte en bas de l'écran.
      */
     <>
-      <div id="coque-gestion" className="flex h-dvh flex-col overflow-hidden">
-        <BandeauDemo />
-        <BandeauAbonnement />
+      <div id="coque-gestion" className="flex h-dvh flex-col overflow-hidden print:block print:h-auto print:overflow-visible">
+        {/* À l'impression, seule la page sort : ni bandeaux, ni menu, ni barre du haut. */}
+        <div className="contents print:hidden">
+          <BandeauDemo />
+          <BandeauAbonnement />
+        </div>
 
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row print:block">
+          <div className="contents print:hidden">
           <BarreLaterale
             nomUtilisateur={session.nom}
             entrepriseActive={session.organizationNom}
             droits={droits}
             modulesOuverts={modulesOuverts()}
           />
+          </div>
 
           {/*
             `min-h-0` ici aussi, et pas seulement sur le contenu. Sur téléphone
@@ -97,8 +102,8 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
             `overflow-hidden` du dessus — inatteignable, sans barre de défilement
             pour le signaler.
           */}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <header className="flex shrink-0 items-center gap-3 border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-1.5">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col print:block">
+            <header className="flex shrink-0 items-center gap-3 border-b border-[var(--filet)] bg-[var(--surface)] px-3 py-1.5 print:hidden">
               <FilAriane
                 entreprises={options}
                 entrepriseActive={active}
@@ -119,7 +124,7 @@ export default async function LayoutGestion({ children }: LayoutProps<"/">) {
               plus petit que son contenu, et sans lui `overflow-y-auto` n'a rien
               à faire déborder — la page recommencerait à défiler d'un bloc.
             */}
-            <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
+            <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 lg:p-6 print:overflow-visible print:p-0">
               {children}
             </main>
           </div>

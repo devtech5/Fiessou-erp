@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
@@ -152,9 +153,9 @@ export function TableBulletins({ bulletins, modifiable }: { bulletins: BulletinA
                   ) : (
                     <span className="flex flex-wrap items-center gap-1.5">
                       {b.payeLe ? <Pastille ton="valide">Payé le {JOUR.format(new Date(`${b.payeLe}T00:00:00Z`))}</Pastille> : <Pastille ton="alerte">À payer</Pastille>}
-                      <a href={`/imprimer/bulletin/${b.id}`} target="_blank" rel="noopener" className="text-xs font-semibold text-marque-600 hover:underline">
+                      <Link href={`/rh/paie/bulletins/${b.id}`} className="text-xs font-semibold text-marque-600 hover:underline">
                         {b.numero}
-                      </a>
+                      </Link>
                     </span>
                   )}
                 </Td>

@@ -1,0 +1,91 @@
+import { EnTeteDocument, PiedDocument } from "@/components/impression/entete-document";
+import { fmt, fmtTauxBp } from "@/lib/format";
+import type { IdentiteEntreprise } from "@/lib/identite";
+import { libelleMois } from "@/modules/paie/calcul";
+import type { bulletinDetail } from "@/modules/paie/requetes";
+
+type Detail = NonNullable<Awaited<ReturnType<typeof bulletinDetail>>>;
+
+/**
+ * Le bulletin de paie sur une feuille A4 (210 × 297 mm), tel qu'il s'imprime. Le même rendu sert
+ * l'aperçu dans l'application et la page d'impression seule : ce qu'on voit
+ * à l'écran est exactement ce qui sort de l'imprimante.
+ *
+ * `id="document-imprimable"` : à l'impression, seule cette feuille sort, sans
+ * la barre latérale ni l'en-tête de l'application (voir `globals.css`).
+ */
+export function BulletinDocument({ detail, identite }: { detail: Detail; identite: IdentiteEntreprise }) {
+  const { bulletin: b, periode } = detail;
+  const bareme = periode.baremeApplique!;
+
+  const lignes: [string, string, number | null, number | null][] = [
+    ["Salaire de base", "", b.salaireBase, null],
+    ...(b.primesImposables ? [["Primes et heures supplémentaires", "", b.primesImposables, null] as [string, string, number, null]] : []),
+    ["Salaire brut", "", b.brut, null],
+    ["CNPS retraite, part salariale", fmtTauxBp(bareme.cnpsRetraiteSalarieBp), null, b.cnpsSalarie],
+    ["Impôt sur salaire", "", null, b.impot],
+    ...(b.indemnitesNonImposables ? [["Indemnités non imposables", "", b.indemnitesNonImposables, null] as [string, string, number, null]] : []),
+    ...(b.retenuesDiverses ? [["Retenues diverses (avances…)", "", null, b.retenuesDiverses] as [string, string, null, number]] : []),
+  ];
+
+  return (
+    <article
+      id="document-imprimable"
+      className="mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[14mm] py-[12mm] text-[10.5pt] leading-snug text-black shadow-lg print:h-[296mm] print:shadow-none"
+    >
+      {/* Feuille A4 sans marge d'imprimante : les 14 mm de la feuille en tiennent lieu. */}
+      <style>{"@page { size: A4 portrait; margin: 0; }"}</style>
+      <EnTeteDocument identite={identite}>
+        <p className="text-xl font-bold uppercase">Bulletin de paie</p>
+        <p className="font-mono">{b.numero}</p>
+        <p>Période : {libelleMois(periode.mois)}</p>
+      </EnTeteDocument>
+      <section className="mt-4 grid grid-cols-2 gap-4 rounded border border-black/20 p-3">
+        <div>
+          <p className="font-semibold">{b.nom}</p>
+          <p>{b.poste}</p>
+        </div>
+        <div className="text-right">
+          <p>Matricule : {b.matricule}</p>
+          <p>N° CNPS : {b.numeroCnps ?? "non renseigné"}</p>
+        </div>
+      </section>
+      <table className="mt-5 w-full border-collapse">
+        <thead>
+          <tr className="border-y border-black/40 text-left text-[9pt] uppercase">
+            <th className="py-1.5">Rubrique</th>
+            <th className="py-1.5 text-right">Taux</th>
+            <th className="py-1.5 text-right">Gains</th>
+            <th className="py-1.5 text-right">Retenues</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lignes.map(([rubrique, t, gain, retenue]) => (
+            <tr key={rubrique} className={`border-b border-black/10 ${rubrique === "Salaire brut" ? "font-semibold" : ""}`}>
+              <td className="py-1.5">{rubrique}</td>
+              <td className="py-1.5 text-right tabular-nums">{t}</td>
+              <td className="py-1.5 text-right tabular-nums">{gain !== null ? fmt(gain) : ""}</td>
+              <td className="py-1.5 text-right tabular-nums">{retenue !== null ? fmt(retenue) : ""}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-4 flex justify-between border-t-2 border-black pt-2 text-base font-bold tabular-nums">
+        <span>Net à payer</span>
+        <span>{fmt(b.net)} FCFA</span>
+      </p>
+      <section className="mt-6 text-[9pt] text-black/70">
+        <p className="font-semibold uppercase">Charges patronales</p>
+        <p className="tabular-nums">
+          CNPS retraite {fmt(b.cnpsPatronal)} · Prestations familiales {fmt(b.prestationsFamiliales)} · Accident du travail {fmt(b.accidentTravail)} · Coût total employeur {fmt(b.coutTotal)} FCFA
+        </p>
+        {b.payeLe && <p className="mt-2">Payé le {new Date(`${String(b.payeLe).slice(0, 10)}T00:00:00Z`).toLocaleDateString("fr-FR", { timeZone: "UTC" })}.</p>}
+        <p className="mt-6">Dans votre intérêt et pour vous aider à faire valoir vos droits, conservez ce bulletin sans limitation de durée.</p>
+      </section>
+      {/* Le pied de page descend au bas de la feuille, comme sur un bulletin imprimé. */}
+      <div className="mt-auto">
+        <PiedDocument identite={identite} />
+      </div>
+    </article>
+  );
+}
