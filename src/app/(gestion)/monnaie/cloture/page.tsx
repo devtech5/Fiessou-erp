@@ -10,7 +10,7 @@ import { guichetOuvert, historiqueSessions, type SessionVue } from "@/modules/mo
 
 import { Rapprochement } from "./rapprochement";
 
-export const metadata: Metadata = { title: "Clôture du guichet" };
+export const metadata: Metadata = { title: "Clôture du point de vente" };
 
 const MOMENT = new Intl.DateTimeFormat("fr-FR", {
   day: "2-digit",
@@ -71,7 +71,7 @@ function DerniereCloture({ session }: { session: SessionVue }) {
         </div>
       </dl>
       <p className="mt-3 text-xs text-[var(--encre-faible)]">
-        Le guichet est fermé. La prochaine ouverture reprend ces montants comme base.{" "}
+        Le point de vente est fermé. La prochaine ouverture reprend ces montants comme base.{" "}
         <Link href="/monnaie" className="font-semibold text-marque-600 hover:underline">
           Ouvrir une nouvelle session
         </Link>
@@ -95,7 +95,7 @@ export default async function PageCloture() {
   return (
     <>
       <EnTetePage
-        titre="Clôture du guichet"
+        titre="Clôture du point de vente"
         sousTitre={guichet ? `Rapprochement de la session ${guichet.session.numero}` : "Rapprochement des espèces et du float"}
       />
 
@@ -116,7 +116,7 @@ export default async function PageCloture() {
         // confirmation disparaît avec la session qu'il a fermée.
         <DerniereCloture session={historique[0]} />
       ) : (
-        <EtatVide titre="Aucune session ouverte" message="La clôture rapproche la session en cours. Ouvrez le guichet pour commencer." />
+        <EtatVide titre="Aucune session ouverte" message="La clôture rapproche la session en cours. Ouvrez le point de vente pour commencer." />
       )}
 
       {historique.length > 0 && (

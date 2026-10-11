@@ -73,7 +73,7 @@ export function OuvertureGuichet({
       }}
       className="max-w-2xl rounded-xl border border-[var(--filet)] bg-[var(--surface)] p-4"
     >
-      <h2 className="text-base font-semibold">Ouvrir le guichet</h2>
+      <h2 className="text-base font-semibold">Ouvrir le point de vente</h2>
       <p className="mt-0.5 text-sm text-[var(--encre-douce)]">
         Comptez le tiroir et relevez le solde de chaque réseau dans l&apos;application de l&apos;opérateur.
         {proposition && " Les chiffres de la dernière clôture sont proposés."}
@@ -126,7 +126,7 @@ export function OuvertureGuichet({
         disabled={!autorise || op.enCours || fond.trim() === ""}
         className="sans-selection mt-4 h-touche w-full rounded-xl bg-marque-600 text-base font-bold text-white hover:bg-marque-700 disabled:opacity-40"
       >
-        {autorise ? "Ouvrir la session" : "Votre rôle ne permet pas de tenir le guichet"}
+        {autorise ? "Ouvrir la session" : "Votre rôle ne permet pas de tenir le point de vente"}
       </button>
       {op.resultat && <Retour resultat={op.resultat} />}
     </form>

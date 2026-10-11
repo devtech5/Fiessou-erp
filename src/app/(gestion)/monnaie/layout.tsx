@@ -6,7 +6,7 @@ import { lienRapports } from "@/lib/rapports/registre";
 import { moduleOuvert } from "@/lib/modules/garde";
 
 const SECTIONS = [
-  { href: "/monnaie", libelle: "Guichet" },
+  { href: "/monnaie", libelle: "Point de vente" },
   { href: "/monnaie/operations", libelle: "Opérations" },
   { href: "/monnaie/cloture", libelle: "Clôture" },
 ];

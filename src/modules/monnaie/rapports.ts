@@ -14,7 +14,7 @@ export const RAPPORTS_MONNAIE: DefinitionRapport[] = [
   {
     cle: "guichet-par-reseau",
     module: "valeur_electronique",
-    rubrique: "Guichet mobile money",
+    rubrique: "Point de vente mobile money",
     titre: "Opérations et commissions par réseau",
     description: "Wave, Orange Money, MTN, Moov : dépôts, retraits, crédit vendu et commissions gagnées sur la période.",
     droit: "valeur_electronique.consulter",
@@ -63,9 +63,9 @@ export const RAPPORTS_MONNAIE: DefinitionRapport[] = [
   {
     cle: "guichet-sessions",
     module: "valeur_electronique",
-    rubrique: "Guichet mobile money",
-    titre: "Sessions de guichet",
-    description: "Chaque ouverture de guichet : fond de caisse, opérations, commissions, espèces comptées à la clôture et écart.",
+    rubrique: "Point de vente mobile money",
+    titre: "Sessions du point de vente",
+    description: "Chaque ouverture du point de vente : fond de caisse, opérations, commissions, espèces comptées à la clôture et écart.",
     droit: "valeur_electronique.consulter",
     periode: "intervalle",
     async executer(organizationId, { du, au }) {
@@ -110,7 +110,7 @@ export const RAPPORTS_MONNAIE: DefinitionRapport[] = [
           comptees: l.comptees === null ? null : Number(l.comptees),
           ecart: l.ecart === null ? null : Number(l.ecart),
         })),
-        note: "Un écart négatif est un manquant en caisse ; le total des écarts mesure la fiabilité du guichet sur la période.",
+        note: "Un écart négatif est un manquant en caisse ; le total des écarts mesure la fiabilité du point de vente sur la période.",
       };
     },
   },

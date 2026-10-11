@@ -71,7 +71,7 @@ export default async function PageTresorerie() {
       {comptes.length === 0 ? (
         <EtatVide
           titre="Aucun compte de trésorerie"
-          message="Déclarez vos caisses, vos banques et vos portefeuilles mobile money — ou reprenez d'un geste ceux que la comptabilité mouvemente déjà (caisse du comptoir, banque des factures, float du guichet)."
+          message="Déclarez vos caisses, vos banques et vos portefeuilles mobile money — ou reprenez d'un geste ceux que la comptabilité mouvemente déjà (caisse du comptoir, banque des factures, float du point de vente)."
           actions={gerer ? <ReprendreComptes /> : undefined}
         />
       ) : (

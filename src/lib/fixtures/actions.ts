@@ -92,7 +92,7 @@ export async function installerDemonstration(): Promise<EtatInstallation> {
       return {
         message:
           `${resultat.departs} départs, ${resultat.billets} billets et ` +
-          `${resultat.operationsGuichet} opérations de guichet ajoutés.`,
+          `${resultat.operationsGuichet} opérations du point de vente ajoutés.`,
       };
     }
 

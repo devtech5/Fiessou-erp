@@ -46,7 +46,7 @@ export default async function PageOperations() {
     return (
       <>
         <EnTetePage titre="Opérations" sousTitre="Journal de la session" />
-        <EtatVide titre="Guichet fermé" message="Ouvrez une session dans l'onglet Guichet pour enregistrer des opérations." />
+        <EtatVide titre="Point de vente fermé" message="Ouvrez une session dans l'onglet Point de vente pour enregistrer des opérations." />
       </>
     );
   }
@@ -73,7 +73,7 @@ export default async function PageOperations() {
           valeur={fmt(guichet.soldes.commissions)}
           unite="FCFA"
           ton="valide"
-          precision="Recette du guichet, due par les opérateurs"
+          precision="Recette du point de vente, due par les opérateurs"
         />
       </section>
 

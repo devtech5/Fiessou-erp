@@ -9,7 +9,7 @@ import { guichetOuvert, soldesDerniereCloture } from "@/modules/monnaie/requetes
 
 import { BandeauFloat, Guichet, OuvertureGuichet } from "./guichet";
 
-export const metadata: Metadata = { title: "Guichet" };
+export const metadata: Metadata = { title: "Point de vente" };
 
 const HEURE = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -31,8 +31,8 @@ export default async function PageGuichet() {
     return (
       <>
         <EnTetePage
-          titre="Guichet"
-          sousTitre="Transfert d'argent et vente de crédit — guichet fermé"
+          titre="Point de vente"
+          sousTitre="Transfert d'argent et vente de crédit — point de vente fermé"
           actions={proposition ? undefined : <BoutonDemonstration libelle="Installer le jeu de démonstration" />}
         />
         <OuvertureGuichet proposition={proposition} autorise={saisir} />
@@ -43,7 +43,7 @@ export default async function PageGuichet() {
   return (
     <>
       <EnTetePage
-        titre="Guichet"
+        titre="Point de vente"
         sousTitre={`Session ${guichet.session.numero} ouverte le ${HEURE.format(guichet.session.ouverteLe)} · ${
           guichet.operations.filter((o) => !o.annulee).length
         } opérations`}

@@ -370,7 +370,7 @@ export function alertes(
       id: "float-bas",
       gravite: "critique",
       source: "base",
-      module: "Guichet",
+      module: "Point de vente",
       titre: "Float insuffisant",
       detail: floatsBas.join(", "),
       href: "/monnaie",

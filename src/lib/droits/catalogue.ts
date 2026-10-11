@@ -774,13 +774,13 @@ export const DROITS = [
   {
     cle: "valeur_electronique.consulter",
     moduleKey: "valeur_electronique",
-    libelle: "Consulter le guichet",
+    libelle: "Consulter le point de vente",
     description: "Voir les floats, le journal des opérations et les clôtures.",
   },
   {
     cle: "valeur_electronique.operation.saisir",
     moduleKey: "valeur_electronique",
-    libelle: "Tenir le guichet",
+    libelle: "Tenir le point de vente",
     description: "Ouvrir la session, enregistrer dépôts, retraits, ventes de crédit et approvisionnements.",
   },
   {
@@ -792,7 +792,7 @@ export const DROITS = [
   {
     cle: "valeur_electronique.session.cloturer",
     moduleKey: "valeur_electronique",
-    libelle: "Clôturer le guichet",
+    libelle: "Clôturer le point de vente",
     description: "Compter le tiroir, relever les soldes opérateur et passer l'écriture de la journée.",
   },
 

@@ -234,8 +234,8 @@ const LIBELLES: Record<string, string> = {
 
   "guichet.ouvrir": "a ouvert le guichet",
   "guichet.operation": "a enregistré une opération de guichet",
-  "guichet.annuler_operation": "a annulé une opération de guichet",
-  "guichet.cloturer": "a clôturé le guichet",
+  "guichet.annuler_operation": "a annulé une opération du point de vente",
+  "guichet.cloturer": "a clôturé le point de vente",
 
   "projet.creer": "a créé un projet",
   "projet.modifier": "a modifié un projet",
@@ -484,7 +484,7 @@ const MODULES: Record<string, string> = {
   ligne: "Billetterie",
   depart: "Billetterie",
   billet: "Billetterie",
-  guichet: "Guichet",
+  guichet: "Point de vente",
   projet: "Projets",
   depense: "Projets",
   charge: "Trésorerie",

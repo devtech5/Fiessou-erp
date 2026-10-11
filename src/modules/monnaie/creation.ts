@@ -64,7 +64,7 @@ export async function ouvrirSessionDans(
     .select({ numero: sessionsGuichet.numero })
     .from(sessionsGuichet)
     .where(and(eq(sessionsGuichet.organizationId, organizationId), eq(sessionsGuichet.statut, "ouverte")));
-  if (deja) throw new Error(`Le guichet est déjà ouvert (${deja.numero}).`);
+  if (deja) throw new Error(`Le point de vente est déjà ouvert (${deja.numero}).`);
 
   const ouverteLe = ouverture.ouverteLe ?? new Date();
   const annee = jourIso(ouverteLe).slice(0, 4);
@@ -195,7 +195,7 @@ async function sessionCourante(
     .from(sessionsGuichet)
     .where(and(eq(sessionsGuichet.organizationId, organizationId), eq(sessionsGuichet.statut, "ouverte")))
     .for("update");
-  if (!session) throw new Error("Le guichet est fermé : ouvrez une session d'abord.");
+  if (!session) throw new Error("Le point de vente est fermé : ouvrez une session d'abord.");
 
   const floats = await tx
     .select({ reseau: floatsSession.reseau, ouverture: floatsSession.ouverture })

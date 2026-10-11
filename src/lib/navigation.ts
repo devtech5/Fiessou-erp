@@ -69,7 +69,7 @@ export const GROUPES_MODULES: GroupeModules[] = [
     modules: [
       { href: "/comptabilite", racine: "/comptabilite", icone: "comptabilite", libelle: "Comptabilité", description: "Écritures SYSCOHADA, balance et déclarations.", droit: "comptabilite.ecriture.consulter" },
       { href: "/tresorerie", racine: "/tresorerie", icone: "tresorerie", libelle: "Trésorerie", description: "Caisses, banques, bons et plan de trésorerie.", droit: "tresorerie.bon.demander" },
-      { href: "/monnaie", racine: "/monnaie", icone: "guichet", libelle: "Guichet", description: "Mobile money : floats, opérations et commissions.", droit: "valeur_electronique.consulter" },
+      { href: "/monnaie", racine: "/monnaie", icone: "guichet", libelle: "Point de vente", description: "Mobile money : floats, opérations et commissions.", droit: "valeur_electronique.consulter" },
     ],
   },
   {

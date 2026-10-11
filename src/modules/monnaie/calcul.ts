@@ -225,7 +225,7 @@ export function ecritureClotureGuichet(cloture: {
     journal: "CA",
     date: cloture.date,
     piece: cloture.numero,
-    libelle: `Clôture du guichet ${cloture.numero}`,
+    libelle: `Clôture du point de vente ${cloture.numero}`,
     lignes,
   };
   if (!estEquilibree(ecriture)) throw new Error(`Écriture déséquilibrée sur ${cloture.numero}.`);
@@ -337,7 +337,7 @@ export function ecritureApportOuverture(ouverture: {
     journal: "CA",
     date: ouverture.date,
     piece: `${ouverture.numero}-O`,
-    libelle: `${total >= 0 ? "Apport" : "Prélèvement"} de l'exploitant — ouverture du guichet ${ouverture.numero}`,
+    libelle: `${total >= 0 ? "Apport" : "Prélèvement"} de l'exploitant — ouverture du point de vente ${ouverture.numero}`,
     lignes,
   };
   if (!estEquilibree(ecriture)) throw new Error(`Écriture déséquilibrée sur ${ouverture.numero}.`);

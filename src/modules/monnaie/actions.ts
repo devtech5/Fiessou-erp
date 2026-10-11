@@ -33,10 +33,10 @@ async function operer(
     }
     return resultat;
   } catch (erreur) {
-    if (estDoublon(erreur)) return { ok: false, message: "Le guichet est déjà ouvert." };
+    if (estDoublon(erreur)) return { ok: false, message: "Le point de vente est déjà ouvert." };
     const message = erreur instanceof Error ? erreur.message : "";
     const lisible = message && !message.startsWith("Failed query") && message.length < 200;
-    if (!lisible) console.error("Guichet : opération refusée", erreur);
+    if (!lisible) console.error("Point de vente : opération refusée", erreur);
     return { ok: false, message: lisible ? message : "L'opération n'a pas abouti. Réessayez." };
   }
 }
@@ -54,7 +54,7 @@ export async function ouvrirGuichet(ouverture: unknown): Promise<Resultat> {
     const analyse = schemaOuverture.safeParse(ouverture);
     if (!analyse.success) return { ok: false, message: "Montants d'ouverture invalides." };
     const { numero } = await db.transaction((tx) => ouvrirSessionDans(tx, organizationId, analyse.data, userId));
-    return { ok: true, message: `Guichet ouvert (${numero}).` };
+    return { ok: true, message: `Point de vente ouvert (${numero}).` };
   });
 }
 
