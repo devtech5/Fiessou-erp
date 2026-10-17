@@ -144,6 +144,11 @@ vers un fichier et lire `$?`.
 commit. Sans cela le hook ne bloquait rien, puisque ESLint sort en code 0 tant
 qu'il n'y a que des avertissements. L'arbre est à zéro aujourd'hui, il y reste.
 
+`typecheck` commence par `next typegen` : `PageProps` et `LayoutProps` sont
+des types globaux que Next génère dans `.next/types`, ignoré par git. Sans
+cette étape, `tsc` passe sur un poste où `next dev` a tourné et échoue sur un
+clone neuf — la CI est restée rouge une semaine ainsi.
+
 C'est automatisé, pas laissé à la discipline. Le hook `.githooks/pre-commit`
 lance les trois ; `pnpm install` configure `core.hooksPath` tout seul via le
 script `prepare`. En cas d'urgence, `git commit --no-verify` passe outre.
