@@ -118,7 +118,7 @@ et les cartes professionnelles personnalisées des employés.
 src/
   app/                 routes Next
   db/
-    index.ts           connexion, pool mis en cache en développement
+    index.ts           connexion, un seul pool par processus (dev et prod)
     schema/            socle transverse uniquement
   lib/                 money, ids — utilitaires sans dépendance métier
   modules/

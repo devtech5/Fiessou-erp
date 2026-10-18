@@ -7,9 +7,19 @@ import * as schema from "./schema";
 type Database = ReturnType<typeof drizzle<typeof schema>>;
 
 /**
- * En développement, Next recharge les modules à chaque modification. Sans ce
- * cache, chaque rechargement ouvrirait un pool supplémentaire et finirait par
- * saturer les connexions de PostgreSQL.
+ * Un seul pool par processus, développement ET production.
+ *
+ * `db` est un Proxy : chaque accès (`db.select`, `db.transaction`…) repasse
+ * par `resolveDb()`. Sans ce cache, chaque accès ouvrait un pool neuf, donc
+ * ses propres connexions, gardées vingt secondes. Une page qui fait cinquante
+ * requêtes en ouvrait cinquante ; quelques utilisateurs suffisaient à
+ * atteindre `max_connections` (« too many clients already »), et toute page
+ * tombait sur « Fiessou n'a pas pu démarrer ». Le cache n'était posé qu'en
+ * développement : c'est en production que la panne est arrivée.
+ *
+ * `globalThis` plutôt qu'une variable du module : Next recharge les modules
+ * en développement, et peut en charger plusieurs copies dans des morceaux
+ * distincts du serveur en production.
  */
 const globalForDb = globalThis as unknown as {
   fiessouConnection?: ReturnType<typeof postgres>;
@@ -74,10 +84,8 @@ function resolveDb(): Database {
 
   const instance = drizzle(connection, { schema });
 
-  if (env.NODE_ENV !== "production") {
-    globalForDb.fiessouConnection = connection;
-    globalForDb.fiessouDb = instance;
-  }
+  globalForDb.fiessouConnection = connection;
+  globalForDb.fiessouDb = instance;
 
   return instance;
 }
