@@ -35,9 +35,9 @@ async function nouvelleSession(derniereActivite = new Date()) {
 const etat = async (id: string) => (await db.select().from(sessions).where(eq(sessions.id, id)))[0];
 
 describe("verrou de session en base", () => {
-  it("le délai par défaut est de dix minutes, et la base refuse un délai absurde", async () => {
+  it("le délai par défaut est de trente minutes, et la base refuse un délai absurde", async () => {
     const [o] = await db.select({ d: organizations.delaiVerrouillageMinutes }).from(organizations).where(eq(organizations.id, org));
-    expect(o.d).toBe(10);
+    expect(o.d).toBe(30);
     await expect(db.update(organizations).set({ delaiVerrouillageMinutes: 0 }).where(eq(organizations.id, org))).rejects.toThrow();
   });
 

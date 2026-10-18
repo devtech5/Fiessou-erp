@@ -88,7 +88,7 @@ export const organizations = pgTable(
      * Minutes sans activité avant que l'écran se verrouille. La caisse en est
      * exemptée : elle reste ouverte entre deux clients.
      */
-    delaiVerrouillageMinutes: integer("delai_verrouillage_minutes").notNull().default(10),
+    delaiVerrouillageMinutes: integer("delai_verrouillage_minutes").notNull().default(30),
 
     ...timestamps,
     ...rowVersion,

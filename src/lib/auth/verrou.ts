@@ -19,7 +19,7 @@
  */
 
 /** Délai proposé à la création de l'entreprise, en minutes. */
-export const DELAI_VERROUILLAGE_DEFAUT = 10;
+export const DELAI_VERROUILLAGE_DEFAUT = 30;
 
 /** Délais que l'entreprise peut choisir, en minutes. */
 export const DELAIS_VERROUILLAGE = [5, 10, 15, 30, 60] as const;

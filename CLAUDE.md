@@ -258,7 +258,7 @@ doit donc passer par `refusDroit`/`peut`, sinon elle échappe à la coupure.
 ## Verrouillage après inactivité
 
 Sans souris, clavier ni toucher pendant `organizations.delai_verrouillage_minutes`
-(10 par défaut, réglable sur `/entreprise`), l'écran se voile et ne s'ouvre
+(30 par défaut, réglable sur `/entreprise`), l'écran se voile et ne s'ouvre
 qu'avec le mot de passe ; la page reste montée, la saisie est conservée.
 `exigerSession` refuse toute page et toute action à une session verrouillée
 (`sessions.verrouillee_le`, ou `last_seen_at` plus vieux que délai + marge) :
